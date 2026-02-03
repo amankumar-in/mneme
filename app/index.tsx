@@ -1,14 +1,24 @@
 import { useState, useCallback } from 'react'
-import { FlatList, Alert } from 'react-native'
-import { YStack, Separator } from 'tamagui'
+import { FlatList, Alert, ActivityIndicator } from 'react-native'
+import { YStack, XStack, Text, Separator, Button } from 'tamagui'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Ionicons } from '@expo/vector-icons'
 
 import { Header } from '../components/Header'
 import { SearchBar } from '../components/SearchBar'
 import { FilterChips } from '../components/FilterChips'
 import { NoteListItem } from '../components/NoteListItem'
 import { FAB } from '../components/FAB'
+import {
+  useChats,
+  useCreateChat,
+  useUpdateChat,
+  useDeleteChat,
+} from '../hooks/useChats'
+import { useExportChat } from '../hooks/useExportChat'
+import { useShortcuts } from '../hooks/useShortcuts'
+import { useThemeColor } from '../hooks/useThemeColor'
 import type { Chat, ChatFilter } from '../types'
 
 const FILTER_OPTIONS = [
@@ -16,97 +26,31 @@ const FILTER_OPTIONS = [
   { key: 'tasks', label: 'Tasks' },
 ]
 
-const MOCK_CHATS: Chat[] = [
-  {
-    _id: '1',
-    name: 'Ideas',
-    icon: '💡',
-    ownerId: 'user1',
-    participants: [],
-    isShared: false,
-    isPinned: true,
-    lastMessage: {
-      content: 'Build a note-taking app with chat UI',
-      type: 'text',
-      timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: '2',
-    name: 'Shopping List',
-    icon: '🛒',
-    ownerId: 'user1',
-    participants: [],
-    isShared: false,
-    isPinned: false,
-    lastMessage: {
-      content: 'Milk, eggs, bread, coffee',
-      type: 'text',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: '3',
-    name: 'Work Notes',
-    ownerId: 'user1',
-    participants: [],
-    isShared: false,
-    isPinned: false,
-    lastMessage: {
-      content: 'Meeting at 3pm tomorrow',
-      type: 'text',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: '4',
-    name: 'Travel Plans',
-    icon: '✈️',
-    ownerId: 'user1',
-    participants: [],
-    isShared: false,
-    isPinned: false,
-    lastMessage: {
-      type: 'image',
-      content: '',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-    },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-]
-
 export default function HomeScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { iconColor } = useThemeColor()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<ChatFilter>('all')
-  const [chats] = useState<Chat[]>(MOCK_CHATS)
 
-  const filteredChats = chats
-    .filter((chat) => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        return (
-          chat.name.toLowerCase().includes(query) ||
-          chat.lastMessage?.content?.toLowerCase().includes(query)
-        )
-      }
-      return true
-    })
-    .sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1
-      if (!a.isPinned && b.isPinned) return 1
-      const aTime = a.lastMessage?.timestamp || a.updatedAt
-      const bTime = b.lastMessage?.timestamp || b.updatedAt
-      return new Date(bTime).getTime() - new Date(aTime).getTime()
-    })
+  // API hooks
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+  } = useChats({
+    search: searchQuery || undefined,
+    filter: selectedFilter === 'all' ? undefined : selectedFilter,
+  })
+
+  const createChat = useCreateChat()
+  const updateChat = useUpdateChat()
+  const deleteChat = useDeleteChat()
+  const { exportChat, isExporting } = useExportChat()
+  const { addShortcut } = useShortcuts()
+
+  const chats = data?.chats ?? []
 
   const handleChatPress = useCallback(
     (chat: Chat) => {
@@ -115,51 +59,73 @@ export default function HomeScreen() {
     [router]
   )
 
-  const handleChatLongPress = useCallback((chat: Chat) => {
-    Alert.alert(chat.name, 'Choose an action', [
-      {
-        text: chat.isPinned ? 'Unpin' : 'Pin',
-        onPress: () => console.log('Pin/Unpin:', chat._id),
-      },
-      {
-        text: 'Export',
-        onPress: () => console.log('Export:', chat._id),
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          Alert.alert(
-            'Delete Chat',
-            'Are you sure? Locked messages will be preserved.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Delete',
-                style: 'destructive',
-                onPress: () => console.log('Delete:', chat._id),
-              },
-            ]
-          )
+  const handleChatLongPress = useCallback(
+    (chat: Chat) => {
+      Alert.alert(chat.name, 'Choose an action', [
+        {
+          text: chat.isPinned ? 'Unpin' : 'Pin',
+          onPress: () => {
+            updateChat.mutate({
+              id: chat._id,
+              data: { isPinned: !chat.isPinned },
+            })
+          },
         },
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ])
-  }, [])
+        {
+          text: 'Export',
+          onPress: async () => {
+            try {
+              await exportChat(chat._id, chat.name)
+            } catch {
+              Alert.alert('Export Failed', 'Could not export the chat.')
+            }
+          },
+        },
+        {
+          text: 'Add Shortcut',
+          onPress: async () => {
+            const success = await addShortcut(chat)
+            if (success) {
+              Alert.alert('Shortcut Added', `${chat.name} added to shortcuts.`)
+            } else {
+              Alert.alert('Failed', 'Could not add shortcut.')
+            }
+          },
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Delete Chat',
+              'Are you sure? Locked messages will be preserved.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: () => {
+                    deleteChat.mutate(chat._id)
+                  },
+                },
+              ]
+            )
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ])
+    },
+    [updateChat, deleteChat, exportChat, addShortcut]
+  )
 
-  const handleCreateChat = useCallback(() => {
-    Alert.prompt('New Note', 'Enter a name for your note', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Create',
-        onPress: (name: string | undefined) => {
-          if (name?.trim()) {
-            console.log('Create chat:', name)
-          }
-        },
-      },
-    ])
-  }, [])
+  const handleCreateChat = useCallback(async () => {
+    try {
+      const chat = await createChat.mutateAsync({ name: 'New Thread' })
+      router.push(`/chat/${chat._id}?new=1`)
+    } catch {
+      Alert.alert('Error', 'Could not create the note.')
+    }
+  }, [createChat, router])
 
   const handleQRPress = useCallback(() => {
     router.push('/qr-scan')
@@ -169,6 +135,159 @@ export default function HomeScreen() {
     router.push('/settings')
   }, [router])
 
+  // Render content based on state
+  const renderContent = () => {
+    // Loading state
+    if (isLoading) {
+      return (
+        <YStack flex={1} justifyContent="center" alignItems="center">
+          <ActivityIndicator size="large" color={iconColor} />
+          <Text color="$colorSubtle" marginTop="$3">
+            Loading notes...
+          </Text>
+        </YStack>
+      )
+    }
+
+    // Error state
+    if (error) {
+      return (
+        <>
+          <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
+            <Ionicons name="cloud-offline-outline" size={64} color={iconColor} />
+            <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
+              Could not load notes
+            </Text>
+            <Text color="$colorSubtle" textAlign="center" marginTop="$2">
+              Check your connection and try again
+            </Text>
+            <Button
+              marginTop="$4"
+              backgroundColor="$brandBackground"
+              onPress={() => refetch()}
+            >
+              <Text color="$brandText">Try Again</Text>
+            </Button>
+          </YStack>
+          <FAB icon="add" onPress={handleCreateChat} />
+        </>
+      )
+    }
+
+    // Empty state
+    if (chats.length === 0 && !searchQuery) {
+      return (
+        <>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search notes..."
+          />
+          <FilterChips
+            options={FILTER_OPTIONS}
+            selected={selectedFilter}
+            onSelect={(key) => setSelectedFilter(key as ChatFilter)}
+          />
+          <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
+            <Ionicons name="document-text-outline" size={64} color={iconColor} />
+            <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
+              No notes yet
+            </Text>
+            <Text color="$colorSubtle" textAlign="center" marginTop="$2">
+              Tap the + button to create your first note
+            </Text>
+          </YStack>
+          <FAB icon="add" onPress={handleCreateChat} />
+        </>
+      )
+    }
+
+    // No search results
+    if (chats.length === 0 && searchQuery) {
+      return (
+        <>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search notes..."
+          />
+          <FilterChips
+            options={FILTER_OPTIONS}
+            selected={selectedFilter}
+            onSelect={(key) => setSelectedFilter(key as ChatFilter)}
+          />
+          <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
+            <Ionicons name="search-outline" size={64} color={iconColor} />
+            <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
+              No results
+            </Text>
+            <Text color="$colorSubtle" textAlign="center" marginTop="$2">
+              No notes match "{searchQuery}"
+            </Text>
+          </YStack>
+          <FAB icon="add" onPress={handleCreateChat} />
+        </>
+      )
+    }
+
+    // Normal state with chats
+    return (
+      <>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search notes..."
+        />
+
+        <FilterChips
+          options={FILTER_OPTIONS}
+          selected={selectedFilter}
+          onSelect={(key) => setSelectedFilter(key as ChatFilter)}
+        />
+
+        <FlatList
+          data={chats}
+          keyExtractor={(item) => item._id}
+          renderItem={({ item }) => (
+            <NoteListItem
+              chat={item}
+              onPress={() => handleChatPress(item)}
+              onLongPress={() => handleChatLongPress(item)}
+            />
+          )}
+          ItemSeparatorComponent={() => <Separator marginLeft={76} />}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          refreshing={isLoading}
+          onRefresh={refetch}
+        />
+
+        <FAB icon="add" onPress={handleCreateChat} disabled={createChat.isPending} />
+
+        {isExporting && (
+          <XStack
+            position="absolute"
+            bottom={insets.bottom + 100}
+            left={0}
+            right={0}
+            justifyContent="center"
+          >
+            <XStack
+              backgroundColor="$backgroundStrong"
+              paddingHorizontal="$4"
+              paddingVertical="$2"
+              borderRadius="$4"
+              alignItems="center"
+              gap="$2"
+            >
+              <ActivityIndicator size="small" color={iconColor} />
+              <Text color="$color">Exporting...</Text>
+            </XStack>
+          </XStack>
+        )}
+      </>
+    )
+  }
+
   return (
     <YStack flex={1} backgroundColor="$background">
       <Header
@@ -177,33 +296,7 @@ export default function HomeScreen() {
         rightIcon={{ name: 'settings-outline', onPress: handleSettingsPress }}
       />
 
-      <SearchBar
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search notes..."
-      />
-
-      <FilterChips
-        options={FILTER_OPTIONS}
-        selected={selectedFilter}
-        onSelect={(key) => setSelectedFilter(key as ChatFilter)}
-      />
-
-      <FlatList
-        data={filteredChats}
-        keyExtractor={(item) => item._id}
-        renderItem={({ item }) => (
-          <NoteListItem
-            chat={item}
-            onPress={() => handleChatPress(item)}
-            onLongPress={() => handleChatLongPress(item)}
-          />
-        )}
-        ItemSeparatorComponent={() => <Separator marginLeft={76} />}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-      />
-
-      <FAB icon="add" onPress={handleCreateChat} />
+      {renderContent()}
     </YStack>
   )
 }

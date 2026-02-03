@@ -92,9 +92,9 @@ export const tamaguiConfig = createTamagui({
       borderColorHover: '#cbd5e1',
       borderColorTinted: '#bfdbfe',
       // Brand
-      brandText: '#ffffff',
-      brandBackground: '#3b82f6',
-      brandBackgroundHover: '#2563eb',
+      brandText: '#334155',
+      brandBackground: '#dbeafe',
+      brandBackgroundHover: '#bfdbfe',
       // Icon colors
       iconColor: '#64748b',
       iconColorStrong: '#0f172a',
@@ -125,9 +125,9 @@ export const tamaguiConfig = createTamagui({
       borderColorHover: '#475569',
       borderColorTinted: '#1e3a8a',
       // Brand
-      brandText: '#ffffff',
-      brandBackground: '#3b82f6',
-      brandBackgroundHover: '#2563eb',
+      brandText: '#cbd5e1',
+      brandBackground: '#1e3a8a',
+      brandBackgroundHover: '#1e40af',
       // Icon colors
       iconColor: '#94a3b8',
       iconColorStrong: '#f8fafc',

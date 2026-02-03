@@ -2,7 +2,7 @@ import '../tamagui-web.css'
 
 import { useEffect } from 'react'
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useColorScheme } from 'react-native'
 import { TamaguiProvider } from 'tamagui'
@@ -10,6 +10,7 @@ import { PortalProvider } from '@tamagui/portal'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { KeyboardProvider } from 'react-native-keyboard-controller'
+import Shortcuts from '@rn-org/react-native-shortcuts'
 import {
   useFonts,
   Inter_400Regular,
@@ -34,6 +35,7 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const colorScheme = useColorScheme()
+  const router = useRouter()
 
   const [fontsLoaded] = useFonts({
     Inter: Inter_400Regular,
@@ -47,6 +49,25 @@ export default function RootLayout() {
   useEffect(() => {
     registerDevice().catch(console.error)
   }, [])
+
+  // Handle shortcut navigation
+  useEffect(() => {
+    // Handle shortcut that launched the app
+    Shortcuts.getInitialShortcutId().then((id) => {
+      if (id) {
+        router.push(`/chat/${id}`)
+      }
+    })
+
+    // Handle shortcuts while app is running
+    const subscription = Shortcuts.addOnShortcutUsedListener((id) => {
+      if (id) {
+        router.push(`/chat/${id}`)
+      }
+    })
+
+    return () => subscription?.remove()
+  }, [router])
 
   const theme = colorScheme || 'light'
 

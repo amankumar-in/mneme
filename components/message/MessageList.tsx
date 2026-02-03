@@ -1,11 +1,11 @@
-import { useCallback, useRef } from 'react'
-import { FlatList, ActivityIndicator } from 'react-native'
-import { YStack, Text } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
+import { useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { ActivityIndicator, FlatList } from 'react-native'
+import { Text, YStack } from 'tamagui'
 import { useThemeColor } from '../../hooks/useThemeColor'
-import { NoteBubble } from './NoteBubble'
-import { DateSeparator } from './DateSeparator'
 import type { Message } from '../../types'
+import { DateSeparator } from './DateSeparator'
+import { NoteBubble } from './NoteBubble'
 
 interface MessageListProps {
   messages: Message[]
@@ -13,7 +13,14 @@ interface MessageListProps {
   isLoading: boolean
   chatId: string
   onMessageLongPress: (message: Message) => void
+  onMessagePress?: (message: Message) => void
   onTaskToggle: (message: Message) => void
+  highlightedMessageId?: string
+  selectedMessageIds?: Set<string>
+}
+
+export interface MessageListRef {
+  scrollToMessage: (messageId: string) => void
 }
 
 type ListItem =
@@ -30,41 +37,72 @@ function isSameDay(date1: Date, date2: Date): boolean {
 
 function processMessages(messages: Message[]): ListItem[] {
   const items: ListItem[] = []
-  let lastDate: Date | null = null
 
+  // Sort newest first (for inverted list)
   const sortedMessages = [...messages].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
 
-  for (const message of sortedMessages) {
+  for (let i = 0; i < sortedMessages.length; i++) {
+    const message = sortedMessages[i]
     const messageDate = new Date(message.createdAt)
+    const nextMessage = sortedMessages[i + 1]
+    const nextDate = nextMessage ? new Date(nextMessage.createdAt) : null
 
-    if (!lastDate || !isSameDay(lastDate, messageDate)) {
+    // Add the message
+    items.push({ type: 'message', data: message })
+
+    // Add date separator after the last message of each day
+    // (appears above when list is inverted)
+    if (!nextDate || !isSameDay(messageDate, nextDate)) {
       items.push({
         type: 'date',
         date: messageDate,
         id: `date-${messageDate.toDateString()}`,
       })
-      lastDate = messageDate
     }
-
-    items.push({ type: 'message', data: message })
   }
 
   return items
 }
 
-export function MessageList({
+export const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   messages,
   onLoadMore,
   isLoading,
   chatId,
   onMessageLongPress,
+  onMessagePress,
   onTaskToggle,
-}: MessageListProps) {
+  highlightedMessageId,
+  selectedMessageIds,
+}, ref) => {
   const { iconColor } = useThemeColor()
   const flatListRef = useRef<FlatList>(null)
   const items = processMessages(messages)
+
+  const scrollToMessage = useCallback((messageId: string) => {
+    const index = items.findIndex(
+      item => item.type === 'message' && item.data._id === messageId
+    )
+    if (index !== -1 && flatListRef.current) {
+      flatListRef.current.scrollToIndex({
+        index,
+        animated: true,
+        viewPosition: 0.5,
+      })
+    }
+  }, [items])
+
+  useImperativeHandle(ref, () => ({
+    scrollToMessage,
+  }), [scrollToMessage])
+
+  useEffect(() => {
+    if (highlightedMessageId) {
+      scrollToMessage(highlightedMessageId)
+    }
+  }, [highlightedMessageId, scrollToMessage])
 
   const scrollToBottom = useCallback(() => {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
@@ -79,11 +117,14 @@ export function MessageList({
         <NoteBubble
           message={item.data}
           onLongPress={onMessageLongPress}
+          onPress={onMessagePress}
           onTaskToggle={onTaskToggle}
+          isHighlighted={item.data._id === highlightedMessageId}
+          isSelected={selectedMessageIds?.has(item.data._id)}
         />
       )
     },
-    [onMessageLongPress, onTaskToggle]
+    [onMessageLongPress, onMessagePress, onTaskToggle, highlightedMessageId, selectedMessageIds]
   )
 
   const keyExtractor = useCallback((item: ListItem) => {
@@ -105,19 +146,29 @@ export function MessageList({
     )
   }, [isLoading])
 
-  const renderEmpty = useCallback(() => {
+  if (items.length === 0) {
     return (
       <YStack flex={1} justifyContent="center" alignItems="center" padding="$8">
         <Ionicons name="chatbubble-outline" size={64} color={iconColor} />
         <Text fontSize="$5" color="$colorSubtle" marginTop="$4" textAlign="center">
-          No messages yet
+          It is a blank slate!
         </Text>
         <Text fontSize="$3" color="$colorMuted" marginTop="$2" textAlign="center">
           Start capturing your thoughts
         </Text>
       </YStack>
     )
-  }, [iconColor])
+  }
+
+  const onScrollToIndexFailed = useCallback((info: { index: number }) => {
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({
+        index: info.index,
+        animated: true,
+        viewPosition: 0.5,
+      })
+    }, 100)
+  }, [])
 
   return (
     <YStack flex={1}>
@@ -130,10 +181,10 @@ export function MessageList({
         onEndReached={handleEndReached}
         onEndReachedThreshold={0.5}
         ListFooterComponent={renderFooter}
-        ListEmptyComponent={renderEmpty}
-        contentContainerStyle={{ flexGrow: 1, paddingVertical: 8 }}
+        contentContainerStyle={{ paddingVertical: 8 }}
         showsVerticalScrollIndicator={false}
+        onScrollToIndexFailed={onScrollToIndexFailed}
       />
     </YStack>
   )
-}
+})

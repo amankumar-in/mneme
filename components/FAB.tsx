@@ -6,9 +6,10 @@ import { useThemeColor } from '../hooks/useThemeColor'
 interface FABProps {
   icon?: keyof typeof Ionicons.glyphMap
   onPress: () => void
+  disabled?: boolean
 }
 
-export function FAB({ icon = 'add', onPress }: FABProps) {
+export function FAB({ icon = 'add', onPress, disabled }: FABProps) {
   const { brandText } = useThemeColor()
   const insets = useSafeAreaInsets()
 
@@ -23,6 +24,8 @@ export function FAB({ icon = 'add', onPress }: FABProps) {
       pressStyle={{ backgroundColor: '$brandBackgroundHover', scale: 0.95 }}
       elevation={4}
       onPress={onPress}
+      disabled={disabled}
+      opacity={disabled ? 0.5 : 1}
       icon={<Ionicons name={icon} size={28} color={brandText} />}
     />
   )

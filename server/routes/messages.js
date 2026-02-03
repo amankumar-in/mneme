@@ -98,10 +98,10 @@ router.post('/:chatId/messages', authenticate, validateChatAccess, asyncHandler(
 }));
 
 /**
- * GET /api/messages/:id
+ * GET /api/chats/:chatId/messages/:id
  * Get a specific message
  */
-router.get('/messages/:id', authenticate, asyncHandler(async (req, res) => {
+router.get('/:chatId/messages/:id', authenticate, validateChatAccess, asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.id);
 
   if (!message) {
@@ -124,10 +124,10 @@ router.get('/messages/:id', authenticate, asyncHandler(async (req, res) => {
 }));
 
 /**
- * PUT /api/messages/:id
+ * PUT /api/chats/:chatId/messages/:id
  * Edit a message
  */
-router.put('/messages/:id', authenticate, asyncHandler(async (req, res) => {
+router.put('/:chatId/messages/:id', authenticate, validateChatAccess, asyncHandler(async (req, res) => {
   const { content } = req.body;
 
   const message = await Message.findById(req.params.id);
@@ -163,10 +163,10 @@ router.put('/messages/:id', authenticate, asyncHandler(async (req, res) => {
 }));
 
 /**
- * DELETE /api/messages/:id
+ * DELETE /api/chats/:chatId/messages/:id
  * Delete a message
  */
-router.delete('/messages/:id', authenticate, asyncHandler(async (req, res) => {
+router.delete('/:chatId/messages/:id', authenticate, validateChatAccess, asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.id);
 
   if (!message) {
@@ -204,10 +204,10 @@ router.delete('/messages/:id', authenticate, asyncHandler(async (req, res) => {
 }));
 
 /**
- * PUT /api/messages/:id/lock
+ * PUT /api/chats/:chatId/messages/:id/lock
  * Toggle lock status of a message
  */
-router.put('/messages/:id/lock', authenticate, asyncHandler(async (req, res) => {
+router.put('/:chatId/messages/:id/lock', authenticate, validateChatAccess, asyncHandler(async (req, res) => {
   const { isLocked } = req.body;
 
   const message = await Message.findById(req.params.id);
@@ -238,10 +238,44 @@ router.put('/messages/:id/lock', authenticate, asyncHandler(async (req, res) => 
 }));
 
 /**
- * PUT /api/messages/:id/task
+ * PUT /api/chats/:chatId/messages/:id/star
+ * Toggle star status of a message
+ */
+router.put('/:chatId/messages/:id/star', authenticate, validateChatAccess, asyncHandler(async (req, res) => {
+  const { isStarred } = req.body;
+
+  const message = await Message.findById(req.params.id);
+
+  if (!message) {
+    return res.status(404).json({
+      error: 'Not Found',
+      message: 'Message not found',
+    });
+  }
+
+  const chat = await Chat.findById(message.chatId);
+
+  if (!chat?.hasAccess(req.user._id)) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'You do not have access to this message',
+    });
+  }
+
+  message.isStarred = isStarred !== undefined ? isStarred : !message.isStarred;
+  await message.save();
+
+  res.json({
+    message,
+    starred: message.isStarred,
+  });
+}));
+
+/**
+ * PUT /api/chats/:chatId/messages/:id/task
  * Convert message to task or update task
  */
-router.put('/messages/:id/task', authenticate, asyncHandler(async (req, res) => {
+router.put('/:chatId/messages/:id/task', authenticate, validateChatAccess, asyncHandler(async (req, res) => {
   const { isTask, reminderAt } = req.body;
 
   const message = await Message.findById(req.params.id);
@@ -278,10 +312,10 @@ router.put('/messages/:id/task', authenticate, asyncHandler(async (req, res) => 
 }));
 
 /**
- * PUT /api/messages/:id/task/complete
+ * PUT /api/chats/:chatId/messages/:id/task/complete
  * Mark task as complete
  */
-router.put('/messages/:id/task/complete', authenticate, asyncHandler(async (req, res) => {
+router.put('/:chatId/messages/:id/task/complete', authenticate, validateChatAccess, asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.id);
 
   if (!message) {

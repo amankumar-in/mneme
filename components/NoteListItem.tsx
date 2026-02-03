@@ -1,4 +1,5 @@
-import { XStack, YStack, Text, Avatar } from 'tamagui'
+import { XStack, YStack, Text } from 'tamagui'
+import { Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useThemeColor } from '../hooks/useThemeColor'
 import type { Chat } from '../types'
@@ -30,7 +31,7 @@ function formatRelativeTime(dateString: string): string {
 }
 
 function getMessagePreview(chat: Chat): string {
-  if (!chat.lastMessage) return 'No messages yet'
+  if (!chat.lastMessage) return 'It is a blank slate!'
 
   switch (chat.lastMessage.type) {
     case 'image':
@@ -71,15 +72,29 @@ export function NoteListItem({ chat, onPress, onLongPress }: NoteListItemProps) 
       onLongPress={onLongPress}
       cursor="pointer"
     >
-      <Avatar circular size="$5" backgroundColor="$backgroundTinted">
-        {chat.icon ? (
-          <Text fontSize="$5">{chat.icon}</Text>
-        ) : (
-          <Text color="$accentColor" fontWeight="600">
-            {getInitials(chat.name)}
-          </Text>
-        )}
-      </Avatar>
+      {chat.icon && (chat.icon.startsWith('file://') || chat.icon.startsWith('content://')) ? (
+        <Image
+          source={{ uri: chat.icon }}
+          style={{ width: 48, height: 48, borderRadius: 24 }}
+        />
+      ) : (
+        <XStack
+          width={48}
+          height={48}
+          borderRadius={24}
+          backgroundColor="$backgroundTinted"
+          alignItems="center"
+          justifyContent="center"
+        >
+          {chat.icon ? (
+            <Text fontSize="$5">{chat.icon}</Text>
+          ) : (
+            <Text color="$accentColor" fontWeight="600">
+              {getInitials(chat.name)}
+            </Text>
+          )}
+        </XStack>
+      )}
 
       <YStack flex={1} gap="$1">
         <XStack justifyContent="space-between" alignItems="center">
@@ -91,12 +106,12 @@ export function NoteListItem({ chat, onPress, onLongPress }: NoteListItemProps) 
           </Text>
         </XStack>
 
-        <XStack justifyContent="space-between" alignItems="center">
-          <Text fontSize="$3" color="$colorSubtle" numberOfLines={1} flex={1}>
+        <XStack alignItems="center" gap="$2">
+          <Text fontSize="$3" color="$colorSubtle" numberOfLines={1} flex={1} ellipsizeMode="tail">
             {getMessagePreview(chat)}
           </Text>
           {chat.isPinned && (
-            <Ionicons name="pin" size={14} color={warningColor} />
+            <Ionicons name="bookmark" size={14} color={warningColor} />
           )}
         </XStack>
       </YStack>

@@ -5,6 +5,7 @@ import {
   updateMessage,
   deleteMessage,
   lockMessage,
+  starMessage,
   setMessageTask,
   completeTask,
   MessagesResponse,
@@ -73,6 +74,18 @@ export function useLockMessage(chatId: string) {
   return useMutation({
     mutationFn: ({ messageId, isLocked }: { messageId: string; isLocked: boolean }) =>
       lockMessage(chatId, messageId, isLocked),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', chatId] })
+    },
+  })
+}
+
+export function useStarMessage(chatId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ messageId, isStarred }: { messageId: string; isStarred: boolean }) =>
+      starMessage(chatId, messageId, isStarred),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages', chatId] })
     },

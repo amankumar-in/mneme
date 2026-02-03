@@ -163,6 +163,18 @@ export async function lockMessage(
   return response.data.message
 }
 
+export async function starMessage(
+  chatId: string,
+  messageId: string,
+  isStarred: boolean
+): Promise<Message> {
+  const api = await getApi()
+  const response = await api.put(`/chats/${chatId}/messages/${messageId}/star`, {
+    isStarred,
+  })
+  return response.data.message
+}
+
 export async function setMessageTask(
   chatId: string,
   messageId: string,
@@ -268,11 +280,11 @@ export async function rejectShare(shareId: string): Promise<void> {
 export async function exportChat(
   chatId: string,
   format: 'txt' | 'json' = 'txt'
-): Promise<Blob> {
+): Promise<string> {
   const api = await getApi()
-  const response = await api.get(`/export/chat/${chatId}`, {
+  const response = await api.get(`/chats/${chatId}/export`, {
     params: { format },
-    responseType: 'blob',
+    responseType: 'text',
   })
   return response.data
 }

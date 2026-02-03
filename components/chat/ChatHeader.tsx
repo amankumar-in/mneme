@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { XStack, YStack, Text, Button, Popover } from 'tamagui'
+import { useState, useRef, useEffect } from 'react'
+import { XStack, YStack, Text, Button, Popover, Input } from 'tamagui'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { TextInput, Image } from 'react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import type { Chat } from '../../types'
 
@@ -13,6 +14,18 @@ interface ChatHeaderProps {
   onTasks: () => void
   onMenu: () => void
   taskCount?: number
+  isEditingName?: boolean
+  onNameChange?: (name: string) => void
+  onNameSubmit?: () => void
+  // Search mode props
+  isSearching?: boolean
+  searchQuery?: string
+  onSearchChange?: (query: string) => void
+  onSearchClose?: () => void
+  onSearchPrev?: () => void
+  onSearchNext?: () => void
+  searchResultIndex?: number
+  searchResultCount?: number
 }
 
 const menuOptions = [
@@ -31,10 +44,39 @@ export function ChatHeader({
   onTasks,
   onMenu,
   taskCount = 0,
+  isEditingName = false,
+  onNameChange,
+  onNameSubmit,
+  isSearching = false,
+  searchQuery = '',
+  onSearchChange,
+  onSearchClose,
+  onSearchPrev,
+  onSearchNext,
+  searchResultIndex = 0,
+  searchResultCount = 0,
 }: ChatHeaderProps) {
   const insets = useSafeAreaInsets()
-  const { iconColorStrong, brandText, iconColor } = useThemeColor()
+  const { iconColorStrong, brandText, iconColor, colorSubtle } = useThemeColor()
   const [menuOpen, setMenuOpen] = useState(false)
+  const inputRef = useRef<TextInput>(null)
+  const searchInputRef = useRef<TextInput>(null)
+
+  useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 100)
+    }
+  }, [isEditingName])
+
+  useEffect(() => {
+    if (isSearching && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 100)
+    }
+  }, [isSearching])
 
   const handleMenuSelect = (id: string) => {
     setMenuOpen(false)
@@ -42,16 +84,84 @@ export function ChatHeader({
     onMenu()
   }
 
+  if (isSearching) {
+    return (
+      <XStack
+        paddingTop={insets.top + 8}
+        paddingHorizontal="$4"
+        paddingBottom="$2"
+        backgroundColor="$background"
+        alignItems="center"
+        gap="$2"
+      >
+        <Button
+          size="$3"
+          circular
+          chromeless
+          onPress={onSearchClose}
+          icon={<Ionicons name="arrow-back" size={24} color={iconColorStrong} />}
+        />
+
+        <XStack
+          flex={1}
+          backgroundColor="$backgroundStrong"
+          borderRadius="$3"
+          paddingHorizontal="$3"
+          alignItems="center"
+          height={40}
+        >
+          <Ionicons name="search" size={18} color={iconColor} />
+          <TextInput
+            ref={searchInputRef}
+            value={searchQuery}
+            onChangeText={onSearchChange}
+            placeholder="Search in thread..."
+            placeholderTextColor={colorSubtle}
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              fontSize: 16,
+              color: iconColorStrong,
+            }}
+            returnKeyType="search"
+          />
+          {searchResultCount > 0 && (
+            <Text fontSize="$2" color="$colorSubtle" marginRight="$2">
+              {searchResultIndex + 1}/{searchResultCount}
+            </Text>
+          )}
+        </XStack>
+
+        <Button
+          size="$3"
+          circular
+          chromeless
+          onPress={onSearchPrev}
+          disabled={searchResultCount === 0}
+          opacity={searchResultCount === 0 ? 0.3 : 1}
+          icon={<Ionicons name="chevron-up" size={22} color={iconColorStrong} />}
+        />
+        <Button
+          size="$3"
+          circular
+          chromeless
+          onPress={onSearchNext}
+          disabled={searchResultCount === 0}
+          opacity={searchResultCount === 0 ? 0.3 : 1}
+          icon={<Ionicons name="chevron-down" size={22} color={iconColorStrong} />}
+        />
+      </XStack>
+    )
+  }
+
   return (
     <XStack
-      paddingTop={insets.top}
-      paddingHorizontal="$2"
+      paddingTop={insets.top + 8}
+      paddingHorizontal="$4"
       paddingBottom="$2"
       backgroundColor="$background"
       alignItems="center"
       gap="$2"
-      borderBottomWidth={1}
-      borderBottomColor="$borderColor"
     >
       <Button
         size="$3"
@@ -65,11 +175,18 @@ export function ChatHeader({
         flex={1}
         alignItems="center"
         gap="$2"
-        onPress={onChatPress}
-        pressStyle={{ opacity: 0.7 }}
+        onPress={isEditingName ? undefined : onChatPress}
+        pressStyle={isEditingName ? undefined : { opacity: 0.7 }}
       >
         {chat.icon ? (
-          <Text fontSize="$5">{chat.icon}</Text>
+          chat.icon.startsWith('file://') || chat.icon.startsWith('content://') ? (
+            <Image
+              source={{ uri: chat.icon }}
+              style={{ width: 36, height: 36, borderRadius: 18 }}
+            />
+          ) : (
+            <Text fontSize="$5">{chat.icon}</Text>
+          )
         ) : (
           <XStack
             width={36}
@@ -84,9 +201,27 @@ export function ChatHeader({
             </Text>
           </XStack>
         )}
-        <Text fontSize="$5" fontWeight="600" numberOfLines={1} flex={1} color="$color">
-          {chat.name}
-        </Text>
+        {isEditingName ? (
+          <Input
+            ref={inputRef as any}
+            flex={1}
+            fontSize="$5"
+            fontWeight="600"
+            color="$color"
+            backgroundColor="transparent"
+            borderWidth={0}
+            paddingHorizontal={0}
+            value={chat.name}
+            onChangeText={onNameChange}
+            onSubmitEditing={onNameSubmit}
+            selectTextOnFocus
+            returnKeyType="done"
+          />
+        ) : (
+          <Text fontSize="$5" fontWeight="600" numberOfLines={1} flex={1} color="$color">
+            {chat.name}
+          </Text>
+        )}
       </XStack>
 
       <Button

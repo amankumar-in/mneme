@@ -58,7 +58,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatRoutes);
-app.use('/api', messageRoutes); // Messages are at /api/chats/:chatId/messages and /api/messages/:id
+app.use('/api/chats', messageRoutes); // Messages are at /api/chats/:chatId/messages
 app.use('/api/tasks', taskRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/share', shareRoutes);

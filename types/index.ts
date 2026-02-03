@@ -40,6 +40,7 @@ export interface Message {
     address?: string
   }
   isLocked: boolean
+  isStarred: boolean
   isEdited: boolean
   isDeleted: boolean
   task: {

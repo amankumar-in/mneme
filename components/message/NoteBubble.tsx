@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { XStack, YStack, Text } from 'tamagui'
 import { Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
@@ -7,7 +8,10 @@ import type { Message } from '../../types'
 interface NoteBubbleProps {
   message: Message
   onLongPress: (message: Message) => void
+  onPress?: (message: Message) => void
   onTaskToggle?: (message: Message) => void
+  isHighlighted?: boolean
+  isSelected?: boolean
 }
 
 function formatTime(dateString: string): string {
@@ -25,12 +29,31 @@ function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-export function NoteBubble({ message, onLongPress, onTaskToggle }: NoteBubbleProps) {
+const MAX_LINES = 30
+
+export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHighlighted = false, isSelected = false }: NoteBubbleProps) {
   const { brandText, iconColor, accentColor, background } = useThemeColor()
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const handleLongPress = () => {
     onLongPress(message)
   }
+
+  const handlePress = () => {
+    onPress?.(message)
+  }
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded)
+  }
+
+  // Check if content needs truncation (by newlines or estimated character count)
+  const contentLines = message.content?.split('\n').length || 0
+  const estimatedLines = Math.ceil((message.content?.length || 0) / 40) // ~40 chars per line
+  const totalEstimatedLines = Math.max(contentLines, estimatedLines)
+  const needsTruncation = totalEstimatedLines > MAX_LINES
+
+  const showHighlight = isHighlighted || isSelected
 
   const renderContent = () => {
     switch (message.type) {
@@ -126,20 +149,41 @@ export function NoteBubble({ message, onLongPress, onTaskToggle }: NoteBubblePro
           </YStack>
         )
 
-      default:
+      default: {
+        const displayContent = !isExpanded && needsTruncation
+          ? message.content?.split('\n').slice(0, MAX_LINES).join('\n')
+          : message.content
         return (
-          <Text fontSize="$4" color={brandText}>
-            {message.content}
-          </Text>
+          <YStack>
+            <Text fontSize="$4" color={brandText}>
+              {displayContent}
+            </Text>
+            {needsTruncation && (
+              <Pressable onPress={toggleExpand}>
+                <Text fontSize="$3" color="$blue11" marginTop="$1" fontWeight="600">
+                  {isExpanded ? 'Show less' : 'View more...'}
+                </Text>
+              </Pressable>
+            )}
+          </YStack>
         )
+      }
     }
   }
 
   return (
-    <Pressable onLongPress={handleLongPress}>
-      <XStack justifyContent="flex-end" paddingHorizontal="$4" marginVertical="$1">
+    <Pressable onLongPress={handleLongPress} onPress={handlePress}>
+      <XStack
+        justifyContent="flex-end"
+        alignItems="flex-start"
+        paddingHorizontal="$4"
+        marginVertical="$1"
+        backgroundColor={showHighlight ? '$yellow4' : 'transparent'}
+        paddingVertical={showHighlight ? '$1' : 0}
+        position="relative"
+      >
         <YStack
-          backgroundColor="$brandBackground"
+          backgroundColor={showHighlight ? '$yellow8' : '$brandBackground'}
           paddingHorizontal="$3"
           paddingTop="$2"
           paddingBottom="$1"
@@ -147,7 +191,14 @@ export function NoteBubble({ message, onLongPress, onTaskToggle }: NoteBubblePro
           borderBottomRightRadius="$1"
           maxWidth="80%"
           position="relative"
+          borderWidth={message.isStarred ? 1 : 0}
+          borderColor="#F59E0B"
         >
+          {message.isStarred && (
+            <XStack position="absolute" left={-24} top={8}>
+              <Ionicons name="star" size={16} color="#F59E0B" />
+            </XStack>
+          )}
           {message.task?.isTask && (
             <Pressable
               onPress={() => onTaskToggle?.(message)}

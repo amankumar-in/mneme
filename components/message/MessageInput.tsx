@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { XStack, YStack, Input, Button, Text } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
-import { Keyboard } from 'react-native'
+import { Keyboard, TextInput } from 'react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import type { Message, MessageType } from '../../types'
 
@@ -38,6 +38,22 @@ export function MessageInput({
   const { iconColor, brandText, placeholderColor } = useThemeColor()
   const [text, setText] = useState('')
   const [isRecording, setIsRecording] = useState(false)
+  const inputRef = useRef<TextInput>(null)
+
+  // Populate input with message content when editing, clear when done
+  useEffect(() => {
+    if (editingMessage) {
+      const content = editingMessage.content || ''
+      setText(content)
+      // Focus input and move cursor to end
+      setTimeout(() => {
+        inputRef.current?.focus()
+        inputRef.current?.setSelection(content.length, content.length)
+      }, 100)
+    } else {
+      setText('')
+    }
+  }, [editingMessage])
 
   const handleSend = useCallback(() => {
     const trimmedText = text.trim()
@@ -114,19 +130,21 @@ export function MessageInput({
       {editingMessage && (
         <XStack
           backgroundColor="$backgroundStrong"
-          paddingHorizontal="$4"
+          paddingLeft="$4"
+          paddingRight="$2"
           paddingVertical="$2"
           alignItems="center"
           justifyContent="space-between"
+          gap="$2"
         >
-          <XStack alignItems="center" gap="$2">
+          <XStack alignItems="center" gap="$2" flex={1}>
             <Ionicons name="pencil" size={16} color={iconColor} />
             <Text fontSize="$2" color="$colorSubtle" numberOfLines={1} flex={1}>
-              Editing: {editingMessage.content}
+              Editing note
             </Text>
           </XStack>
-          <Button size="$2" circular chromeless onPress={onCancelEdit}>
-            <Ionicons name="close" size={18} color={iconColor} />
+          <Button size="$3" circular chromeless onPress={onCancelEdit}>
+            <Ionicons name="close" size={20} color={iconColor} />
           </Button>
         </XStack>
       )}
@@ -154,6 +172,7 @@ export function MessageInput({
           alignItems="center"
         >
           <Input
+            ref={inputRef as any}
             key={placeholderColor}
             flex={1}
             borderWidth={0}
