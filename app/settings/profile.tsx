@@ -1,15 +1,34 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { ScrollView, Alert, Image } from 'react-native'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { ScrollView, Alert, Image, Pressable, Platform, Modal, TextInput, FlatList } from 'react-native'
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { YStack, XStack, Text, Button, Input, Spinner } from 'tamagui'
 import { useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
+import { Country, CountryCode, getAllCountries, FlagType } from 'react-native-country-picker-modal'
+
 import { useThemeColor } from '../../hooks/useThemeColor'
-import { useUser, useUpdateUser } from '../../hooks/useUser'
-import { getDeviceId } from '../../services/storage'
+import { useUser, useUpdateUser, useIsAuthenticated } from '../../hooks/useUser'
+import { getAuthToken } from '../../services/storage'
+import {
+  signup,
+  login,
+  getPasswordStatus,
+  setPassword as setPasswordApi,
+  changePassword as changePasswordApi,
+  checkUsername as checkUsernameApi,
+} from '../../services/api'
+import { useSyncService } from '../../hooks/useSyncService'
 import axios from 'axios'
-import { Platform } from 'react-native'
+
+const countryCodeToEmoji = (code: string) => {
+  const codePoints = code
+    .toUpperCase()
+    .split('')
+    .map((char) => 127397 + char.charCodeAt(0))
+  return String.fromCodePoint(...codePoints)
+}
 
 const getApiUrl = () => {
   if (Platform.OS === 'android') {
@@ -20,108 +39,135 @@ const getApiUrl = () => {
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || getApiUrl()
 
-type VerificationState = 'idle' | 'sending' | 'sent' | 'verifying' | 'verified'
+// Row component for consistent styling - defined outside to prevent remounting
+const FieldRow = ({ children }: { children: React.ReactNode }) => (
+  <XStack
+    paddingVertical="$3"
+    paddingHorizontal="$4"
+    borderBottomWidth={1}
+    borderBottomColor="$borderColor"
+    alignItems="center"
+    minHeight={56}
+  >
+    {children}
+  </XStack>
+)
 
 export default function ProfileScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { iconColorStrong, iconColor, brandText, accentColor, placeholderColor, background, color, colorMuted, borderColor, successColor } = useThemeColor()
+  const { iconColorStrong, iconColor, brandText, accentColor, placeholderColor, background, color, borderColor, successColor } = useThemeColor()
 
-  const { data: user } = useUser()
+  const { data: user, refetch: refetchUser } = useUser()
   const updateUser = useUpdateUser()
+  const { data: isAuthenticated, refetch: refetchAuth } = useIsAuthenticated()
+  const { schedulePush } = useSyncService()
 
-  // Edit mode state
-  const [isEditing, setIsEditing] = useState(false)
+  // Editing states - which field is active
+  const [editingField, setEditingField] = useState<'name' | 'username' | 'email' | 'phone' | 'password' | null>(null)
 
-  // Form state
-  const [name, setName] = useState('')
-  const [avatar, setAvatar] = useState<string | null>(null)
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [newEmail, setNewEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [newPhone, setNewPhone] = useState('')
-  const [callingCode, setCallingCode] = useState('1')
+  // Input refs for focus
+  const nameInputRef = useRef<any>(null)
+  const usernameInputRef = useRef<any>(null)
+  const emailInputRef = useRef<any>(null)
+  const emailCodeInputRef = useRef<any>(null)
+  const phoneInputRef = useRef<any>(null)
+  const phoneCodeInputRef = useRef<any>(null)
+  const passwordInputRef = useRef<any>(null)
 
-  // Verification state
-  const [emailVerifyState, setEmailVerifyState] = useState<VerificationState>('idle')
-  const [emailCode, setEmailCode] = useState('')
-  const [emailError, setEmailError] = useState('')
-  const [emailResendTimer, setEmailResendTimer] = useState(0)
+  // Focus input when editing starts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (editingField === 'name') nameInputRef.current?.focus()
+      else if (editingField === 'username') usernameInputRef.current?.focus()
+      else if (editingField === 'email') emailInputRef.current?.focus()
+      else if (editingField === 'phone') phoneInputRef.current?.focus()
+      else if (editingField === 'password') passwordInputRef.current?.focus()
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [editingField])
 
-  const [phoneVerifyState, setPhoneVerifyState] = useState<VerificationState>('idle')
-  const [phoneCode, setPhoneCode] = useState('')
-  const [phoneError, setPhoneError] = useState('')
-  const [phoneResendTimer, setPhoneResendTimer] = useState(0)
+  // Focus code input when verification step starts
+  useEffect(() => {
+    if (emailStep === 'verify') {
+      setTimeout(() => emailCodeInputRef.current?.focus(), 100)
+    }
+  }, [emailStep])
 
-  // Username state
-  const [usernameError, setUsernameError] = useState('')
+  useEffect(() => {
+    if (phoneStep === 'verify') {
+      setTimeout(() => phoneCodeInputRef.current?.focus(), 100)
+    }
+  }, [phoneStep])
+
+  // Name
+  const [nameValue, setNameValue] = useState('')
+  const [savingName, setSavingName] = useState(false)
+
+  // Username
+  const [usernameValue, setUsernameValue] = useState('')
+  const [passwordValue, setPasswordValue] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
   const [checkingUsername, setCheckingUsername] = useState(false)
+  const [usernameError, setUsernameError] = useState('')
+  const [savingUsername, setSavingUsername] = useState(false)
   const usernameCheckTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [isSaving, setIsSaving] = useState(false)
+  // Email
+  const [emailValue, setEmailValue] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  const [emailStep, setEmailStep] = useState<'input' | 'verify'>('input')
+  const [emailError, setEmailError] = useState('')
+  const [savingEmail, setSavingEmail] = useState(false)
 
-  // Load user data
+  // Phone
+  const [phoneValue, setPhoneValue] = useState('')
+  const [phoneCode, setPhoneCode] = useState('')
+  const [phoneStep, setPhoneStep] = useState<'input' | 'verify'>('input')
+  const [phoneError, setPhoneError] = useState('')
+  const [savingPhone, setSavingPhone] = useState(false)
+  const [callingCode, setCallingCode] = useState('1')
+  const [countryCode, setCountryCode] = useState<CountryCode>('US')
+  const [showCountryPicker, setShowCountryPicker] = useState(false)
+  const [countries, setCountries] = useState<Country[]>([])
+  const [countryFilter, setCountryFilter] = useState('')
+
+  // Password
+  const [hasPassword, setHasPassword] = useState(false)
+  const [currentPasswordValue, setCurrentPasswordValue] = useState('')
+  const [newPasswordValue, setNewPasswordValue] = useState('')
+  const [confirmPasswordValue, setConfirmPasswordValue] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
+
+  // Load countries
   useEffect(() => {
-    if (user) {
-      setName(user.name || 'Me')
-      setAvatar(user.avatar || null)
-      setUsername(user.username || '')
-      setEmail(user.email || '')
-      setNewEmail(user.email || '')
-      if (user.phone) {
-        const phoneMatch = user.phone.match(/^\+(\d{1,3})(\d+)$/)
-        if (phoneMatch) {
-          setCallingCode(phoneMatch[1])
-          setPhone(phoneMatch[2])
-          setNewPhone(phoneMatch[2])
-        }
-      }
-    }
-  }, [user])
+    getAllCountries('flat' as FlagType).then(setCountries).catch(console.warn)
+  }, [])
 
-  // Initialize edit state when entering edit mode
+  // Check password status
   useEffect(() => {
-    if (isEditing) {
-      setNewEmail(email)
-      setNewPhone(phone)
-      setEmailVerifyState(email ? 'verified' : 'idle')
-      setPhoneVerifyState(phone ? 'verified' : 'idle')
+    if (isAuthenticated) {
+      getPasswordStatus()
+        .then(status => setHasPassword(status.hasPassword))
+        .catch(() => setHasPassword(false))
     }
-  }, [isEditing])
+  }, [isAuthenticated])
 
-  // Email resend timer
+  // Username availability check with debounce
   useEffect(() => {
-    if (emailResendTimer > 0) {
-      const timer = setTimeout(() => setEmailResendTimer(emailResendTimer - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [emailResendTimer])
+    if (usernameCheckTimeout.current) clearTimeout(usernameCheckTimeout.current)
 
-  // Phone resend timer
-  useEffect(() => {
-    if (phoneResendTimer > 0) {
-      const timer = setTimeout(() => setPhoneResendTimer(phoneResendTimer - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [phoneResendTimer])
-
-  // Username availability check
-  useEffect(() => {
-    if (usernameCheckTimeout.current) {
-      clearTimeout(usernameCheckTimeout.current)
-    }
-
-    if (!username || username === user?.username) {
+    if (!usernameValue || usernameValue === user?.username) {
       setUsernameAvailable(null)
       setUsernameError('')
       return
     }
 
-    const usernameRegex = /^[a-z0-9_]{3,30}$/
-    if (!usernameRegex.test(username.toLowerCase())) {
-      setUsernameError('3-30 chars, lowercase, numbers, underscores only')
+    const regex = /^[a-z0-9_]{3,30}$/
+    if (!regex.test(usernameValue.toLowerCase())) {
+      setUsernameError('3-30 chars, lowercase, numbers, underscores')
       setUsernameAvailable(false)
       return
     }
@@ -129,248 +175,278 @@ export default function ProfileScreen() {
     setCheckingUsername(true)
     usernameCheckTimeout.current = setTimeout(async () => {
       try {
-        const deviceId = await getDeviceId()
-        const response = await axios.get(`${API_URL}/verify/check-username/${username}`, {
-          headers: { 'X-Device-ID': deviceId },
-        })
-        setUsernameAvailable(response.data.available)
-        setUsernameError(response.data.available ? '' : 'Username is taken')
-      } catch (error: any) {
-        setUsernameError(error.response?.data?.error || 'Failed to check')
+        const res = await checkUsernameApi(usernameValue)
+        setUsernameAvailable(res.available)
+        setUsernameError(res.available ? '' : 'Username taken')
+      } catch {
+        setUsernameError('Check failed')
         setUsernameAvailable(false)
       } finally {
         setCheckingUsername(false)
       }
     }, 500)
-  }, [username, user?.username])
+  }, [usernameValue, user?.username])
 
-  const handleBack = useCallback(() => {
-    if (isEditing) {
-      // Reset to original values
-      if (user) {
-        setName(user.name || 'Me')
-        setAvatar(user.avatar || null)
-        setUsername(user.username || '')
-        setEmail(user.email || '')
-        setPhone(user.phone ? user.phone.replace(/^\+\d{1,3}/, '') : '')
-      }
-      setNewEmail('')
-      setNewPhone('')
-      setEmailVerifyState('idle')
-      setPhoneVerifyState('idle')
-      setEmailCode('')
-      setPhoneCode('')
-      setEmailError('')
-      setPhoneError('')
-      setIsEditing(false)
-    } else {
-      router.back()
-    }
-  }, [isEditing, user, router])
+  const handleBack = useCallback(() => router.back(), [router])
 
   const handleChangeAvatar = useCallback(async () => {
-    Alert.alert('Change Photo', 'Choose an option', [
-      {
-        text: 'Take Photo',
-        onPress: async () => {
-          const permission = await ImagePicker.requestCameraPermissionsAsync()
-          if (!permission.granted) {
-            Alert.alert('Permission needed', 'Camera access is required to take photos')
-            return
-          }
-          const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-          })
-          if (!result.canceled && result.assets[0]) {
-            setAvatar(result.assets[0].uri)
-            setIsEditing(true)
-          }
+    Alert.alert(
+      'Change Photo',
+      'Choose an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const perm = await ImagePicker.requestCameraPermissionsAsync()
+            if (!perm.granted) return Alert.alert('Permission needed', 'Camera access required')
+            const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
+            if (!result.canceled && result.assets[0]) {
+              await updateUser.mutateAsync({ avatar: result.assets[0].uri })
+              if (isAuthenticated) schedulePush()
+            }
+          },
         },
-      },
-      {
-        text: 'Choose from Library',
-        onPress: async () => {
-          const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
-          if (!permission.granted) {
-            Alert.alert('Permission needed', 'Photo library access is required')
-            return
-          }
-          const result = await ImagePicker.launchImageLibraryAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-          })
-          if (!result.canceled && result.assets[0]) {
-            setAvatar(result.assets[0].uri)
-            setIsEditing(true)
-          }
+        {
+          text: 'Choose from Library',
+          onPress: async () => {
+            const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+            if (!perm.granted) return Alert.alert('Permission needed', 'Photo library access required')
+            const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
+            if (!result.canceled && result.assets[0]) {
+              await updateUser.mutateAsync({ avatar: result.assets[0].uri })
+              if (isAuthenticated) schedulePush()
+            }
+          },
         },
-      },
-      {
-        text: 'Remove Photo',
-        onPress: () => {
-          setAvatar(null)
-          setIsEditing(true)
+        {
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: async () => {
+            await updateUser.mutateAsync({ avatar: null })
+            if (isAuthenticated) schedulePush()
+          },
         },
-        style: 'destructive',
-      },
-      { text: 'Cancel', style: 'cancel' },
-    ])
-  }, [])
+        { text: 'Cancel', style: 'cancel', onPress: () => {} },
+      ],
+      { cancelable: true }
+    )
+  }, [updateUser, isAuthenticated, schedulePush])
 
-  const handleSendEmailCode = useCallback(async () => {
-    const targetEmail = newEmail || email
-    if (!targetEmail) return
+  // ===== NAME =====
+  const startEditName = () => {
+    setNameValue(user?.name || '')
+    setEditingField('name')
+  }
 
-    setEmailVerifyState('sending')
-    setEmailError('')
-
+  const saveName = async () => {
+    if (!nameValue.trim()) return
+    setSavingName(true)
     try {
-      const deviceId = await getDeviceId()
-      await axios.post(
-        `${API_URL}/verify/email/send`,
-        { email: targetEmail },
-        { headers: { 'X-Device-ID': deviceId } }
-      )
-      setEmailVerifyState('sent')
-      setEmailResendTimer(30)
-    } catch (error: any) {
-      setEmailError(error.response?.data?.error || 'Failed to send code')
-      setEmailVerifyState('idle')
-    }
-  }, [email, newEmail])
-
-  const handleVerifyEmail = useCallback(async () => {
-    if (!emailCode) return
-
-    const targetEmail = newEmail || email
-    setEmailVerifyState('verifying')
-    setEmailError('')
-
-    try {
-      const deviceId = await getDeviceId()
-      await axios.post(
-        `${API_URL}/verify/email/verify`,
-        { email: targetEmail, code: emailCode },
-        { headers: { 'X-Device-ID': deviceId } }
-      )
-      setEmailVerifyState('verified')
-      setEmail(targetEmail)
-      setEmailCode('')
-    } catch (error: any) {
-      setEmailError(error.response?.data?.error || 'Verification failed')
-      setEmailVerifyState('sent')
-    }
-  }, [email, newEmail, emailCode])
-
-  const handleSendPhoneCode = useCallback(async () => {
-    const targetPhone = newPhone || phone
-    if (!targetPhone) return
-
-    const fullPhone = `+${callingCode}${targetPhone}`
-    setPhoneVerifyState('sending')
-    setPhoneError('')
-
-    try {
-      const deviceId = await getDeviceId()
-      await axios.post(
-        `${API_URL}/verify/phone/send`,
-        { phone: fullPhone },
-        { headers: { 'X-Device-ID': deviceId } }
-      )
-      setPhoneVerifyState('sent')
-      setPhoneResendTimer(30)
-    } catch (error: any) {
-      setPhoneError(error.response?.data?.error || 'Failed to send code')
-      setPhoneVerifyState('idle')
-    }
-  }, [phone, newPhone, callingCode])
-
-  const handleVerifyPhone = useCallback(async () => {
-    if (!phoneCode) return
-
-    const targetPhone = newPhone || phone
-    const fullPhone = `+${callingCode}${targetPhone}`
-    setPhoneVerifyState('verifying')
-    setPhoneError('')
-
-    try {
-      const deviceId = await getDeviceId()
-      await axios.post(
-        `${API_URL}/verify/phone/verify`,
-        { phone: fullPhone, code: phoneCode },
-        { headers: { 'X-Device-ID': deviceId } }
-      )
-      setPhoneVerifyState('verified')
-      setPhone(targetPhone)
-      setPhoneCode('')
-    } catch (error: any) {
-      setPhoneError(error.response?.data?.error || 'Verification failed')
-      setPhoneVerifyState('sent')
-    }
-  }, [phone, newPhone, callingCode, phoneCode])
-
-
-
-  const handleSave = useCallback(async () => {
-    setIsSaving(true)
-
-    try {
-      // Update username on server if changed
-      if (username !== user?.username && (username || user?.username)) {
-        const deviceId = await getDeviceId()
-        await axios.post(
-          `${API_URL}/verify/username`,
-          { username: username || null },
-          { headers: { 'X-Device-ID': deviceId } }
-        )
-      }
-
-      // Build update object
-      const updates: Record<string, any> = {
-        name: name.trim() || 'Me',
-        avatar,
-      }
-
-      if (username !== user?.username) {
-        updates.username = username || null
-      }
-
-      if (emailVerifyState === 'verified' && email !== user?.email) {
-        updates.email = email
-      }
-
-      if (phoneVerifyState === 'verified' && `+${callingCode}${phone}` !== user?.phone) {
-        updates.phone = `+${callingCode}${phone}`
-      }
-
-      await updateUser.mutateAsync(updates)
-      setIsEditing(false)
-      router.back()
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to save profile')
+      await updateUser.mutateAsync({ name: nameValue.trim() })
+      if (isAuthenticated) schedulePush()
+      setEditingField(null)
+    } catch {
+      Alert.alert('Error', 'Failed to save')
     } finally {
-      setIsSaving(false)
+      setSavingName(false)
     }
-  }, [name, avatar, username, email, phone, callingCode, user, emailVerifyState, phoneVerifyState, updateUser, router])
+  }
 
-  const hasChanges =
-    name !== (user?.name || 'Me') ||
-    avatar !== user?.avatar ||
-    (username !== (user?.username || '') && usernameAvailable !== false) ||
-    (emailVerifyState === 'verified' && email !== user?.email) ||
-    (phoneVerifyState === 'verified' && `+${callingCode}${phone}` !== user?.phone)
+  // ===== USERNAME =====
+  const startEditUsername = () => {
+    setUsernameValue('')
+    setPasswordValue('')
+    setUsernameError('')
+    setUsernameAvailable(null)
+    setEditingField('username')
+  }
 
-  const canSave = hasChanges && !checkingUsername && usernameAvailable !== false
+  const saveUsername = async () => {
+    if (!usernameValue || !passwordValue || passwordValue.length < 8) {
+      setUsernameError('Password must be 8+ characters')
+      return
+    }
 
-  // Check if user already has verified email/phone
-  const hasVerifiedEmail = !!user?.email
-  const hasVerifiedPhone = !!user?.phone
+    setSavingUsername(true)
+    setUsernameError('')
+    try {
+      if (usernameAvailable) {
+        const res = await signup({ username: usernameValue, password: passwordValue, name: user?.name || 'Me' })
+        await updateUser.mutateAsync({ username: res.user.username, name: res.user.name })
+        schedulePush()
+        await refetchAuth()
+        Alert.alert('Success', 'Account created!')
+      } else if (usernameAvailable === false && !usernameError) {
+        const res = await login({ username: usernameValue, password: passwordValue })
+        await updateUser.mutateAsync({
+          username: res.user.username,
+          name: res.user.name,
+          email: res.user.email,
+          phone: res.user.phone,
+          avatar: res.user.avatar,
+        })
+        schedulePush()
+        await refetchAuth()
+        Alert.alert('Success', 'Logged in!')
+      }
+      setEditingField(null)
+      await refetchUser()
+    } catch (err: any) {
+      setUsernameError(err.response?.data?.error || 'Failed')
+    } finally {
+      setSavingUsername(false)
+    }
+  }
+
+  // ===== EMAIL =====
+  const startEditEmail = () => {
+    setEmailValue('')
+    setEmailCode('')
+    setEmailStep('input')
+    setEmailError('')
+    setEditingField('email')
+  }
+
+  const sendEmailCode = async () => {
+    if (!emailValue) return
+    if (!isAuthenticated) {
+      setEmailError('Set username first')
+      return
+    }
+    setSavingEmail(true)
+    setEmailError('')
+    try {
+      const token = await getAuthToken()
+      await axios.post(`${API_URL}/verify/email/send`, { email: emailValue }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setEmailStep('verify')
+    } catch (err: any) {
+      setEmailError(err.response?.data?.error || 'Failed to send')
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
+  const verifyEmail = async () => {
+    if (!emailCode) return
+    setSavingEmail(true)
+    setEmailError('')
+    try {
+      const token = await getAuthToken()
+      await axios.post(`${API_URL}/verify/email/verify`, { email: emailValue, code: emailCode }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      await updateUser.mutateAsync({ email: emailValue })
+      schedulePush()
+      setEditingField(null)
+      await refetchUser()
+    } catch (err: any) {
+      setEmailError(err.response?.data?.error || 'Verification failed')
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
+  // ===== PHONE =====
+  const startEditPhone = () => {
+    setPhoneValue('')
+    setPhoneCode('')
+    setPhoneStep('input')
+    setPhoneError('')
+    setEditingField('phone')
+  }
+
+  const sendPhoneCode = async () => {
+    if (!phoneValue) return
+    if (!isAuthenticated) {
+      setPhoneError('Set username first')
+      return
+    }
+    const fullPhone = `+${callingCode}${phoneValue}`
+    setSavingPhone(true)
+    setPhoneError('')
+    try {
+      const token = await getAuthToken()
+      await axios.post(`${API_URL}/verify/phone/send`, { phone: fullPhone }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setPhoneStep('verify')
+    } catch (err: any) {
+      setPhoneError(err.response?.data?.error || 'Failed to send')
+    } finally {
+      setSavingPhone(false)
+    }
+  }
+
+  const verifyPhone = async () => {
+    if (!phoneCode) return
+    const fullPhone = `+${callingCode}${phoneValue}`
+    setSavingPhone(true)
+    setPhoneError('')
+    try {
+      const token = await getAuthToken()
+      await axios.post(`${API_URL}/verify/phone/verify`, { phone: fullPhone, code: phoneCode }, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      await updateUser.mutateAsync({ phone: fullPhone })
+      schedulePush()
+      setEditingField(null)
+      await refetchUser()
+    } catch (err: any) {
+      setPhoneError(err.response?.data?.error || 'Verification failed')
+    } finally {
+      setSavingPhone(false)
+    }
+  }
+
+  // ===== PASSWORD =====
+  const startEditPassword = () => {
+    setCurrentPasswordValue('')
+    setNewPasswordValue('')
+    setConfirmPasswordValue('')
+    setPasswordError('')
+    setEditingField('password')
+  }
+
+  const savePassword = async () => {
+    if (newPasswordValue.length < 8) {
+      setPasswordError('Password must be 8+ characters')
+      return
+    }
+    if (newPasswordValue !== confirmPasswordValue) {
+      setPasswordError('Passwords do not match')
+      return
+    }
+    setSavingPassword(true)
+    setPasswordError('')
+    try {
+      if (hasPassword) {
+        await changePasswordApi(currentPasswordValue, newPasswordValue)
+      } else {
+        await setPasswordApi(newPasswordValue)
+      }
+      setHasPassword(true)
+      setEditingField(null)
+      Alert.alert('Success', hasPassword ? 'Password changed' : 'Password set')
+    } catch (err: any) {
+      setPasswordError(err.response?.data?.error || 'Failed')
+    } finally {
+      setSavingPassword(false)
+    }
+  }
+
+  const cancelEdit = () => setEditingField(null)
+
+  const filteredCountries = countries.filter((c) => {
+    if (!countryFilter) return true
+    const s = countryFilter.toLowerCase()
+    return (c.name?.toString().toLowerCase() || '').includes(s) || (c.cca2?.toLowerCase() || '').includes(s)
+  })
 
   return (
     <YStack flex={1} backgroundColor="$background">
+      {/* Header */}
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
@@ -386,365 +462,488 @@ export default function ProfileScreen() {
           circular
           chromeless
           onPress={handleBack}
-          icon={<Ionicons name={isEditing ? "close" : "arrow-back"} size={24} color={iconColorStrong} />}
+          icon={<Ionicons name="arrow-back" size={24} color={iconColorStrong} />}
         />
         <Text fontSize="$6" fontWeight="700" flex={1} color="$color">
-          {isEditing ? 'Edit Profile' : 'Profile'}
+          Profile
         </Text>
-        {isEditing ? (
-          <Button
-            size="$3"
-            chromeless
-            disabled={!canSave || isSaving}
-            onPress={handleSave}
-          >
-            <Text color={canSave ? '$accentColor' : '$colorMuted'} fontWeight="600">
-              {isSaving ? 'Saving...' : 'Save'}
-            </Text>
-          </Button>
-        ) : (
-          <Button
-            size="$3"
-            chromeless
-            onPress={() => setIsEditing(true)}
-          >
-            <Text color="$accentColor" fontWeight="600">Edit</Text>
-          </Button>
-        )}
       </XStack>
 
-      <ScrollView keyboardShouldPersistTaps="handled">
-        {/* Avatar */}
-        <YStack alignItems="center" paddingVertical="$6">
-          <XStack position="relative">
-            {avatar ? (
-              <Image
-                source={{ uri: avatar }}
-                style={{ width: 100, height: 100, borderRadius: 50 }}
-              />
-            ) : (
-              <XStack
-                width={100}
-                height={100}
-                borderRadius={50}
-                backgroundColor="$brandBackground"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Text color={brandText} fontSize="$8" fontWeight="600">
-                  {name.slice(0, 2).toUpperCase()}
-                </Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        <ScrollView keyboardShouldPersistTaps="handled">
+          {/* Avatar */}
+          <YStack alignItems="center" paddingVertical="$5">
+            <Pressable onPress={handleChangeAvatar}>
+              <XStack position="relative">
+                {user?.avatar ? (
+                  <Image source={{ uri: user.avatar }} style={{ width: 90, height: 90, borderRadius: 45 }} />
+                ) : (
+                  <XStack width={90} height={90} borderRadius={45} backgroundColor="$brandBackground" alignItems="center" justifyContent="center">
+                    <Text color={brandText} fontSize="$7" fontWeight="600">
+                      {(user?.name || 'Me').slice(0, 2).toUpperCase()}
+                    </Text>
+                  </XStack>
+                )}
+                <XStack
+                  position="absolute"
+                  bottom={0}
+                  right={0}
+                  width={28}
+                  height={28}
+                  borderRadius={14}
+                  backgroundColor="$backgroundStrong"
+                  borderWidth={2}
+                  borderColor="$background"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <Ionicons name="camera" size={14} color={iconColor} />
+                </XStack>
               </XStack>
-            )}
-            <Button
-              size="$3"
-              circular
-              position="absolute"
-              bottom={0}
-              right={0}
-              backgroundColor="$backgroundStrong"
-              borderWidth={3}
-              borderColor="$background"
-              onPress={handleChangeAvatar}
-              icon={<Ionicons name="camera" size={18} color={iconColor} />}
-            />
-          </XStack>
-        </YStack>
+            </Pressable>
+          </YStack>
 
-        <YStack paddingHorizontal="$4">
-          {/* Name */}
-          <YStack gap="$1" marginBottom="$4">
-            <Text fontSize="$3" fontWeight="500" color="$color">Name</Text>
-            {isEditing ? (
-              <XStack
-                borderWidth={1}
-                borderColor="$borderColor"
-                borderRadius="$3"
-                backgroundColor="$background"
-              >
+          {/* NAME ROW */}
+          <FieldRow>
+            <Text width={80} fontSize="$3" color="$colorSubtle">Name</Text>
+            {editingField === 'name' ? (
+              <XStack flex={1} alignItems="center" gap="$2">
                 <Input
-                  size="$4"
+                  ref={nameInputRef}
                   flex={1}
+                  size="$3"
+                  value={nameValue}
+                  onChangeText={setNameValue}
+                  placeholder="Your name"
+                  placeholderTextColor={placeholderColor as any}
                   borderWidth={0}
                   backgroundColor="transparent"
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Your name"
-                  placeholderTextColor={placeholderColor}
+                  paddingHorizontal={0}
                 />
+                <Pressable onPress={cancelEdit} hitSlop={8}>
+                  <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
+                </Pressable>
+                <Pressable onPress={saveName} disabled={!nameValue.trim() || savingName} hitSlop={8}>
+                  {savingName ? <Spinner size="small" /> : <Text fontSize="$3" color="$accentColor" fontWeight="600">Save</Text>}
+                </Pressable>
               </XStack>
             ) : (
-              <Text fontSize="$4" color="$color">{name || 'Not set'}</Text>
+              <XStack flex={1} alignItems="center" justifyContent="space-between">
+                <Text fontSize="$4" color={user?.name ? '$color' : '$colorSubtle'}>{user?.name || 'Not set'}</Text>
+                <Pressable onPress={startEditName} hitSlop={8}>
+                  <Text fontSize="$3" color="$accentColor">Edit</Text>
+                </Pressable>
+              </XStack>
             )}
-          </YStack>
+          </FieldRow>
 
-          {/* Username */}
-          <YStack gap="$1" marginBottom="$4">
-            <XStack alignItems="center" gap="$2">
-              <Text fontSize="$3" fontWeight="500" color="$color">Username</Text>
-              {isEditing && <Text fontSize="$2" color="$colorMuted">(optional)</Text>}
-            </XStack>
-            {isEditing ? (
-              <>
-                <XStack
-                  borderWidth={1}
-                  borderColor={usernameError ? '$red8' : usernameAvailable ? '$green8' : '$borderColor'}
-                  borderRadius="$3"
-                  backgroundColor="$background"
-                  alignItems="center"
-                  paddingRight="$3"
-                >
+          {/* USERNAME ROW */}
+          {user?.username ? (
+            // Already has username - just display it
+            <FieldRow>
+              <Text width={80} fontSize="$3" color="$colorSubtle">Username</Text>
+              <XStack flex={1} alignItems="center" gap="$2">
+                <Ionicons name="checkmark-circle" size={16} color={successColor} />
+                <Text flex={1} fontSize="$4" color="$color">@{user.username}</Text>
+              </XStack>
+            </FieldRow>
+          ) : editingField === 'username' ? (
+            // Editing username - show input inline
+            <YStack borderBottomWidth={1} borderBottomColor="$borderColor">
+              <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
+                <Text width={80} fontSize="$3" color="$colorSubtle">Username</Text>
+                <XStack flex={1} alignItems="center" gap="$2">
                   <Input
-                    size="$4"
+                    ref={usernameInputRef}
                     flex={1}
+                    size="$3"
+                    value={usernameValue}
+                    onChangeText={(t) => setUsernameValue(t.toLowerCase())}
+                    placeholder="username"
+                    placeholderTextColor={placeholderColor as any}
+                    autoCapitalize="none"
                     borderWidth={0}
                     backgroundColor="transparent"
-                    value={username}
-                    onChangeText={(text) => setUsername(text.toLowerCase())}
-                    placeholder="@username"
-                    placeholderTextColor={placeholderColor}
-                    autoCapitalize="none"
+                    paddingHorizontal={0}
                   />
-                  {checkingUsername && (
-                    <Spinner size="small" />
-                  )}
+                  {checkingUsername && <Spinner size="small" />}
                   {!checkingUsername && usernameAvailable === true && (
-                    <Ionicons name="checkmark-circle" size={20} color={successColor} />
+                    <Text fontSize="$2" color="$green10">Available</Text>
                   )}
+                  {!checkingUsername && usernameAvailable === false && !usernameError && (
+                    <Text fontSize="$2" color="$orange10">Login</Text>
+                  )}
+                  <Pressable onPress={cancelEdit} hitSlop={8}>
+                    <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
+                  </Pressable>
                 </XStack>
-                <Text fontSize="$2" color={usernameError ? '$red10' : '$colorSubtle'}>
-                  {usernameError || 'Others can find you by your username'}
-                </Text>
-              </>
-            ) : (
-              <Text fontSize="$4" color={username ? '$color' : '$colorMuted'}>
-                {username ? `@${username}` : 'Not set'}
-              </Text>
-            )}
-          </YStack>
-
-          {/* Email */}
-          <YStack gap="$1" marginBottom="$4">
-            <XStack alignItems="center" gap="$2">
-              <Text fontSize="$3" fontWeight="500" color="$color">Email</Text>
-              {isEditing && <Text fontSize="$2" color="$colorMuted">(optional)</Text>}
-              {hasVerifiedEmail && !isEditing && (
-                <XStack backgroundColor="$green3" paddingHorizontal="$2" paddingVertical="$1" borderRadius="$2">
-                  <Text fontSize="$1" color="$green11">Verified</Text>
+              </XStack>
+              {usernameError && (
+                <Text fontSize="$2" color="$red10" paddingHorizontal="$4" paddingBottom="$2">{usernameError}</Text>
+              )}
+              {/* Password row appears when username is valid */}
+              {(usernameAvailable === true || (usernameAvailable === false && !usernameError)) && (
+                <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
+                  <Text width={80} fontSize="$3" color="$colorSubtle">Password</Text>
+                  <XStack flex={1} alignItems="center" gap="$2">
+                    <Input
+                      flex={1}
+                      size="$3"
+                      value={passwordValue}
+                      onChangeText={setPasswordValue}
+                      placeholder={usernameAvailable ? 'Create password (8+)' : 'Enter password'}
+                      placeholderTextColor={placeholderColor as any}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      borderWidth={0}
+                      backgroundColor="transparent"
+                      paddingHorizontal={0}
+                    />
+                    <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
+                      <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={18} color={iconColor} />
+                    </Pressable>
+                    <Pressable
+                      onPress={saveUsername}
+                      disabled={!passwordValue || passwordValue.length < 8 || savingUsername}
+                      hitSlop={8}
+                    >
+                      {savingUsername ? (
+                        <Spinner size="small" />
+                      ) : (
+                        <Text fontSize="$3" color="$accentColor" fontWeight="600">
+                          {usernameAvailable ? 'Create' : 'Login'}
+                        </Text>
+                      )}
+                    </Pressable>
+                  </XStack>
                 </XStack>
               )}
-            </XStack>
+            </YStack>
+          ) : (
+            // Not editing - show "Add" button
+            <FieldRow>
+              <Text width={80} fontSize="$3" color="$colorSubtle">Username</Text>
+              <XStack flex={1} alignItems="center" justifyContent="space-between">
+                <Text fontSize="$4" color="$colorSubtle">Not set</Text>
+                <Pressable onPress={startEditUsername} hitSlop={8}>
+                  <Text fontSize="$3" color="$accentColor">Add</Text>
+                </Pressable>
+              </XStack>
+            </FieldRow>
+          )}
 
-            {isEditing ? (
-              <YStack gap="$2">
-                {emailVerifyState === 'sent' || emailVerifyState === 'verifying' ? (
-                  <XStack
-                    borderWidth={1}
-                    borderColor={emailError ? '$red8' : '$borderColor'}
-                    borderRadius="$3"
-                    backgroundColor="$background"
-                    alignItems="center"
-                    paddingRight="$3"
-                  >
+          {/* EMAIL ROW */}
+          {user?.email ? (
+            <FieldRow>
+              <Text width={80} fontSize="$3" color="$colorSubtle">Email</Text>
+              <XStack flex={1} alignItems="center" gap="$2">
+                <Ionicons name="checkmark-circle" size={16} color={successColor} />
+                <Text flex={1} fontSize="$4" color="$color">{user.email}</Text>
+                <Pressable onPress={startEditEmail} hitSlop={8}>
+                  <Text fontSize="$3" color="$accentColor">Change</Text>
+                </Pressable>
+              </XStack>
+            </FieldRow>
+          ) : editingField === 'email' ? (
+            <YStack borderBottomWidth={1} borderBottomColor="$borderColor">
+              <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
+                <Text width={80} fontSize="$3" color="$colorSubtle">Email</Text>
+                {emailStep === 'input' ? (
+                  <XStack flex={1} alignItems="center" gap="$2">
                     <Input
-                      size="$4"
+                      ref={emailInputRef}
                       flex={1}
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      value={emailCode}
-                      onChangeText={setEmailCode}
-                      placeholder="Enter 6-digit code"
-                      placeholderTextColor={placeholderColor}
-                      keyboardType="number-pad"
-                      maxLength={6}
-                    />
-                    {emailVerifyState === 'verifying' ? (
-                      <Spinner size="small" />
-                    ) : (
-                      <Text fontSize="$3" fontWeight="600" color="$accentColor" onPress={handleVerifyEmail}>
-                        Verify
-                      </Text>
-                    )}
-                  </XStack>
-                ) : (
-                  <XStack
-                    borderWidth={1}
-                    borderColor={emailError ? '$red8' : emailVerifyState === 'verified' ? '$green8' : '$borderColor'}
-                    borderRadius="$3"
-                    backgroundColor="$background"
-                    alignItems="center"
-                    paddingRight="$3"
-                  >
-                    <Input
-                      size="$4"
-                      flex={1}
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      value={newEmail}
-                      onChangeText={(text) => {
-                        setNewEmail(text)
-                        setEmailVerifyState('idle')
-                      }}
-                      placeholder="Email address"
-                      placeholderTextColor={placeholderColor}
+                      size="$3"
+                      value={emailValue}
+                      onChangeText={setEmailValue}
+                      placeholder="email@example.com"
+                      placeholderTextColor={placeholderColor as any}
                       keyboardType="email-address"
                       autoCapitalize="none"
-                    />
-                    {emailVerifyState === 'verified' ? (
-                      <Ionicons name="checkmark-circle" size={20} color={successColor} />
-                    ) : newEmail && (
-                      emailVerifyState === 'sending' ? (
-                        <Spinner size="small" />
-                      ) : (
-                        <Text fontSize="$3" fontWeight="600" color="$accentColor" onPress={handleSendEmailCode}>
-                          Send code
-                        </Text>
-                      )
-                    )}
-                  </XStack>
-                )}
-                <Text fontSize="$2" color={emailError ? '$red10' : '$colorSubtle'}>
-                  {emailError ||
-                    (emailVerifyState === 'sent' && emailResendTimer > 0
-                      ? `Resend code in ${emailResendTimer}s`
-                      : emailVerifyState === 'sent' && emailResendTimer === 0
-                        ? 'Tap to resend code'
-                        : emailVerifyState === 'verified'
-                          ? 'Email verified'
-                          : 'Enter email and verify to save')}
-                </Text>
-              </YStack>
-            ) : (
-              <Text fontSize="$4" color={email ? '$color' : '$colorMuted'}>
-                {email || 'Not set'}
-              </Text>
-            )}
-          </YStack>
-
-          {/* Phone */}
-          <YStack gap="$1" marginBottom="$4">
-            <XStack alignItems="center" gap="$2">
-              <Text fontSize="$3" fontWeight="500" color="$color">Phone</Text>
-              {isEditing && <Text fontSize="$2" color="$colorMuted">(optional)</Text>}
-              {hasVerifiedPhone && !isEditing && (
-                <XStack backgroundColor="$green3" paddingHorizontal="$2" paddingVertical="$1" borderRadius="$2">
-                  <Text fontSize="$1" color="$green11">Verified</Text>
-                </XStack>
-              )}
-            </XStack>
-
-            {isEditing ? (
-              <YStack gap="$2">
-                {phoneVerifyState === 'sent' || phoneVerifyState === 'verifying' ? (
-                  <XStack
-                    borderWidth={1}
-                    borderColor={phoneError ? '$red8' : '$borderColor'}
-                    borderRadius="$3"
-                    backgroundColor="$background"
-                    alignItems="center"
-                    paddingRight="$3"
-                  >
-                    <Input
-                      size="$4"
-                      flex={1}
                       borderWidth={0}
                       backgroundColor="transparent"
-                      value={phoneCode}
-                      onChangeText={setPhoneCode}
-                      placeholder="Enter 6-digit code"
-                      placeholderTextColor={placeholderColor}
-                      keyboardType="number-pad"
-                      maxLength={6}
+                      paddingHorizontal={0}
                     />
-                    {phoneVerifyState === 'verifying' ? (
-                      <Spinner size="small" />
-                    ) : (
-                      <Text fontSize="$3" fontWeight="600" color="$accentColor" onPress={handleVerifyPhone}>
-                        Verify
-                      </Text>
-                    )}
+                    <Pressable onPress={cancelEdit} hitSlop={8}>
+                      <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
+                    </Pressable>
+                    <Pressable onPress={sendEmailCode} disabled={!emailValue || savingEmail} hitSlop={8}>
+                      {savingEmail ? <Spinner size="small" /> : <Text fontSize="$3" color="$accentColor" fontWeight="600">Verify</Text>}
+                    </Pressable>
                   </XStack>
                 ) : (
-                  <XStack
-                    borderWidth={1}
-                    borderColor={phoneError ? '$red8' : phoneVerifyState === 'verified' ? '$green8' : '$borderColor'}
-                    borderRadius="$3"
-                    backgroundColor="$background"
-                    alignItems="center"
-                    paddingRight="$3"
-                  >
-                    <Text fontSize="$4" color="$color" paddingLeft="$3">
-                      +{callingCode}
-                    </Text>
+                  <XStack flex={1} alignItems="center" gap="$2">
                     <Input
-                      size="$4"
+                      ref={emailCodeInputRef}
                       flex={1}
+                      size="$3"
+                      value={emailCode}
+                      onChangeText={setEmailCode}
+                      placeholder="Enter code"
+                      placeholderTextColor={placeholderColor as any}
+                      keyboardType="number-pad"
+                      maxLength={6}
                       borderWidth={0}
                       backgroundColor="transparent"
-                      value={newPhone}
-                      onChangeText={(text) => {
-                        setNewPhone(text)
-                        setPhoneVerifyState('idle')
-                      }}
-                      placeholder="Phone number"
-                      placeholderTextColor={placeholderColor}
-                      keyboardType="phone-pad"
+                      paddingHorizontal={0}
                     />
-                    {phoneVerifyState === 'verified' ? (
-                      <Ionicons name="checkmark-circle" size={20} color={successColor} />
-                    ) : newPhone && (
-                      phoneVerifyState === 'sending' ? (
-                        <Spinner size="small" />
-                      ) : (
-                        <Text fontSize="$3" fontWeight="600" color="$accentColor" onPress={handleSendPhoneCode}>
-                          Send code
-                        </Text>
-                      )
-                    )}
+                    <Pressable onPress={cancelEdit} hitSlop={8}>
+                      <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
+                    </Pressable>
+                    <Pressable onPress={verifyEmail} disabled={emailCode.length !== 6 || savingEmail} hitSlop={8}>
+                      {savingEmail ? <Spinner size="small" /> : <Text fontSize="$3" color="$accentColor" fontWeight="600">Confirm</Text>}
+                    </Pressable>
                   </XStack>
                 )}
-                <Text fontSize="$2" color={phoneError ? '$red10' : '$colorSubtle'}>
-                  {phoneError ||
-                    (phoneVerifyState === 'sent' && phoneResendTimer > 0
-                      ? `Resend code in ${phoneResendTimer}s`
-                      : phoneVerifyState === 'sent' && phoneResendTimer === 0
-                        ? 'Tap to resend code'
-                        : phoneVerifyState === 'verified'
-                          ? 'Phone verified'
-                          : 'Enter phone and verify to save')}
-                </Text>
+              </XStack>
+              {emailError && (
+                <Text fontSize="$2" color="$red10" paddingHorizontal="$4" paddingBottom="$2">{emailError}</Text>
+              )}
+            </YStack>
+          ) : (
+            <FieldRow>
+              <Text width={80} fontSize="$3" color="$colorSubtle">Email</Text>
+              <XStack flex={1} alignItems="center" justifyContent="space-between">
+                <Text fontSize="$4" color="$colorSubtle">Not set</Text>
+                <Pressable onPress={startEditEmail} hitSlop={8}>
+                  <Text fontSize="$3" color="$accentColor">Add</Text>
+                </Pressable>
+              </XStack>
+            </FieldRow>
+          )}
+
+          {/* PHONE ROW */}
+          {user?.phone ? (
+            <FieldRow>
+              <Text width={80} fontSize="$3" color="$colorSubtle">Phone</Text>
+              <XStack flex={1} alignItems="center" gap="$2">
+                <Ionicons name="checkmark-circle" size={16} color={successColor} />
+                <Text flex={1} fontSize="$4" color="$color">{user.phone}</Text>
+                <Pressable onPress={startEditPhone} hitSlop={8}>
+                  <Text fontSize="$3" color="$accentColor">Change</Text>
+                </Pressable>
+              </XStack>
+            </FieldRow>
+          ) : editingField === 'phone' ? (
+            <YStack borderBottomWidth={1} borderBottomColor="$borderColor">
+              <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
+                <Text width={80} fontSize="$3" color="$colorSubtle">Phone</Text>
+                {phoneStep === 'input' ? (
+                  <XStack flex={1} alignItems="center" gap="$2">
+                    <Pressable onPress={() => setShowCountryPicker(true)}>
+                      <XStack alignItems="center" gap="$1">
+                        <Text fontSize={18}>{countryCodeToEmoji(countryCode)}</Text>
+                        <Text fontSize="$3" color="$color">+{callingCode}</Text>
+                        <Ionicons name="chevron-down" size={12} color={iconColor} />
+                      </XStack>
+                    </Pressable>
+                    <Input
+                      ref={phoneInputRef}
+                      flex={1}
+                      size="$3"
+                      value={phoneValue}
+                      onChangeText={setPhoneValue}
+                      placeholder="Phone number"
+                      placeholderTextColor={placeholderColor as any}
+                      keyboardType="phone-pad"
+                      borderWidth={0}
+                      backgroundColor="transparent"
+                      paddingHorizontal={0}
+                    />
+                    <Pressable onPress={cancelEdit} hitSlop={8}>
+                      <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
+                    </Pressable>
+                    <Pressable onPress={sendPhoneCode} disabled={!phoneValue || savingPhone} hitSlop={8}>
+                      {savingPhone ? <Spinner size="small" /> : <Text fontSize="$3" color="$accentColor" fontWeight="600">Verify</Text>}
+                    </Pressable>
+                  </XStack>
+                ) : (
+                  <XStack flex={1} alignItems="center" gap="$2">
+                    <Input
+                      ref={phoneCodeInputRef}
+                      flex={1}
+                      size="$3"
+                      value={phoneCode}
+                      onChangeText={setPhoneCode}
+                      placeholder="Enter code"
+                      placeholderTextColor={placeholderColor as any}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      borderWidth={0}
+                      backgroundColor="transparent"
+                      paddingHorizontal={0}
+                    />
+                    <Pressable onPress={cancelEdit} hitSlop={8}>
+                      <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
+                    </Pressable>
+                    <Pressable onPress={verifyPhone} disabled={phoneCode.length !== 6 || savingPhone} hitSlop={8}>
+                      {savingPhone ? <Spinner size="small" /> : <Text fontSize="$3" color="$accentColor" fontWeight="600">Confirm</Text>}
+                    </Pressable>
+                  </XStack>
+                )}
+              </XStack>
+              {phoneError && (
+                <Text fontSize="$2" color="$red10" paddingHorizontal="$4" paddingBottom="$2">{phoneError}</Text>
+              )}
+            </YStack>
+          ) : (
+            <FieldRow>
+              <Text width={80} fontSize="$3" color="$colorSubtle">Phone</Text>
+              <XStack flex={1} alignItems="center" justifyContent="space-between">
+                <Text fontSize="$4" color="$colorSubtle">Not set</Text>
+                <Pressable onPress={startEditPhone} hitSlop={8}>
+                  <Text fontSize="$3" color="$accentColor">Add</Text>
+                </Pressable>
+              </XStack>
+            </FieldRow>
+          )}
+
+          {/* PASSWORD ROW - only for authenticated users */}
+          {isAuthenticated && (
+            editingField === 'password' ? (
+              <YStack borderBottomWidth={1} borderBottomColor="$borderColor">
+                {hasPassword && (
+                  <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
+                    <Text width={80} fontSize="$3" color="$colorSubtle">Current</Text>
+                    <Input
+                      ref={passwordInputRef}
+                      flex={1}
+                      size="$3"
+                      value={currentPasswordValue}
+                      onChangeText={setCurrentPasswordValue}
+                      placeholder="Current password"
+                      placeholderTextColor={placeholderColor as any}
+                      secureTextEntry
+                      borderWidth={0}
+                      backgroundColor="transparent"
+                      paddingHorizontal={0}
+                    />
+                  </XStack>
+                )}
+                <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
+                  <Text width={80} fontSize="$3" color="$colorSubtle">New</Text>
+                  <Input
+                    ref={hasPassword ? undefined : passwordInputRef}
+                    flex={1}
+                    size="$3"
+                    value={newPasswordValue}
+                    onChangeText={setNewPasswordValue}
+                    placeholder="New password (8+)"
+                    placeholderTextColor={placeholderColor as any}
+                    secureTextEntry
+                    borderWidth={0}
+                    backgroundColor="transparent"
+                    paddingHorizontal={0}
+                  />
+                </XStack>
+                <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
+                  <Text width={80} fontSize="$3" color="$colorSubtle">Confirm</Text>
+                  <XStack flex={1} alignItems="center" gap="$2">
+                    <Input
+                      flex={1}
+                      size="$3"
+                      value={confirmPasswordValue}
+                      onChangeText={setConfirmPasswordValue}
+                      placeholder="Confirm password"
+                      placeholderTextColor={placeholderColor as any}
+                      secureTextEntry
+                      borderWidth={0}
+                      backgroundColor="transparent"
+                      paddingHorizontal={0}
+                    />
+                    <Pressable onPress={cancelEdit} hitSlop={8}>
+                      <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={savePassword}
+                      disabled={!newPasswordValue || !confirmPasswordValue || (hasPassword && !currentPasswordValue) || savingPassword}
+                      hitSlop={8}
+                    >
+                      {savingPassword ? <Spinner size="small" /> : <Text fontSize="$3" color="$accentColor" fontWeight="600">Save</Text>}
+                    </Pressable>
+                  </XStack>
+                </XStack>
+                {passwordError && (
+                  <Text fontSize="$2" color="$red10" paddingHorizontal="$4" paddingBottom="$2">{passwordError}</Text>
+                )}
               </YStack>
             ) : (
-              <Text fontSize="$4" color={phone ? '$color' : '$colorMuted'}>
-                {phone ? `+${callingCode} ${phone}` : 'Not set'}
-              </Text>
-            )}
-          </YStack>
+              <FieldRow>
+                <Text width={80} fontSize="$3" color="$colorSubtle">Password</Text>
+                <XStack flex={1} alignItems="center" justifyContent="space-between">
+                  <Text fontSize="$4" color={hasPassword ? '$color' : '$colorSubtle'}>
+                    {hasPassword ? '••••••••' : 'Not set'}
+                  </Text>
+                  <Pressable onPress={startEditPassword} hitSlop={8}>
+                    <Text fontSize="$3" color="$accentColor">{hasPassword ? 'Change' : 'Set'}</Text>
+                  </Pressable>
+                </XStack>
+              </FieldRow>
+            )
+          )}
 
-          {/* Info box */}
-          <YStack
-            backgroundColor="$blue2"
-            padding="$3"
-            borderRadius="$3"
-            marginTop="$4"
-          >
-            <XStack alignItems="flex-start" gap="$2">
-              <Ionicons name="information-circle" size={20} color={accentColor} />
-              <YStack flex={1}>
-                <Text fontSize="$3" fontWeight="500" color="$blue11">
-                  Why verify email and phone?
-                </Text>
-                <Text fontSize="$2" color="$blue10" marginTop="$1">
-                  Verification ensures your contact info is correct and can be used for account
-                  recovery. These are optional but recommended.
-                </Text>
-              </YStack>
+          {/* Info note */}
+          <YStack padding="$4">
+            <XStack backgroundColor="$blue2" padding="$3" borderRadius="$3" gap="$2" alignItems="flex-start">
+              <Ionicons name="information-circle-outline" size={18} color={accentColor} />
+              <Text fontSize="$2" color="$blue10" flex={1}>
+                Create an account with username + password to enable cloud sync and backup.
+              </Text>
             </XStack>
           </YStack>
-        </YStack>
 
-        <YStack height={insets.bottom + 20} />
-      </ScrollView>
+          <YStack height={insets.bottom + 20} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Country Picker Modal */}
+      <Modal visible={showCountryPicker} animationType="slide" onRequestClose={() => { setShowCountryPicker(false); setCountryFilter('') }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: background }} edges={['top', 'bottom']}>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+            <XStack paddingHorizontal="$4" paddingVertical="$3" alignItems="center" borderBottomWidth={1} borderBottomColor="$borderColor" gap="$3">
+              <Button size="$3" circular chromeless onPress={() => { setShowCountryPicker(false); setCountryFilter('') }} icon={<Ionicons name="close" size={24} color={iconColorStrong} />} />
+              <XStack flex={1} backgroundColor="$backgroundStrong" borderRadius="$3" paddingHorizontal="$3" alignItems="center" height={40}>
+                <Ionicons name="search" size={18} color={iconColor} />
+                <TextInput
+                  value={countryFilter}
+                  onChangeText={setCountryFilter}
+                  placeholder="Search country..."
+                  placeholderTextColor={placeholderColor}
+                  style={{ flex: 1, marginLeft: 8, fontSize: 16, color }}
+                  autoFocus
+                />
+              </XStack>
+            </XStack>
+            <FlatList
+              data={filteredCountries}
+              keyExtractor={(item) => item.cca2}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    setCountryCode(item.cca2)
+                    if (item.callingCode?.[0]) setCallingCode(item.callingCode[0])
+                    setShowCountryPicker(false)
+                    setCountryFilter('')
+                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    gap: 12,
+                    backgroundColor: pressed ? borderColor : 'transparent',
+                  })}
+                >
+                  <Text fontSize={28}>{countryCodeToEmoji(item.cca2)}</Text>
+                  <Text flex={1} fontSize="$4" color="$color" numberOfLines={1}>{item.name?.toString()}</Text>
+                  <Text fontSize="$4" color="$colorSubtle">+{item.callingCode?.[0]}</Text>
+                </Pressable>
+              )}
+            />
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
     </YStack>
   )
 }

@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
+  // deviceId is no longer required - kept for backwards compatibility during migration
   deviceId: {
     type: String,
-    required: true,
-    unique: true,
+    sparse: true,
     index: true,
   },
   name: {
@@ -36,6 +36,23 @@ const userSchema = new mongoose.Schema({
     sparse: true,
     trim: true,
   },
+  passwordHash: {
+    type: String,
+    select: false, // Don't include in queries by default
+  },
+  linkedDevices: [{
+    deviceId: {
+      type: String,
+      required: true,
+    },
+    linkedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    lastActiveAt: {
+      type: Date,
+    },
+  }],
   avatar: {
     type: String,
   },

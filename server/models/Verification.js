@@ -32,6 +32,10 @@ const verificationSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    // Used to store additional data like targetUserId for account linking
+  },
 }, {
   timestamps: true,
 });

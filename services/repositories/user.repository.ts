@@ -238,10 +238,10 @@ export class UserRepository {
 
   /**
    * Upsert user from server data (for sync)
+   * Server no longer sends deviceId - we find user by server_id or update current user
    */
   async upsertFromServer(serverUser: {
     _id: string
-    deviceId: string
     name: string
     username?: string
     email?: string
@@ -260,7 +260,18 @@ export class UserRepository {
     createdAt: string
     updatedAt: string
   }): Promise<void> {
-    const existing = await this.getByDeviceId(serverUser.deviceId)
+    // First try to find by server_id, then fall back to current user
+    let existing = await this.db.getFirstAsync<UserRow>(
+      `SELECT * FROM user WHERE server_id = ? AND deleted_at IS NULL`,
+      [serverUser._id]
+    )
+
+    if (!existing) {
+      // No user with this server_id, update the current local user
+      existing = await this.db.getFirstAsync<UserRow>(
+        `SELECT * FROM user WHERE deleted_at IS NULL LIMIT 1`
+      )
+    }
 
     if (existing) {
       // Update existing
@@ -278,7 +289,7 @@ export class UserRepository {
            settings_privacy_visibility = ?,
            sync_status = 'synced',
            updated_at = ?
-         WHERE device_id = ?`,
+         WHERE id = ?`,
         [
           serverUser._id,
           serverUser.name,
@@ -291,37 +302,12 @@ export class UserRepository {
           fromBoolean(serverUser.settings.notifications.sharedMessages),
           serverUser.settings.privacy.visibility,
           serverUser.updatedAt,
-          serverUser.deviceId,
-        ]
-      )
-    } else {
-      // Insert new
-      const id = generateUUID()
-      await this.db.runAsync(
-        `INSERT INTO user (
-           id, server_id, device_id, name, username, email, phone, avatar,
-           settings_theme, settings_notifications_task_reminders,
-           settings_notifications_shared_messages, settings_privacy_visibility,
-           sync_status, created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'synced', ?, ?)`,
-        [
-          id,
-          serverUser._id,
-          serverUser.deviceId,
-          serverUser.name,
-          serverUser.username ?? null,
-          serverUser.email ?? null,
-          serverUser.phone ?? null,
-          serverUser.avatar ?? null,
-          serverUser.settings.theme,
-          fromBoolean(serverUser.settings.notifications.taskReminders),
-          fromBoolean(serverUser.settings.notifications.sharedMessages),
-          serverUser.settings.privacy.visibility,
-          serverUser.createdAt,
-          serverUser.updatedAt,
+          existing.id,
         ]
       )
     }
+    // If no existing user, we don't create one from server data
+    // The local user should already exist from app initialization
   }
 
   /**

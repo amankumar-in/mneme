@@ -1,6 +1,6 @@
 import { Platform } from 'react-native'
 import axios, { AxiosInstance, AxiosError } from 'axios'
-import { getDeviceId } from './storage'
+import { getAuthToken, setAuthToken, clearAuthToken } from './storage'
 import type { Chat, Message, User, MessageType } from '../types'
 
 // Android emulator uses 10.0.2.2 to reach host machine's localhost
@@ -15,22 +15,39 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || getDefaultUrl()
 
 let apiInstance: AxiosInstance | null = null
 
+// Reset the cached API instance (call after logging out)
+export function resetApiInstance(): void {
+  apiInstance = null
+}
+
 async function getApi(): Promise<AxiosInstance> {
   if (apiInstance) return apiInstance
 
-  const deviceId = await getDeviceId()
+  const token = await getAuthToken()
 
   apiInstance = axios.create({
     baseURL: API_URL,
     headers: {
       'Content-Type': 'application/json',
-      'X-Device-ID': deviceId,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   })
 
   apiInstance.interceptors.response.use(
     (response) => response,
-    (error: AxiosError) => {
+    async (error: AxiosError) => {
+      // If server says user doesn't exist, clear the invalid token silently
+      if (error.response?.status === 401) {
+        const data = error.response?.data as any
+        if (data?.error === 'User not found') {
+          await clearAuthToken()
+          resetApiInstance()
+          // Don't log - this is expected when server DB is reset
+          // Return a special error the sync service can identify
+          const silentError = new Error('AUTH_CLEARED')
+          return Promise.reject(silentError)
+        }
+      }
       console.error('API Error:', error.response?.data || error.message)
       return Promise.reject(error)
     }
@@ -39,12 +56,31 @@ async function getApi(): Promise<AxiosInstance> {
   return apiInstance
 }
 
-// Auth
-export async function registerDevice(): Promise<{ user: User; isNew: boolean }> {
+// Helper to update token in cached instance
+async function updateApiToken(token: string): Promise<void> {
+  await setAuthToken(token)
+  // Reset instance so next call gets new token
+  apiInstance = null
+}
+
+// Auth - No more registerDevice, use signup/login
+export async function signup(data: { username: string; password: string; name?: string }): Promise<{ token: string; user: User }> {
   const api = await getApi()
-  const deviceId = await getDeviceId()
-  const response = await api.post('/auth/register', { deviceId })
+  const response = await api.post('/auth/signup', data)
+  await updateApiToken(response.data.token)
   return response.data
+}
+
+export async function login(data: { username: string; password: string }): Promise<{ token: string; user: User }> {
+  const api = await getApi()
+  const response = await api.post('/auth/login', data)
+  await updateApiToken(response.data.token)
+  return response.data
+}
+
+export async function logout(): Promise<void> {
+  await clearAuthToken()
+  resetApiInstance()
 }
 
 export async function getCurrentUser(): Promise<User> {
@@ -62,6 +98,46 @@ export async function updateUser(data: Partial<User>): Promise<User> {
 export async function deleteAccount(): Promise<void> {
   const api = await getApi()
   await api.delete('/auth/me')
+  await logout()
+}
+
+export async function deleteAccountInfo(): Promise<void> {
+  const api = await getApi()
+  await api.delete('/auth/account-info')
+}
+
+export async function deleteRemoteData(): Promise<{ chatsDeleted: number; messagesDeleted: number }> {
+  const api = await getApi()
+  const response = await api.delete('/sync/remote-data')
+  return response.data.stats
+}
+
+export async function getPasswordStatus(): Promise<{ hasPassword: boolean; hasUsername: boolean }> {
+  const api = await getApi()
+  const response = await api.get('/verify/password-status')
+  return response.data
+}
+
+export async function setPassword(password: string): Promise<void> {
+  const api = await getApi()
+  await api.post('/verify/set-password', { password })
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const api = await getApi()
+  await api.post('/verify/change-password', { currentPassword, newPassword })
+}
+
+export async function checkUsername(username: string): Promise<{ available: boolean; username: string }> {
+  const api = await getApi()
+  const response = await api.post('/auth/check-username', { username })
+  return response.data
+}
+
+// Check if user is authenticated (has valid token)
+export async function isAuthenticated(): Promise<boolean> {
+  const token = await getAuthToken()
+  return !!token
 }
 
 // Chats

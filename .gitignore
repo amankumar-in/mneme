@@ -43,3 +43,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# server user-data (persistent disk)
+server/user-data/

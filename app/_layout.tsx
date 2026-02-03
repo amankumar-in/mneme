@@ -23,7 +23,7 @@ import {
 
 import { tamaguiConfig } from '../tamagui.config'
 import { DatabaseProvider } from '@/contexts/DatabaseContext'
-import { useRegisterDevice } from '@/hooks/useUser'
+import { useInitializeLocalUser } from '@/hooks/useUser'
 import { useAutoSync } from '@/hooks/useSyncService'
 
 const queryClient = new QueryClient({
@@ -38,13 +38,14 @@ const queryClient = new QueryClient({
 // Inner component that uses hooks requiring database context
 function AppContent() {
   const router = useRouter()
-  const registerDevice = useRegisterDevice()
+  const initializeLocalUser = useInitializeLocalUser()
 
-  // Auto-sync on app foreground
+  // Auto-sync on app foreground (only syncs if authenticated)
   useAutoSync()
 
   useEffect(() => {
-    registerDevice.mutate()
+    // Initialize local user - NO SERVER CALLS
+    initializeLocalUser.mutate()
   }, [])
 
   // Handle shortcut navigation

@@ -1,6 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Ensure user-data directories exist (idempotent: only creates if missing; does not clear contents).
+// Mount a persistent disk at server/user-data so avatars and exports survive deployments.
+const USER_DATA_DIR = path.join(__dirname, 'user-data');
+const AVATARS_DIR = path.join(USER_DATA_DIR, 'avatars');
+const EXPORTS_DIR = path.join(USER_DATA_DIR, 'exports');
+fs.mkdirSync(AVATARS_DIR, { recursive: true });
+fs.mkdirSync(EXPORTS_DIR, { recursive: true });
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -53,6 +66,21 @@ app.get('/health', (req, res) => {
     status: 'ok',
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString(),
+  });
+});
+
+// Serve user avatars from user-data/avatars (no auth; filename is userId.ext)
+app.get('/api/avatar/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).send('Invalid filename');
+  }
+  const filePath = path.join(AVATARS_DIR, filename);
+  if (!filePath.startsWith(AVATARS_DIR)) {
+    return res.status(400).send('Invalid filename');
+  }
+  res.sendFile(filePath, (err) => {
+    if (err) res.status(err.status === 404 ? 404 : 500).send(err.code === 'ENOENT' ? 'Not found' : 'Error');
   });
 });
 

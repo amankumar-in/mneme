@@ -1,7 +1,7 @@
 import { Platform } from 'react-native'
 import axios, { AxiosInstance } from 'axios'
 import type { SQLiteDatabase } from 'expo-sqlite'
-import { getDeviceId } from '../storage'
+import { getAuthToken } from '../storage'
 import {
   getChatRepository,
   getMessageRepository,
@@ -66,7 +66,6 @@ interface ServerMessage {
 
 interface ServerUser {
   _id: string
-  deviceId: string
   name: string
   username?: string
   email?: string
@@ -117,16 +116,28 @@ export class SyncService {
 
   constructor(private db: SQLiteDatabase) {}
 
-  private async getApi(): Promise<AxiosInstance> {
-    if (this.api) return this.api
+  /**
+   * Reset cached API instance (call after logging out)
+   */
+  resetApi(): void {
+    this.api = null
+  }
 
-    const deviceId = await getDeviceId()
+  private async getApi(): Promise<AxiosInstance | null> {
+    const token = await getAuthToken()
+
+    // No token = no API access (local-only mode)
+    if (!token) {
+      return null
+    }
+
+    if (this.api) return this.api
 
     this.api = axios.create({
       baseURL: API_URL,
       headers: {
         'Content-Type': 'application/json',
-        'X-Device-ID': deviceId,
+        Authorization: `Bearer ${token}`,
       },
       timeout: 30000,
     })
@@ -175,9 +186,24 @@ export class SyncService {
   }
 
   /**
+   * Check if sync is possible (user is authenticated)
+   */
+  async canSync(): Promise<boolean> {
+    const token = await getAuthToken()
+    return !!token
+  }
+
+  /**
    * Pull changes from server
    */
   async pull(): Promise<void> {
+    // No API access if not authenticated
+    const api = await this.getApi()
+    if (!api) {
+      console.log('[Sync] Pull skipped - not authenticated')
+      return
+    }
+
     if (await this.isSyncing()) {
       console.log('[Sync] Already syncing, skipping pull')
       return
@@ -186,7 +212,6 @@ export class SyncService {
     try {
       await this.setSyncing(true)
 
-      const api = await this.getApi()
       const lastSync = await this.getLastSyncTimestamp()
 
       const response = await api.get<SyncChangesResponse>('/sync/changes', {
@@ -244,6 +269,8 @@ export class SyncService {
       // Network errors are expected when offline - don't treat as error
       if (error?.message?.includes('Network Error')) {
         console.log('[Sync] Pull skipped (offline)')
+      } else if (error?.message === 'AUTH_CLEARED') {
+        // Token was invalid and cleared - handled silently
       } else {
         console.warn('[Sync] Pull failed:', error?.message)
       }
@@ -257,6 +284,13 @@ export class SyncService {
    * Push local changes to server
    */
   async push(): Promise<void> {
+    // No API access if not authenticated
+    const api = await this.getApi()
+    if (!api) {
+      console.log('[Sync] Push skipped - not authenticated')
+      return
+    }
+
     if (await this.isSyncing()) {
       console.log('[Sync] Already syncing, skipping push')
       return
@@ -282,8 +316,6 @@ export class SyncService {
         console.log('[Sync] No pending changes to push')
         return
       }
-
-      const api = await this.getApi()
 
       // Push changes to server
       const response = await api.post<SyncPushResponse>('/sync/push', {
@@ -328,6 +360,8 @@ export class SyncService {
       // Network errors are expected when offline - don't treat as error
       if (error?.message?.includes('Network Error')) {
         console.log('[Sync] Push skipped (offline)')
+      } else if (error?.message === 'AUTH_CLEARED') {
+        // Token was invalid and cleared - handled silently
       } else {
         console.warn('[Sync] Push failed:', error?.message)
       }
@@ -350,6 +384,8 @@ export class SyncService {
         // Network errors are expected when offline - don't treat as error
         if (error?.message?.includes('Network Error')) {
           console.log('[Sync] Push skipped (offline)')
+        } else if (error?.message === 'AUTH_CLEARED') {
+          // Token was invalid and cleared - handled silently
         } else {
           console.warn('[Sync] Scheduled push failed:', error.message)
         }
@@ -452,4 +488,14 @@ export function getSyncService(db: SQLiteDatabase): SyncService {
     syncServiceInstance = new SyncService(db)
   }
   return syncServiceInstance
+}
+
+/**
+ * Reset the sync service (call after logging out)
+ */
+export function resetSyncService(): void {
+  if (syncServiceInstance) {
+    syncServiceInstance.resetApi()
+  }
+  syncServiceInstance = null
 }

@@ -24,7 +24,6 @@ router.get('/changes', authenticate, asyncHandler(async (req, res) => {
   if (req.user.updatedAt > sinceDate) {
     user = {
       _id: req.user._id,
-      deviceId: req.user.deviceId,
       name: req.user.name,
       username: req.user.username,
       email: req.user.email,
@@ -120,6 +119,37 @@ router.post('/push', authenticate, asyncHandler(async (req, res) => {
   // Process user changes
   if (userChanges) {
     const { localId, data } = userChanges;
+
+    // Validate unique fields before update to prevent E11000 duplicate key errors
+    if (data.username) {
+      const existingUsername = await User.findOne({
+        username: data.username.toLowerCase(),
+        _id: { $ne: userId }
+      });
+      if (existingUsername) {
+        return res.status(409).json({ error: 'Username already taken', field: 'username' });
+      }
+    }
+
+    if (data.email) {
+      const existingEmail = await User.findOne({
+        email: data.email.toLowerCase(),
+        _id: { $ne: userId }
+      });
+      if (existingEmail) {
+        return res.status(409).json({ error: 'Email already taken', field: 'email' });
+      }
+    }
+
+    if (data.phone) {
+      const existingPhone = await User.findOne({
+        phone: data.phone,
+        _id: { $ne: userId }
+      });
+      if (existingPhone) {
+        return res.status(409).json({ error: 'Phone number already taken', field: 'phone' });
+      }
+    }
 
     await User.findByIdAndUpdate(userId, {
       name: data.name,
@@ -255,6 +285,33 @@ router.post('/push', authenticate, asyncHandler(async (req, res) => {
   }
 
   res.json(result);
+}));
+
+/**
+ * DELETE /api/sync/remote-data
+ * Delete all remote chats and messages for the authenticated user
+ */
+router.delete('/remote-data', authenticate, asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  // Get all chats owned by user
+  const userChats = await Chat.find({ ownerId: userId });
+  const chatIds = userChats.map(c => c._id);
+
+  // Delete all messages in those chats
+  const deletedMessages = await Message.deleteMany({ chatId: { $in: chatIds } });
+
+  // Delete all chats
+  const deletedChats = await Chat.deleteMany({ ownerId: userId });
+
+  res.json({
+    success: true,
+    message: 'Remote data deleted successfully',
+    stats: {
+      chatsDeleted: deletedChats.deletedCount,
+      messagesDeleted: deletedMessages.deletedCount,
+    },
+  });
 }));
 
 export default router;

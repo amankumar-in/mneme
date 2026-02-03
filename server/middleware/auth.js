@@ -1,32 +1,60 @@
+import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'mneme-jwt-secret-change-in-production';
+
+/**
+ * Generate JWT token for a user
+ */
+export function generateToken(userId) {
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
+}
+
+/**
+ * Verify JWT token and return payload
+ */
+export function verifyToken(token) {
+  return jwt.verify(token, JWT_SECRET);
+}
 
 /**
  * Authentication middleware
- * Extracts device ID from X-Device-ID header and attaches user to request
+ * Extracts JWT from Authorization header and attaches user to request
  */
 export async function authenticate(req, res, next) {
   try {
-    const deviceId = req.headers['x-device-id'];
+    const authHeader = req.headers['authorization'];
 
-    if (!deviceId) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         error: 'Authentication required',
-        message: 'X-Device-ID header is missing',
+        message: 'Authorization header with Bearer token is required',
       });
     }
 
-    const user = await User.findOne({ deviceId });
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    let payload;
+    try {
+      payload = verifyToken(token);
+    } catch (err) {
+      return res.status(401).json({
+        error: 'Invalid token',
+        message: 'Token is invalid or expired',
+      });
+    }
+
+    const user = await User.findById(payload.userId);
 
     if (!user) {
       return res.status(401).json({
-        error: 'Authentication required',
-        message: 'Device not registered. Please register first.',
+        error: 'User not found',
+        message: 'Account no longer exists',
       });
     }
 
     // Attach user to request
     req.user = user;
-    req.deviceId = deviceId;
 
     next();
   } catch (error) {
@@ -40,17 +68,24 @@ export async function authenticate(req, res, next) {
 
 /**
  * Optional authentication middleware
- * Attaches user to request if device ID is provided, but doesn't require it
+ * Attaches user to request if valid token is provided, but doesn't require it
  */
 export async function optionalAuth(req, res, next) {
   try {
-    const deviceId = req.headers['x-device-id'];
+    const authHeader = req.headers['authorization'];
 
-    if (deviceId) {
-      const user = await User.findOne({ deviceId });
-      if (user) {
-        req.user = user;
-        req.deviceId = deviceId;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+
+      try {
+        const payload = verifyToken(token);
+        const user = await User.findById(payload.userId);
+
+        if (user) {
+          req.user = user;
+        }
+      } catch {
+        // Invalid token - continue without auth
       }
     }
 

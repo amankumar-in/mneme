@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { YStack, XStack, Text, Button } from 'tamagui'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useThemeColor } from '../../hooks/useThemeColor'
+import { useUser, useUpdateUser } from '../../hooks/useUser'
 
 type Visibility = 'public' | 'private' | 'contacts'
 
@@ -63,7 +64,22 @@ export default function PrivacyScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { iconColorStrong, iconColor } = useThemeColor()
-  const [visibility, setVisibility] = useState<Visibility>('contacts')
+  const { data: user } = useUser()
+  const updateUser = useUpdateUser()
+
+  const visibility = (user?.settings?.privacy?.visibility ?? 'private') as Visibility
+
+  const handleVisibilityChange = useCallback((newVisibility: Visibility) => {
+    updateUser.mutate({
+      settings: {
+        ...user?.settings,
+        privacy: {
+          ...user?.settings?.privacy,
+          visibility: newVisibility,
+        },
+      },
+    })
+  }, [updateUser, user?.settings])
 
   const handleBack = useCallback(() => {
     router.back()
@@ -108,7 +124,7 @@ export default function PrivacyScreen() {
             label="Everyone"
             description="Anyone can find and share chats with you"
             selected={visibility === 'public'}
-            onSelect={() => setVisibility('public')}
+            onSelect={() => handleVisibilityChange('public')}
           />
 
           <Option
@@ -116,7 +132,7 @@ export default function PrivacyScreen() {
             label="Contacts Only"
             description="Only people who have shared with you before can find you"
             selected={visibility === 'contacts'}
-            onSelect={() => setVisibility('contacts')}
+            onSelect={() => handleVisibilityChange('contacts')}
           />
 
           <Option
@@ -124,7 +140,7 @@ export default function PrivacyScreen() {
             label="No One"
             description="Nobody can find you or share chats with you"
             selected={visibility === 'private'}
-            onSelect={() => setVisibility('private')}
+            onSelect={() => handleVisibilityChange('private')}
           />
         </YStack>
 

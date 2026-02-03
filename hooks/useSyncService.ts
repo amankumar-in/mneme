@@ -57,6 +57,7 @@ export function useSyncService(): SyncServiceHook {
 
 /**
  * Hook to auto-sync when app comes to foreground
+ * NOTE: Sync is blocked by the sync service if user has no identity set
  */
 export function useAutoSync() {
   const { pull } = useSyncService()
@@ -69,7 +70,9 @@ export function useAutoSync() {
         appStateRef.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
+        // Sync service will check identity internally
         pull().catch((error) => {
+          if (error?.message === 'AUTH_CLEARED') return
           console.log('[AutoSync] Pull failed (offline?):', error.message)
         })
       }
@@ -77,8 +80,10 @@ export function useAutoSync() {
       appStateRef.current = nextAppState
     })
 
-    // Initial pull on mount
+    // Initial pull on mount (sync service will check identity internally)
     pull().catch((error) => {
+      // AUTH_CLEARED means token was invalid and cleared - this is handled silently
+      if (error?.message === 'AUTH_CLEARED') return
       console.log('[AutoSync] Initial pull failed (offline?):', error.message)
     })
 

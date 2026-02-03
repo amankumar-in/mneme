@@ -1,8 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as FileSystem from 'expo-file-system'
 import { Platform } from 'react-native'
+import { DATABASE_NAME } from './database/schema'
 
 const DEVICE_ID_KEY = '@mneme:deviceId'
 const USER_KEY = '@mneme:user'
+const AUTH_TOKEN_KEY = '@mneme:authToken'
 
 function generateId(): string {
   const timestamp = Date.now().toString(36)
@@ -40,6 +43,40 @@ export async function clearStoredUser(): Promise<void> {
   await AsyncStorage.removeItem(USER_KEY)
 }
 
+export async function getAuthToken(): Promise<string | null> {
+  return AsyncStorage.getItem(AUTH_TOKEN_KEY)
+}
+
+export async function setAuthToken(token: string): Promise<void> {
+  await AsyncStorage.setItem(AUTH_TOKEN_KEY, token)
+}
+
+export async function clearAuthToken(): Promise<void> {
+  await AsyncStorage.removeItem(AUTH_TOKEN_KEY)
+}
+
 export async function clearAll(): Promise<void> {
-  await AsyncStorage.multiRemove([DEVICE_ID_KEY, USER_KEY])
+  await AsyncStorage.multiRemove([DEVICE_ID_KEY, USER_KEY, AUTH_TOKEN_KEY])
+}
+
+/**
+ * Factory reset - deletes SQLite database and all AsyncStorage data
+ * App must be restarted after calling this
+ */
+export async function factoryReset(): Promise<void> {
+  // Clear all AsyncStorage
+  await AsyncStorage.clear()
+
+  // Delete the SQLite database file
+  const dbPath = `${FileSystem.documentDirectory}SQLite/${DATABASE_NAME}`
+  const dbInfo = await FileSystem.getInfoAsync(dbPath)
+  if (dbInfo.exists) {
+    await FileSystem.deleteAsync(dbPath, { idempotent: true })
+  }
+
+  // Also delete WAL and SHM files if they exist
+  const walPath = `${dbPath}-wal`
+  const shmPath = `${dbPath}-shm`
+  await FileSystem.deleteAsync(walPath, { idempotent: true }).catch(() => {})
+  await FileSystem.deleteAsync(shmPath, { idempotent: true }).catch(() => {})
 }

@@ -1,11 +1,15 @@
 import { useState, useCallback } from 'react'
+import { useFocusEffect } from 'expo-router'
 import { ScrollView, Alert, Image, Switch } from 'react-native'
 import { YStack, XStack, Text, Button, Separator } from 'tamagui'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { Directory, Paths } from 'expo-file-system/next'
 import { useThemeColor } from '../../hooks/useThemeColor'
-import { useUser } from '../../hooks/useUser'
+import { useUser, useUpdateUser, useDeleteAccount } from '../../hooks/useUser'
+import { deleteRemoteData, deleteAccountInfo, logout } from '../../services/api'
+import { clearAll } from '../../services/storage'
 
 interface SettingsItemProps {
   icon: keyof typeof Ionicons.glyphMap
@@ -142,8 +146,19 @@ export default function SettingsScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { iconColorStrong, iconColor, brandText, accentColor, successColor, warningColor, infoColor, errorColor } = useThemeColor()
-  const { data: user } = useUser()
-  const [dataSyncEnabled, setDataSyncEnabled] = useState(true)
+  const { data: user, refetch: refetchUser } = useUser()
+  const updateUser = useUpdateUser()
+
+  // Refetch user when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      refetchUser()
+    }, [refetchUser])
+  )
+
+  // User must have at least one identifier for sync to work
+  const hasIdentity = !!(user?.username || user?.email || user?.phone)
+  const [dataSyncEnabled, setDataSyncEnabled] = useState(hasIdentity)
 
   const handleBack = useCallback(() => {
     router.back()
@@ -155,10 +170,6 @@ export default function SettingsScreen() {
 
   const handlePrivacy = useCallback(() => {
     router.push('/settings/privacy')
-  }, [router])
-
-  const handleNotifications = useCallback(() => {
-    router.push('/settings/notifications')
   }, [router])
 
   const handleTheme = useCallback(() => {
@@ -190,7 +201,17 @@ export default function SettingsScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => console.log('Remote data deleted'),
+          onPress: async () => {
+            try {
+              const stats = await deleteRemoteData()
+              Alert.alert(
+                'Remote Data Deleted',
+                `Deleted ${stats.chatsDeleted} threads and ${stats.messagesDeleted} messages from the server.`
+              )
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.error || 'Failed to delete remote data')
+            }
+          },
         },
       ]
     )
@@ -199,17 +220,34 @@ export default function SettingsScreen() {
   const handleDeleteAccountInfo = useCallback(() => {
     Alert.alert(
       'Delete Account Information',
-      'This will remove your name, email, phone, and username. Your app will continue to work locally.',
+      'This will remove your name, email, phone, username, and password. Your threads and messages will be preserved. Sync will be disabled until you set up your profile again.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => console.log('Account info deleted'),
+          onPress: async () => {
+            try {
+              await deleteAccountInfo()
+              // Clear local user data to match server state
+              await updateUser.mutateAsync({
+                username: null,
+                email: null,
+                phone: null,
+                avatar: null,
+                name: 'Me',
+              })
+              // Clear auth token since credentials are deleted
+              await logout()
+              Alert.alert('Account Info Deleted', 'Your profile information has been removed. Your threads and messages are preserved.')
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.error || 'Failed to delete account information')
+            }
+          },
         },
       ]
     )
-  }, [])
+  }, [updateUser])
 
   const handleDeleteMedia = useCallback(() => {
     Alert.alert(
@@ -220,11 +258,31 @@ export default function SettingsScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => console.log('Media deleted'),
+          onPress: async () => {
+            try {
+              // Delete local media directories
+              const mediaDir = new Directory(Paths.document, 'media')
+              const cacheMediaDir = new Directory(Paths.cache, 'media')
+
+              if (mediaDir.exists) {
+                mediaDir.delete()
+              }
+
+              if (cacheMediaDir.exists) {
+                cacheMediaDir.delete()
+              }
+
+              Alert.alert('Media Deleted', 'All locally stored media has been deleted.')
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to delete media')
+            }
+          },
         },
       ]
     )
   }, [])
+
+  const deleteAccount = useDeleteAccount()
 
   const handleDeleteEverything = useCallback(() => {
     Alert.alert(
@@ -235,11 +293,39 @@ export default function SettingsScreen() {
         {
           text: 'Delete Everything',
           style: 'destructive',
-          onPress: () => console.log('Everything deleted'),
+          onPress: async () => {
+            try {
+              // Delete from server first (if authenticated)
+              await deleteAccount.mutateAsync()
+
+              // Clear local storage
+              await clearAll()
+
+              // Delete local media
+              const mediaDir = new Directory(Paths.document, 'media')
+              const cacheMediaDir = new Directory(Paths.cache, 'media')
+
+              if (mediaDir.exists) {
+                mediaDir.delete()
+              }
+
+              if (cacheMediaDir.exists) {
+                cacheMediaDir.delete()
+              }
+
+              Alert.alert(
+                'Everything Deleted',
+                'All your data has been deleted. The app will restart.',
+                [{ text: 'OK', onPress: () => router.replace('/') }]
+              )
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.error || error.message || 'Failed to delete everything')
+            }
+          },
         },
       ]
     )
-  }, [])
+  }, [deleteAccount, router])
 
   return (
     <YStack flex={1} backgroundColor="$background">
@@ -317,12 +403,24 @@ export default function SettingsScreen() {
           subtitle="Who can find you"
           onPress={handlePrivacy}
         />
-        <SettingsItem
-          icon="notifications-outline"
+        <SettingsToggleItem
+          icon="alarm-outline"
           iconColor={warningColor}
-          title="Notifications"
-          subtitle="Task reminders, shared messages"
-          onPress={handleNotifications}
+          title="Task Reminders"
+          subtitle="Get notified when a task reminder is due"
+          value={user?.settings?.notifications?.taskReminders ?? true}
+          onValueChange={(value) => {
+            updateUser.mutate({
+              settings: {
+                ...user?.settings,
+                notifications: {
+                  ...user?.settings?.notifications,
+                  taskReminders: value,
+                },
+              },
+            })
+          }}
+          trackColor={warningColor}
         />
         <SettingsItem
           icon="color-palette-outline"
@@ -347,11 +445,30 @@ export default function SettingsScreen() {
         <SectionHeader title="Data Control" />
         <SettingsToggleItem
           icon="sync-outline"
-          iconColor={accentColor}
+          iconColor={hasIdentity ? accentColor : iconColor}
           title="Data Sync"
-          subtitle={dataSyncEnabled ? 'Syncing to cloud backup' : 'Fully offline mode'}
-          value={dataSyncEnabled}
-          onValueChange={setDataSyncEnabled}
+          subtitle={
+            !hasIdentity
+              ? 'Set username, email, or phone to enable sync'
+              : dataSyncEnabled
+                ? 'Syncing to cloud backup'
+                : 'Fully offline mode'
+          }
+          value={hasIdentity && dataSyncEnabled}
+          onValueChange={(value) => {
+            if (!hasIdentity) {
+              Alert.alert(
+                'Identity Required',
+                'Set a username, email, or phone number in your profile to enable sync.',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Go to Profile', onPress: () => router.push('/settings/profile') },
+                ]
+              )
+              return
+            }
+            setDataSyncEnabled(value)
+          }}
           trackColor={accentColor}
         />
         <SettingsItem
