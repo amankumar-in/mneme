@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ScrollView, Alert, Image, TextInput } from 'react-native'
-import { YStack, XStack, Text, Button, Input } from 'tamagui'
+import { YStack, XStack, Text, Button } from 'tamagui'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'

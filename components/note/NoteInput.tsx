@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { XStack, YStack, Input, Button, Text } from 'tamagui'
+import { XStack, YStack, Button, Text } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
 import { Keyboard, TextInput } from 'react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
@@ -35,7 +35,7 @@ export function NoteInput({
   showAttachments,
   onToggleAttachments,
 }: NoteInputProps) {
-  const { iconColor, brandText, placeholderColor } = useThemeColor()
+  const { iconColor, brandText, placeholderColor, color } = useThemeColor()
   const [text, setText] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const inputRef = useRef<TextInput>(null)
@@ -170,12 +170,9 @@ export function NoteInput({
           maxHeight={120}
           alignItems="center"
         >
-          <Input
-            ref={inputRef as any}
-            key={placeholderColor}
-            flex={1}
-            borderWidth={0}
-            backgroundColor="transparent"
+          <TextInput
+            ref={inputRef}
+            style={{ flex: 1, fontSize: 16, color, paddingHorizontal: 12 }}
             placeholder="Type a note..."
             placeholderTextColor={placeholderColor}
             value={text}
@@ -183,7 +180,6 @@ export function NoteInput({
             multiline
             maxLength={5000}
             returnKeyType="default"
-            paddingHorizontal="$3"
           />
         </XStack>
 

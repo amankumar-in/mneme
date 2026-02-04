@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { XStack, YStack, Text, Button, Popover, Input } from 'tamagui'
+import { XStack, YStack, Text, Button, Popover } from 'tamagui'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { TextInput, Image } from 'react-native'
@@ -210,15 +210,9 @@ export function ThreadHeader({
           </XStack>
         )}
         {isEditingName ? (
-          <Input
-            ref={inputRef as any}
-            flex={1}
-            fontSize="$5"
-            fontWeight="600"
-            color="$color"
-            backgroundColor="transparent"
-            borderWidth={0}
-            paddingHorizontal={0}
+          <TextInput
+            ref={inputRef}
+            style={{ flex: 1, fontSize: 20, fontWeight: '600', color: iconColorStrong }}
             value={thread.name}
             onChangeText={onNameChange}
             onSubmitEditing={onNameSubmit}

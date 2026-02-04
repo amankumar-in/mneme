@@ -1,4 +1,5 @@
-import { XStack, Input, Button } from 'tamagui'
+import { XStack, Button } from 'tamagui'
+import { TextInput } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useCallback, useRef, useEffect } from 'react'
 import { useThemeColor } from '../hooks/useThemeColor'
@@ -16,8 +17,8 @@ export function SearchBar({
   placeholder = 'Search',
   autoFocus = false,
 }: SearchBarProps) {
-  const { iconColor, placeholderColor } = useThemeColor()
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const { iconColor, placeholderColor, color } = useThemeColor()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleChangeText = useCallback(
     (text: string) => {
@@ -54,17 +55,13 @@ export function SearchBar({
       height={44}
     >
       <Ionicons name="search" size={20} color={iconColor} />
-      <Input
-        key={placeholderColor}
-        flex={1}
-        borderWidth={0}
-        backgroundColor="transparent"
+      <TextInput
+        style={{ flex: 1, marginLeft: 8, fontSize: 16, color }}
         placeholder={placeholder}
         placeholderTextColor={placeholderColor}
         defaultValue={value}
         onChangeText={handleChangeText}
         autoFocus={autoFocus}
-        marginLeft="$2"
       />
       {value.length > 0 && (
         <Button

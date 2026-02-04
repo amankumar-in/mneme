@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { ScrollView, Alert, Image, Pressable, Modal, TextInput, FlatList } from 'react-native'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
-import { YStack, XStack, Text, Button, Input, Spinner } from 'tamagui'
+import { YStack, XStack, Text, Button, Spinner } from 'tamagui'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
@@ -548,17 +548,13 @@ export default function ProfileScreen() {
             <Text width={80} fontSize="$3" color="$colorSubtle">Name</Text>
             {editingField === 'name' ? (
               <XStack flex={1} alignItems="center" gap="$2">
-                <Input
+                <TextInput
                   ref={nameInputRef}
-                  flex={1}
-                  size="$3"
+                  style={{ flex: 1, fontSize: 14, color }}
                   value={nameValue}
                   onChangeText={setNameValue}
                   placeholder="Your name"
-                  placeholderTextColor={placeholderColor as any}
-                  borderWidth={0}
-                  backgroundColor="transparent"
-                  paddingHorizontal={0}
+                  placeholderTextColor={placeholderColor}
                 />
                 <Pressable onPress={cancelEdit} hitSlop={8}>
                   <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
@@ -593,18 +589,14 @@ export default function ProfileScreen() {
               <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
                 <Text width={80} fontSize="$3" color="$colorSubtle">Username</Text>
                 <XStack flex={1} alignItems="center" gap="$2">
-                  <Input
+                  <TextInput
                     ref={usernameInputRef}
-                    flex={1}
-                    size="$3"
+                    style={{ flex: 1, fontSize: 14, color }}
                     value={usernameValue}
                     onChangeText={(t) => setUsernameValue(t.toLowerCase())}
                     placeholder="username"
-                    placeholderTextColor={placeholderColor as any}
+                    placeholderTextColor={placeholderColor}
                     autoCapitalize="none"
-                    borderWidth={0}
-                    backgroundColor="transparent"
-                    paddingHorizontal={0}
                   />
                   {checkingUsername && <Spinner size="small" />}
                   {!checkingUsername && usernameAvailable === true && (
@@ -626,18 +618,14 @@ export default function ProfileScreen() {
                 <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
                   <Text width={80} fontSize="$3" color="$colorSubtle">Password</Text>
                   <XStack flex={1} alignItems="center" gap="$2">
-                    <Input
-                      flex={1}
-                      size="$3"
+                    <TextInput
+                      style={{ flex: 1, fontSize: 14, color }}
                       value={passwordValue}
                       onChangeText={setPasswordValue}
                       placeholder={usernameAvailable ? 'Create password (8+)' : 'Enter password'}
-                      placeholderTextColor={placeholderColor as any}
+                      placeholderTextColor={placeholderColor}
                       secureTextEntry={!showPassword}
                       autoCapitalize="none"
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      paddingHorizontal={0}
                     />
                     <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
                       <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={18} color={iconColor} />
@@ -690,19 +678,15 @@ export default function ProfileScreen() {
                 <Text width={80} fontSize="$3" color="$colorSubtle">Email</Text>
                 {emailStep === 'input' ? (
                   <XStack flex={1} alignItems="center" gap="$2">
-                    <Input
+                    <TextInput
                       ref={emailInputRef}
-                      flex={1}
-                      size="$3"
+                      style={{ flex: 1, fontSize: 14, color }}
                       value={emailValue}
                       onChangeText={setEmailValue}
                       placeholder="email@example.com"
-                      placeholderTextColor={placeholderColor as any}
+                      placeholderTextColor={placeholderColor}
                       keyboardType="email-address"
                       autoCapitalize="none"
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      paddingHorizontal={0}
                     />
                     <Pressable onPress={cancelEdit} hitSlop={8}>
                       <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
@@ -713,19 +697,15 @@ export default function ProfileScreen() {
                   </XStack>
                 ) : (
                   <XStack flex={1} alignItems="center" gap="$2">
-                    <Input
+                    <TextInput
                       ref={emailCodeInputRef}
-                      flex={1}
-                      size="$3"
+                      style={{ flex: 1, fontSize: 14, color }}
                       value={emailCode}
                       onChangeText={setEmailCode}
                       placeholder="Enter code"
-                      placeholderTextColor={placeholderColor as any}
+                      placeholderTextColor={placeholderColor}
                       keyboardType="number-pad"
                       maxLength={6}
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      paddingHorizontal={0}
                     />
                     <Pressable onPress={cancelEdit} hitSlop={8}>
                       <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
@@ -777,18 +757,14 @@ export default function ProfileScreen() {
                         <Ionicons name="chevron-down" size={12} color={iconColor} />
                       </XStack>
                     </Pressable>
-                    <Input
+                    <TextInput
                       ref={phoneInputRef}
-                      flex={1}
-                      size="$3"
+                      style={{ flex: 1, fontSize: 14, color }}
                       value={phoneValue}
                       onChangeText={setPhoneValue}
                       placeholder="Phone number"
-                      placeholderTextColor={placeholderColor as any}
+                      placeholderTextColor={placeholderColor}
                       keyboardType="phone-pad"
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      paddingHorizontal={0}
                     />
                     <Pressable onPress={cancelEdit} hitSlop={8}>
                       <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
@@ -799,19 +775,15 @@ export default function ProfileScreen() {
                   </XStack>
                 ) : (
                   <XStack flex={1} alignItems="center" gap="$2">
-                    <Input
+                    <TextInput
                       ref={phoneCodeInputRef}
-                      flex={1}
-                      size="$3"
+                      style={{ flex: 1, fontSize: 14, color }}
                       value={phoneCode}
                       onChangeText={setPhoneCode}
                       placeholder="Enter code"
-                      placeholderTextColor={placeholderColor as any}
+                      placeholderTextColor={placeholderColor}
                       keyboardType="number-pad"
                       maxLength={6}
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      paddingHorizontal={0}
                     />
                     <Pressable onPress={cancelEdit} hitSlop={8}>
                       <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
@@ -845,51 +817,39 @@ export default function ProfileScreen() {
                 {hasPassword && (
                   <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
                     <Text width={80} fontSize="$3" color="$colorSubtle">Current</Text>
-                    <Input
+                    <TextInput
                       ref={passwordInputRef}
-                      flex={1}
-                      size="$3"
+                      style={{ flex: 1, fontSize: 14, color }}
                       value={currentPasswordValue}
                       onChangeText={setCurrentPasswordValue}
                       placeholder="Current password"
-                      placeholderTextColor={placeholderColor as any}
+                      placeholderTextColor={placeholderColor}
                       secureTextEntry
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      paddingHorizontal={0}
                     />
                   </XStack>
                 )}
                 <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
                   <Text width={80} fontSize="$3" color="$colorSubtle">New</Text>
-                  <Input
+                  <TextInput
                     ref={hasPassword ? undefined : passwordInputRef}
-                    flex={1}
-                    size="$3"
+                    style={{ flex: 1, fontSize: 14, color }}
                     value={newPasswordValue}
                     onChangeText={setNewPasswordValue}
                     placeholder="New password (8+)"
-                    placeholderTextColor={placeholderColor as any}
+                    placeholderTextColor={placeholderColor}
                     secureTextEntry
-                    borderWidth={0}
-                    backgroundColor="transparent"
-                    paddingHorizontal={0}
                   />
                 </XStack>
                 <XStack paddingVertical="$3" paddingHorizontal="$4" alignItems="center">
                   <Text width={80} fontSize="$3" color="$colorSubtle">Confirm</Text>
                   <XStack flex={1} alignItems="center" gap="$2">
-                    <Input
-                      flex={1}
-                      size="$3"
+                    <TextInput
+                      style={{ flex: 1, fontSize: 14, color }}
                       value={confirmPasswordValue}
                       onChangeText={setConfirmPasswordValue}
                       placeholder="Confirm password"
-                      placeholderTextColor={placeholderColor as any}
+                      placeholderTextColor={placeholderColor}
                       secureTextEntry
-                      borderWidth={0}
-                      backgroundColor="transparent"
-                      paddingHorizontal={0}
                     />
                     <Pressable onPress={cancelEdit} hitSlop={8}>
                       <Text fontSize="$3" color="$colorSubtle">Cancel</Text>
