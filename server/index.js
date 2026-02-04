@@ -17,11 +17,12 @@ fs.mkdirSync(EXPORTS_DIR, { recursive: true });
 
 // Routes
 import authRoutes from './routes/auth.js';
-import chatRoutes from './routes/chats.js';
-import messageRoutes from './routes/messages.js';
+import threadRoutes from './routes/threads.js';
+import noteRoutes from './routes/notes.js';
 import taskRoutes from './routes/tasks.js';
 import searchRoutes from './routes/search.js';
 import syncRoutes from './routes/sync.js';
+import shareRoutes from './routes/share.js';
 import verifyRoutes from './routes/verify.js';
 
 // Middleware
@@ -86,11 +87,12 @@ app.get('/api/avatar/:filename', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/chats', chatRoutes);
-app.use('/api/chats', messageRoutes); // Messages are at /api/chats/:chatId/messages
+app.use('/api/threads', threadRoutes);
+app.use('/api/threads', noteRoutes); // Notes are at /api/threads/:threadId/notes
 app.use('/api/tasks', taskRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/share', shareRoutes);
 app.use('/api/verify', verifyRoutes);
 
 // Error handling

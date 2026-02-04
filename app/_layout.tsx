@@ -53,14 +53,14 @@ function AppContent() {
     // Handle shortcut that launched the app
     Shortcuts.getInitialShortcutId().then((id) => {
       if (id) {
-        router.push(`/chat/${id}`)
+        router.push(`/thread/${id}`)
       }
     })
 
     // Handle shortcuts while app is running
     const subscription = Shortcuts.addOnShortcutUsedListener((id) => {
       if (id) {
-        router.push(`/chat/${id}`)
+        router.push(`/thread/${id}`)
       }
     })
 

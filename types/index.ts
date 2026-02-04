@@ -1,16 +1,16 @@
-export type MessageType = 'text' | 'image' | 'voice' | 'file' | 'location'
+export type NoteType = 'text' | 'image' | 'voice' | 'file' | 'location'
 
 // Re-export local database types for components that need them
 export type {
-  ChatWithLastMessage,
-  MessageWithDetails,
+  ThreadWithLastNote,
+  NoteWithDetails,
   UserProfile,
   SyncStatus,
   TaskFilter,
 } from '@/services/database/types'
 
 // Legacy server types (used by sync service and API compatibility)
-export interface ServerChat {
+export interface ServerThread {
   _id: string
   name: string
   icon?: string
@@ -19,22 +19,22 @@ export interface ServerChat {
   isShared: boolean
   isPinned: boolean
   wallpaper?: string
-  lastMessage?: {
+  lastNote?: {
     content: string
-    type: MessageType
+    type: NoteType
     timestamp: string
   }
   createdAt: string
   updatedAt: string
 }
 
-export interface ServerMessage {
+export interface ServerNote {
   _id: string
-  chatId: string
-  chatName?: string
+  threadId: string
+  threadName?: string
   senderId: string
   content?: string
-  type: MessageType
+  type: NoteType
   attachment?: {
     url: string
     filename?: string
@@ -76,7 +76,7 @@ export interface ServerUser {
     theme: 'light' | 'dark' | 'system'
     notifications: {
       taskReminders: boolean
-      sharedMessages: boolean
+      sharedNotes: boolean
     }
     privacy: {
       visibility: 'public' | 'private' | 'contacts'
@@ -87,8 +87,8 @@ export interface ServerUser {
 }
 
 // Alias for backward compatibility (components use these)
-export type Chat = ServerChat
-export type Message = ServerMessage
+export type Thread = ServerThread
+export type Note = ServerNote
 export type User = ServerUser
 
-export type ChatFilter = 'threads' | 'tasks'
+export type ThreadFilter = 'threads' | 'tasks'

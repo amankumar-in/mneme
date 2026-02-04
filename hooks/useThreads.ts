@@ -1,78 +1,78 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { useDb } from '@/contexts/DatabaseContext'
-import { getChatRepository } from '@/services/repositories'
+import { getThreadRepository } from '@/services/repositories'
 import { useSyncService } from './useSyncService'
-import type { ChatWithLastMessage, PaginatedResult } from '@/services/database/types'
+import type { ThreadWithLastNote, PaginatedResult } from '@/services/database/types'
 
-export function useChats(params?: {
+export function useThreads(params?: {
   search?: string
   filter?: 'all' | 'tasks' | 'pinned'
 }) {
   const db = useDb()
-  const chatRepo = getChatRepository(db)
+  const threadRepo = getThreadRepository(db)
 
   return useQuery({
-    queryKey: ['chats', params],
-    queryFn: async (): Promise<PaginatedResult<ChatWithLastMessage>> => {
-      return chatRepo.getAll({ search: params?.search })
+    queryKey: ['threads', params],
+    queryFn: async (): Promise<PaginatedResult<ThreadWithLastNote>> => {
+      return threadRepo.getAll({ search: params?.search })
     },
   })
 }
 
-export function useInfiniteChats(params?: {
+export function useInfiniteThreads(params?: {
   search?: string
   filter?: 'all' | 'tasks' | 'pinned'
   limit?: number
 }) {
   const db = useDb()
-  const chatRepo = getChatRepository(db)
+  const threadRepo = getThreadRepository(db)
   const limit = params?.limit ?? 20
 
   return useInfiniteQuery({
-    queryKey: ['chats', 'infinite', params],
+    queryKey: ['threads', 'infinite', params],
     queryFn: async ({ pageParam = 1 }) => {
-      const result = await chatRepo.getAll({
+      const result = await threadRepo.getAll({
         search: params?.search,
         page: pageParam,
         limit,
       })
       return { ...result, page: pageParam }
     },
-    getNextPageParam: (lastPage: PaginatedResult<ChatWithLastMessage> & { page: number }) =>
+    getNextPageParam: (lastPage: PaginatedResult<ThreadWithLastNote> & { page: number }) =>
       lastPage.hasMore ? lastPage.page + 1 : undefined,
     initialPageParam: 1,
   })
 }
 
-export function useChat(id: string) {
+export function useThread(id: string) {
   const db = useDb()
-  const chatRepo = getChatRepository(db)
+  const threadRepo = getThreadRepository(db)
 
   return useQuery({
-    queryKey: ['chat', id],
-    queryFn: () => chatRepo.getById(id),
+    queryKey: ['thread', id],
+    queryFn: () => threadRepo.getById(id),
     enabled: !!id,
   })
 }
 
-export function useCreateChat() {
+export function useCreateThread() {
   const db = useDb()
-  const chatRepo = getChatRepository(db)
+  const threadRepo = getThreadRepository(db)
   const queryClient = useQueryClient()
   const { schedulePush } = useSyncService()
 
   return useMutation({
-    mutationFn: (data: { name: string; icon?: string }) => chatRepo.create(data),
+    mutationFn: (data: { name: string; icon?: string }) => threadRepo.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chats'] })
+      queryClient.invalidateQueries({ queryKey: ['threads'] })
       schedulePush()
     },
   })
 }
 
-export function useUpdateChat() {
+export function useUpdateThread() {
   const db = useDb()
-  const chatRepo = getChatRepository(db)
+  const threadRepo = getThreadRepository(db)
   const queryClient = useQueryClient()
   const { schedulePush } = useSyncService()
 
@@ -83,25 +83,25 @@ export function useUpdateChat() {
     }: {
       id: string
       data: Partial<{ name: string; icon: string | null; isPinned: boolean; wallpaper: string | null }>
-    }) => chatRepo.update(id, data),
+    }) => threadRepo.update(id, data),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['chats'] })
-      queryClient.invalidateQueries({ queryKey: ['chat', id] })
+      queryClient.invalidateQueries({ queryKey: ['threads'] })
+      queryClient.invalidateQueries({ queryKey: ['thread', id] })
       schedulePush()
     },
   })
 }
 
-export function useDeleteChat() {
+export function useDeleteThread() {
   const db = useDb()
-  const chatRepo = getChatRepository(db)
+  const threadRepo = getThreadRepository(db)
   const queryClient = useQueryClient()
   const { schedulePush } = useSyncService()
 
   return useMutation({
-    mutationFn: (id: string) => chatRepo.delete(id),
+    mutationFn: (id: string) => threadRepo.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chats'] })
+      queryClient.invalidateQueries({ queryKey: ['threads'] })
       schedulePush()
     },
   })

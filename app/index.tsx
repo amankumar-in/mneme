@@ -11,17 +11,17 @@ import { FilterChips } from '../components/FilterChips'
 import { NoteListItem } from '../components/NoteListItem'
 import { FAB } from '../components/FAB'
 import {
-  useChats,
-  useCreateChat,
-  useUpdateChat,
-  useDeleteChat,
-} from '../hooks/useChats'
-import { useExportChat } from '../hooks/useExportChat'
+  useThreads,
+  useCreateThread,
+  useUpdateThread,
+  useDeleteThread,
+} from '../hooks/useThreads'
+import { useExportThread } from '../hooks/useExportThread'
 import { useShortcuts } from '../hooks/useShortcuts'
 import { useUser } from '../hooks/useUser'
 import { useSyncService } from '../hooks/useSyncService'
 import { useThemeColor } from '../hooks/useThemeColor'
-import type { ChatWithLastMessage, ChatFilter } from '../types'
+import type { ThreadWithLastNote, ThreadFilter } from '../types'
 
 const FILTER_OPTIONS = [
   { key: 'threads', label: 'Threads' },
@@ -33,7 +33,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets()
   const { iconColor } = useThemeColor()
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedFilter, setSelectedFilter] = useState<ChatFilter>('threads')
+  const [selectedFilter, setSelectedFilter] = useState<ThreadFilter>('threads')
 
   // API hooks
   const {
@@ -41,22 +41,22 @@ export default function HomeScreen() {
     isLoading,
     error,
     refetch,
-  } = useChats({
+  } = useThreads({
     search: searchQuery || undefined,
-    filter: undefined, // threads view shows all chats
+    filter: undefined, // threads view shows all threads
   })
 
-  const createChat = useCreateChat()
-  const updateChat = useUpdateChat()
-  const deleteChat = useDeleteChat()
-  const { exportChat, isExporting } = useExportChat()
+  const createThread = useCreateThread()
+  const updateThread = useUpdateThread()
+  const deleteThread = useDeleteThread()
+  const { exportThread, isExporting } = useExportThread()
   const { addShortcut } = useShortcuts()
   const { data: user } = useUser()
   const { pull } = useSyncService()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const hasIdentity = !!(user?.username || user?.email || user?.phone)
-  const chats = data?.data ?? []
+  const threads = data?.data ?? []
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
@@ -67,22 +67,22 @@ export default function HomeScreen() {
     setIsRefreshing(false)
   }, [hasIdentity, pull, refetch])
 
-  const handleChatPress = useCallback(
-    (chat: ChatWithLastMessage) => {
-      router.push(`/chat/${chat.id}`)
+  const handleThreadPress = useCallback(
+    (thread: ThreadWithLastNote) => {
+      router.push(`/thread/${thread.id}`)
     },
     [router]
   )
 
-  const handleChatLongPress = useCallback(
-    (chat: ChatWithLastMessage) => {
-      Alert.alert(chat.name, 'Choose an action', [
+  const handleThreadLongPress = useCallback(
+    (thread: ThreadWithLastNote) => {
+      Alert.alert(thread.name, 'Choose an action', [
         {
-          text: chat.isPinned ? 'Unpin' : 'Pin',
+          text: thread.isPinned ? 'Unpin' : 'Pin',
           onPress: () => {
-            updateChat.mutate({
-              id: chat.id,
-              data: { isPinned: !chat.isPinned },
+            updateThread.mutate({
+              id: thread.id,
+              data: { isPinned: !thread.isPinned },
             })
           },
         },
@@ -90,18 +90,18 @@ export default function HomeScreen() {
           text: 'Export',
           onPress: async () => {
             try {
-              await exportChat(chat.id, chat.name)
+              await exportThread(thread.id, thread.name)
             } catch {
-              Alert.alert('Export Failed', 'Could not export the chat.')
+              Alert.alert('Export Failed', 'Could not export the thread.')
             }
           },
         },
         {
           text: 'Add Shortcut',
           onPress: async () => {
-            const success = await addShortcut(chat)
+            const success = await addShortcut(thread)
             if (success) {
-              Alert.alert('Shortcut Added', `${chat.name} added to shortcuts.`)
+              Alert.alert('Shortcut Added', `${thread.name} added to shortcuts.`)
             } else {
               Alert.alert('Failed', 'Could not add shortcut.')
             }
@@ -112,15 +112,15 @@ export default function HomeScreen() {
           style: 'destructive',
           onPress: () => {
             Alert.alert(
-              'Delete Chat',
-              'Are you sure? Locked messages will be preserved.',
+              'Delete Thread',
+              'Are you sure? Locked notes will be preserved.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {
                   text: 'Delete',
                   style: 'destructive',
                   onPress: () => {
-                    deleteChat.mutate(chat.id)
+                    deleteThread.mutate(thread.id)
                   },
                 },
               ]
@@ -130,17 +130,17 @@ export default function HomeScreen() {
         { text: 'Cancel', style: 'cancel' },
       ])
     },
-    [updateChat, deleteChat, exportChat, addShortcut]
+    [updateThread, deleteThread, exportThread, addShortcut]
   )
 
-  const handleCreateChat = useCallback(async () => {
+  const handleCreateThread = useCallback(async () => {
     try {
-      const chat = await createChat.mutateAsync({ name: 'New Thread' })
-      router.push(`/chat/${chat.id}?new=1`)
+      const thread = await createThread.mutateAsync({ name: 'New Thread' })
+      router.push(`/thread/${thread.id}?new=1`)
     } catch {
       Alert.alert('Error', 'Could not create the note.')
     }
-  }, [createChat, router])
+  }, [createThread, router])
 
   const handleQRPress = useCallback(() => {
     router.push('/qr-scan')
@@ -184,13 +184,13 @@ export default function HomeScreen() {
               <Text color="$brandText">Try Again</Text>
             </Button>
           </YStack>
-          <FAB icon="add" onPress={handleCreateChat} />
+          <FAB icon="add" onPress={handleCreateThread} />
         </>
       )
     }
 
     // Empty state
-    if (chats.length === 0 && !searchQuery) {
+    if (threads.length === 0 && !searchQuery) {
       return (
         <>
           <SearchBar
@@ -205,7 +205,7 @@ export default function HomeScreen() {
               if (key === 'tasks') {
                 router.push('/tasks')
               } else {
-                setSelectedFilter(key as ChatFilter)
+                setSelectedFilter(key as ThreadFilter)
               }
             }}
           />
@@ -218,13 +218,13 @@ export default function HomeScreen() {
               Tap the + button to create your first note
             </Text>
           </YStack>
-          <FAB icon="add" onPress={handleCreateChat} />
+          <FAB icon="add" onPress={handleCreateThread} />
         </>
       )
     }
 
     // No search results
-    if (chats.length === 0 && searchQuery) {
+    if (threads.length === 0 && searchQuery) {
       return (
         <>
           <SearchBar
@@ -239,7 +239,7 @@ export default function HomeScreen() {
               if (key === 'tasks') {
                 router.push('/tasks')
               } else {
-                setSelectedFilter(key as ChatFilter)
+                setSelectedFilter(key as ThreadFilter)
               }
             }}
           />
@@ -252,12 +252,12 @@ export default function HomeScreen() {
               No notes match "{searchQuery}"
             </Text>
           </YStack>
-          <FAB icon="add" onPress={handleCreateChat} />
+          <FAB icon="add" onPress={handleCreateThread} />
         </>
       )
     }
 
-    // Normal state with chats
+    // Normal state with threads
     return (
       <>
         <SearchBar
@@ -273,19 +273,19 @@ export default function HomeScreen() {
             if (key === 'tasks') {
               router.push('/tasks')
             } else {
-              setSelectedFilter(key as ChatFilter)
+              setSelectedFilter(key as ThreadFilter)
             }
           }}
         />
 
         <FlatList
-          data={chats}
+          data={threads}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <NoteListItem
-              chat={item}
-              onPress={() => handleChatPress(item)}
-              onLongPress={() => handleChatLongPress(item)}
+              thread={item}
+              onPress={() => handleThreadPress(item)}
+              onLongPress={() => handleThreadLongPress(item)}
             />
           )}
           ItemSeparatorComponent={() => <Separator marginLeft={76} />}
@@ -298,7 +298,7 @@ export default function HomeScreen() {
           }
         />
 
-        <FAB icon="add" onPress={handleCreateChat} disabled={createChat.isPending} />
+        <FAB icon="add" onPress={handleCreateThread} disabled={createThread.isPending} />
 
         {isExporting && (
           <XStack

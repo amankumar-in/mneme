@@ -1,9 +1,9 @@
 import mongoose from 'mongoose';
 
-const messageSchema = new mongoose.Schema({
-  chatId: {
+const noteSchema = new mongoose.Schema({
+  threadId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Chat',
+    ref: 'Thread',
     required: true,
     index: true,
   },
@@ -68,41 +68,41 @@ const messageSchema = new mongoose.Schema({
     },
     completedAt: Date,
   },
-  // For messages moved from deleted chats
-  originalChatName: String,
+  // For notes moved from deleted threads
+  originalThreadName: String,
 }, {
   timestamps: true,
 });
 
 // Indexes for efficient queries
-messageSchema.index({ chatId: 1, createdAt: -1 });
-messageSchema.index({ chatId: 1, isLocked: 1 });
-messageSchema.index({ 'task.isTask': 1, 'task.reminderAt': 1, 'task.isCompleted': 1 });
-messageSchema.index({ senderId: 1 });
-messageSchema.index({ chatId: 1, isDeleted: 1, createdAt: -1 });
+noteSchema.index({ threadId: 1, createdAt: -1 });
+noteSchema.index({ threadId: 1, isLocked: 1 });
+noteSchema.index({ 'task.isTask': 1, 'task.reminderAt': 1, 'task.isCompleted': 1 });
+noteSchema.index({ senderId: 1 });
+noteSchema.index({ threadId: 1, isDeleted: 1, createdAt: -1 });
 
 // Text search index for content
-messageSchema.index({ content: 'text' });
+noteSchema.index({ content: 'text' });
 
 // Pre-save middleware
-messageSchema.pre('save', function (next) {
+noteSchema.pre('save', function (next) {
   this.updatedAt = new Date();
   next();
 });
 
-// Instance method to check if message can be deleted
-messageSchema.methods.canDelete = function () {
+// Instance method to check if note can be deleted
+noteSchema.methods.canDelete = function () {
   return !this.isLocked;
 };
 
 // Instance method to mark as edited
-messageSchema.methods.markAsEdited = function () {
+noteSchema.methods.markAsEdited = function () {
   this.isEdited = true;
   return this.save();
 };
 
-// Static method to get messages for a chat with cursor pagination
-messageSchema.statics.getChatMessages = async function (chatId, options = {}) {
+// Static method to get notes for a thread with cursor pagination
+noteSchema.statics.getThreadNotes = async function (threadId, options = {}) {
   const {
     before,
     after,
@@ -110,7 +110,7 @@ messageSchema.statics.getChatMessages = async function (chatId, options = {}) {
   } = options;
 
   const query = {
-    chatId,
+    threadId,
     isDeleted: false,
   };
 
@@ -121,44 +121,44 @@ messageSchema.statics.getChatMessages = async function (chatId, options = {}) {
     query.createdAt = { $gt: new Date(after) };
   }
 
-  const messages = await this.find(query)
+  const notes = await this.find(query)
     .sort({ createdAt: -1 })
     .limit(limit + 1) // Get one extra to check if there are more
     .lean();
 
-  const hasMore = messages.length > limit;
+  const hasMore = notes.length > limit;
   if (hasMore) {
-    messages.pop(); // Remove the extra one
+    notes.pop(); // Remove the extra one
   }
 
   return {
-    messages: messages.reverse(), // Return in chronological order
+    notes: notes.reverse(), // Return in chronological order
     hasMore,
   };
 };
 
 // Static method to get tasks
-messageSchema.statics.getTasks = async function (userId, options = {}) {
+noteSchema.statics.getTasks = async function (userId, options = {}) {
   const {
     filter = 'pending',
-    chatId,
+    threadId,
     page = 1,
     limit = 50,
   } = options;
 
-  // First, get all chats the user has access to
-  const Chat = mongoose.model('Chat');
-  const userChats = await Chat.find({
+  // First, get all threads the user has access to
+  const Thread = mongoose.model('Thread');
+  const userThreads = await Thread.find({
     $or: [
       { ownerId: userId },
       { participants: userId },
     ],
   }).select('_id');
 
-  const chatIds = userChats.map((c) => c._id);
+  const threadIds = userThreads.map((t) => t._id);
 
   const query = {
-    chatId: chatId ? chatId : { $in: chatIds },
+    threadId: threadId ? threadId : { $in: threadIds },
     'task.isTask': true,
     isDeleted: false,
   };
@@ -176,17 +176,17 @@ messageSchema.statics.getTasks = async function (userId, options = {}) {
 
   const total = await this.countDocuments(query);
   const tasks = await this.find(query)
-    .populate('chatId', 'name')
+    .populate('threadId', 'name')
     .sort({ 'task.reminderAt': 1, createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit)
     .lean();
 
-  // Transform to keep chatId as string and add chatName
+  // Transform to keep threadId as string and add threadName
   const transformedTasks = tasks.map((task) => ({
     ...task,
-    chatName: task.chatId?.name || 'Unknown',
-    chatId: task.chatId?._id || task.chatId,
+    threadName: task.threadId?.name || 'Unknown',
+    threadId: task.threadId?._id || task.threadId,
   }));
 
   return {
@@ -197,53 +197,53 @@ messageSchema.statics.getTasks = async function (userId, options = {}) {
   };
 };
 
-// Static method to search messages
-messageSchema.statics.searchMessages = async function (userId, searchQuery, options = {}) {
+// Static method to search notes
+noteSchema.statics.searchNotes = async function (userId, searchQuery, options = {}) {
   const {
-    chatId,
+    threadId,
     page = 1,
     limit = 20,
   } = options;
 
-  // Get user's chats
-  const Chat = mongoose.model('Chat');
-  const userChats = await Chat.find({
+  // Get user's threads
+  const Thread = mongoose.model('Thread');
+  const userThreads = await Thread.find({
     $or: [
       { ownerId: userId },
       { participants: userId },
     ],
   }).select('_id name');
 
-  const chatIds = chatId ? [chatId] : userChats.map((c) => c._id);
-  const chatMap = new Map(userChats.map((c) => [c._id.toString(), c.name]));
+  const threadIds = threadId ? [threadId] : userThreads.map((t) => t._id);
+  const threadMap = new Map(userThreads.map((t) => [t._id.toString(), t.name]));
 
   const query = {
-    chatId: { $in: chatIds },
+    threadId: { $in: threadIds },
     isDeleted: false,
     $text: { $search: searchQuery },
   };
 
   const total = await this.countDocuments(query);
-  const messages = await this.find(query, { score: { $meta: 'textScore' } })
+  const notes = await this.find(query, { score: { $meta: 'textScore' } })
     .sort({ score: { $meta: 'textScore' } })
     .skip((page - 1) * limit)
     .limit(limit)
     .lean();
 
-  // Add chat name to each message
-  const messagesWithChatName = messages.map((m) => ({
-    ...m,
-    chatName: chatMap.get(m.chatId.toString()) || 'Unknown',
+  // Add thread name to each note
+  const notesWithThreadName = notes.map((n) => ({
+    ...n,
+    threadName: threadMap.get(n.threadId.toString()) || 'Unknown',
   }));
 
   return {
-    messages: messagesWithChatName,
+    notes: notesWithThreadName,
     total,
     page,
     hasMore: page * limit < total,
   };
 };
 
-const Message = mongoose.model('Message', messageSchema);
+const Note = mongoose.model('Note', noteSchema);
 
-export default Message;
+export default Note;

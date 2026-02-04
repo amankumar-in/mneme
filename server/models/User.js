@@ -67,7 +67,7 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
       },
-      sharedMessages: {
+      sharedNotes: {
         type: Boolean,
         default: false,
       },

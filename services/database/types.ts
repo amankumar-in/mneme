@@ -1,29 +1,29 @@
 // Local database types for offline-first architecture
 
 export type SyncStatus = 'pending' | 'synced'
-export type MessageType = 'text' | 'image' | 'voice' | 'file' | 'location'
+export type NoteType = 'text' | 'image' | 'voice' | 'file' | 'location'
 
 // Database row types (snake_case to match SQLite columns)
-export interface ChatRow {
+export interface ThreadRow {
   id: string
   server_id: string | null
   name: string
   icon: string | null
   is_pinned: number
   wallpaper: string | null
-  last_message_content: string | null
-  last_message_type: string | null
-  last_message_timestamp: string | null
+  last_note_content: string | null
+  last_note_type: string | null
+  last_note_timestamp: string | null
   sync_status: string
   deleted_at: string | null
   created_at: string
   updated_at: string
 }
 
-export interface MessageRow {
+export interface NoteRow {
   id: string
   server_id: string | null
-  chat_id: string
+  thread_id: string
   content: string | null
   type: string
   attachment_url: string | null
@@ -48,7 +48,7 @@ export interface MessageRow {
   deleted_at: string | null
   created_at: string
   updated_at: string
-  chat_name?: string // Joined from chats table
+  thread_name?: string // Joined from threads table
 }
 
 export interface UserRow {
@@ -62,7 +62,7 @@ export interface UserRow {
   avatar: string | null
   settings_theme: string
   settings_notifications_task_reminders: number
-  settings_notifications_shared_messages: number
+  settings_notifications_shared_notes: number
   settings_privacy_visibility: string
   sync_status: string
   deleted_at: string | null
@@ -80,20 +80,20 @@ export interface SyncableEntity {
   updatedAt: string
 }
 
-export interface LocalChat extends SyncableEntity {
+export interface LocalThread extends SyncableEntity {
   name: string
   icon: string | null
   isPinned: number // SQLite doesn't have boolean, use 0/1
   wallpaper: string | null
-  lastMessageContent: string | null
-  lastMessageType: MessageType | null
-  lastMessageTimestamp: string | null
+  lastNoteContent: string | null
+  lastNoteType: NoteType | null
+  lastNoteTimestamp: string | null
 }
 
-export interface LocalMessage extends SyncableEntity {
-  chatId: string // Local chat UUID
+export interface LocalNote extends SyncableEntity {
+  threadId: string // Local thread UUID
   content: string | null
-  type: MessageType
+  type: NoteType
   // Attachment fields (flattened for SQLite)
   attachmentUrl: string | null
   attachmentFilename: string | null
@@ -128,7 +128,7 @@ export interface LocalUser extends SyncableEntity {
   // Settings (flattened)
   settingsTheme: 'light' | 'dark' | 'system'
   settingsNotificationsTaskReminders: number
-  settingsNotificationsSharedMessages: number
+  settingsNotificationsSharedNotes: number
   settingsPrivacyVisibility: 'public' | 'private' | 'contacts'
 }
 
@@ -140,22 +140,22 @@ export interface SyncMeta {
 }
 
 // Input types for creating entities (without auto-generated fields)
-export interface CreateChatInput {
+export interface CreateThreadInput {
   name: string
   icon?: string | null
 }
 
-export interface UpdateChatInput {
+export interface UpdateThreadInput {
   name?: string
   icon?: string | null
   isPinned?: boolean
   wallpaper?: string | null
 }
 
-export interface CreateMessageInput {
-  chatId: string
+export interface CreateNoteInput {
+  threadId: string
   content?: string | null
-  type: MessageType
+  type: NoteType
   attachment?: {
     url: string
     filename?: string
@@ -173,7 +173,7 @@ export interface CreateMessageInput {
   } | null
 }
 
-export interface UpdateMessageInput {
+export interface UpdateNoteInput {
   content?: string
 }
 
@@ -184,16 +184,16 @@ export interface TaskInput {
 }
 
 // Query result types that match the app's expected format
-export interface ChatWithLastMessage {
+export interface ThreadWithLastNote {
   id: string
   serverId: string | null
   name: string
   icon: string | null
   isPinned: boolean
   wallpaper: string | null
-  lastMessage: {
+  lastNote: {
     content: string
-    type: MessageType
+    type: NoteType
     timestamp: string
   } | null
   syncStatus: SyncStatus
@@ -201,13 +201,13 @@ export interface ChatWithLastMessage {
   updatedAt: string
 }
 
-export interface MessageWithDetails {
+export interface NoteWithDetails {
   id: string
   serverId: string | null
-  chatId: string
-  chatName?: string // For task queries
+  threadId: string
+  threadName?: string // For task queries
   content: string | null
-  type: MessageType
+  type: NoteType
   attachment: {
     url: string
     filename?: string
@@ -250,7 +250,7 @@ export interface UserProfile {
     theme: 'light' | 'dark' | 'system'
     notifications: {
       taskReminders: boolean
-      sharedMessages: boolean
+      sharedNotes: boolean
     }
     privacy: {
       visibility: 'public' | 'private' | 'contacts'
@@ -268,7 +268,7 @@ export interface PaginatedResult<T> {
   total: number
 }
 
-export interface MessageCursor {
+export interface NoteCursor {
   before?: string
   after?: string
   limit?: number

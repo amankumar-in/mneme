@@ -1,6 +1,6 @@
 import express from 'express';
-import Chat from '../models/Chat.js';
-import Message from '../models/Message.js';
+import Thread from '../models/Thread.js';
+import Note from '../models/Note.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
@@ -8,7 +8,7 @@ const router = express.Router();
 
 /**
  * GET /api/search
- * Search across chats and messages
+ * Search across threads and notes
  */
 router.get('/', authenticate, asyncHandler(async (req, res) => {
   const { q, type = 'all', page = 1, limit = 20 } = req.query;
@@ -21,14 +21,14 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
   }
 
   const results = {
-    chats: [],
-    messages: [],
+    threads: [],
+    notes: [],
   };
   let total = 0;
 
-  // Search chats
-  if (type === 'all' || type === 'chats') {
-    const chats = await Chat.find({
+  // Search threads
+  if (type === 'all' || type === 'threads') {
+    const threads = await Thread.find({
       $or: [
         { ownerId: req.user._id },
         { participants: req.user._id },
@@ -38,19 +38,19 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
-    results.chats = chats;
-    total += chats.length;
+    results.threads = threads;
+    total += threads.length;
   }
 
-  // Search messages
-  if (type === 'all' || type === 'messages') {
-    const messageResult = await Message.searchMessages(req.user._id, q, {
+  // Search notes
+  if (type === 'all' || type === 'notes') {
+    const noteResult = await Note.searchNotes(req.user._id, q, {
       page: parseInt(page),
       limit: parseInt(limit),
     });
 
-    results.messages = messageResult.messages;
-    total += messageResult.total;
+    results.notes = noteResult.notes;
+    total += noteResult.total;
   }
 
   res.json({
@@ -61,10 +61,10 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
 }));
 
 /**
- * GET /api/search/chat/:chatId
- * Search within a specific chat
+ * GET /api/search/thread/:threadId
+ * Search within a specific thread
  */
-router.get('/chat/:chatId', authenticate, asyncHandler(async (req, res) => {
+router.get('/thread/:threadId', authenticate, asyncHandler(async (req, res) => {
   const { q, page = 1, limit = 20 } = req.query;
 
   if (!q?.trim()) {
@@ -74,24 +74,24 @@ router.get('/chat/:chatId', authenticate, asyncHandler(async (req, res) => {
     });
   }
 
-  const chat = await Chat.findById(req.params.chatId);
+  const thread = await Thread.findById(req.params.threadId);
 
-  if (!chat) {
+  if (!thread) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'Chat not found',
+      message: 'Thread not found',
     });
   }
 
-  if (!chat.hasAccess(req.user._id)) {
+  if (!thread.hasAccess(req.user._id)) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'You do not have access to this chat',
+      message: 'You do not have access to this thread',
     });
   }
 
-  const result = await Message.searchMessages(req.user._id, q, {
-    chatId: chat._id,
+  const result = await Note.searchNotes(req.user._id, q, {
+    threadId: thread._id,
     page: parseInt(page),
     limit: parseInt(limit),
   });

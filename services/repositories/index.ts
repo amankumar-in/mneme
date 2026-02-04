@@ -1,4 +1,4 @@
 // Repository exports
-export { ChatRepository, getChatRepository } from './chat.repository'
-export { MessageRepository, getMessageRepository } from './message.repository'
+export { ThreadRepository, getThreadRepository } from './thread.repository'
+export { NoteRepository, getNoteRepository } from './note.repository'
 export { UserRepository, getUserRepository } from './user.repository'

@@ -3,28 +3,28 @@ import { useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 
 import { ActivityIndicator, FlatList } from 'react-native'
 import { Text, YStack } from 'tamagui'
 import { useThemeColor } from '../../hooks/useThemeColor'
-import type { MessageWithDetails } from '../../types'
+import type { NoteWithDetails } from '../../types'
 import { DateSeparator } from './DateSeparator'
 import { NoteBubble } from './NoteBubble'
 
-interface MessageListProps {
-  messages: MessageWithDetails[]
+interface NoteListProps {
+  notes: NoteWithDetails[]
   onLoadMore: () => void
   isLoading: boolean
-  chatId: string
-  onMessageLongPress: (message: MessageWithDetails) => void
-  onMessagePress?: (message: MessageWithDetails) => void
-  onTaskToggle: (message: MessageWithDetails) => void
-  highlightedMessageId?: string
-  selectedMessageIds?: Set<string>
+  threadId: string
+  onNoteLongPress: (note: NoteWithDetails) => void
+  onNotePress?: (note: NoteWithDetails) => void
+  onTaskToggle: (note: NoteWithDetails) => void
+  highlightedNoteId?: string
+  selectedNoteIds?: Set<string>
 }
 
-export interface MessageListRef {
-  scrollToMessage: (messageId: string) => void
+export interface NoteListRef {
+  scrollToNote: (noteId: string) => void
 }
 
 type ListItem =
-  | { type: 'message'; data: MessageWithDetails }
+  | { type: 'note'; data: NoteWithDetails }
   | { type: 'date'; date: Date; id: string }
 
 function isSameDay(date1: Date, date2: Date): boolean {
@@ -35,30 +35,30 @@ function isSameDay(date1: Date, date2: Date): boolean {
   )
 }
 
-function processMessages(messages: MessageWithDetails[]): ListItem[] {
+function processNotes(notes: NoteWithDetails[]): ListItem[] {
   const items: ListItem[] = []
 
   // Sort newest first (for inverted list)
-  const sortedMessages = [...messages].sort(
+  const sortedNotes = [...notes].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
 
-  for (let i = 0; i < sortedMessages.length; i++) {
-    const message = sortedMessages[i]
-    const messageDate = new Date(message.createdAt)
-    const nextMessage = sortedMessages[i + 1]
-    const nextDate = nextMessage ? new Date(nextMessage.createdAt) : null
+  for (let i = 0; i < sortedNotes.length; i++) {
+    const note = sortedNotes[i]
+    const noteDate = new Date(note.createdAt)
+    const nextNote = sortedNotes[i + 1]
+    const nextDate = nextNote ? new Date(nextNote.createdAt) : null
 
-    // Add the message
-    items.push({ type: 'message', data: message })
+    // Add the note
+    items.push({ type: 'note', data: note })
 
-    // Add date separator after the last message of each day
+    // Add date separator after the last note of each day
     // (appears above when list is inverted)
-    if (!nextDate || !isSameDay(messageDate, nextDate)) {
+    if (!nextDate || !isSameDay(noteDate, nextDate)) {
       items.push({
         type: 'date',
-        date: messageDate,
-        id: `date-${messageDate.toDateString()}`,
+        date: noteDate,
+        id: `date-${noteDate.toDateString()}`,
       })
     }
   }
@@ -66,24 +66,24 @@ function processMessages(messages: MessageWithDetails[]): ListItem[] {
   return items
 }
 
-export const MessageList = forwardRef<MessageListRef, MessageListProps>(({
-  messages,
+export const NoteList = forwardRef<NoteListRef, NoteListProps>(({
+  notes,
   onLoadMore,
   isLoading,
-  chatId,
-  onMessageLongPress,
-  onMessagePress,
+  threadId,
+  onNoteLongPress,
+  onNotePress,
   onTaskToggle,
-  highlightedMessageId,
-  selectedMessageIds,
+  highlightedNoteId,
+  selectedNoteIds,
 }, ref) => {
   const { iconColor } = useThemeColor()
   const flatListRef = useRef<FlatList>(null)
-  const items = processMessages(messages)
+  const items = processNotes(notes)
 
-  const scrollToMessage = useCallback((messageId: string) => {
+  const scrollToNote = useCallback((noteId: string) => {
     const index = items.findIndex(
-      item => item.type === 'message' && item.data.id === messageId
+      item => item.type === 'note' && item.data.id === noteId
     )
     if (index !== -1 && flatListRef.current) {
       flatListRef.current.scrollToIndex({
@@ -95,14 +95,14 @@ export const MessageList = forwardRef<MessageListRef, MessageListProps>(({
   }, [items])
 
   useImperativeHandle(ref, () => ({
-    scrollToMessage,
-  }), [scrollToMessage])
+    scrollToNote,
+  }), [scrollToNote])
 
   useEffect(() => {
-    if (highlightedMessageId) {
-      scrollToMessage(highlightedMessageId)
+    if (highlightedNoteId) {
+      scrollToNote(highlightedNoteId)
     }
-  }, [highlightedMessageId, scrollToMessage])
+  }, [highlightedNoteId, scrollToNote])
 
   const scrollToBottom = useCallback(() => {
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true })
@@ -115,16 +115,16 @@ export const MessageList = forwardRef<MessageListRef, MessageListProps>(({
       }
       return (
         <NoteBubble
-          message={item.data}
-          onLongPress={onMessageLongPress}
-          onPress={onMessagePress}
+          note={item.data}
+          onLongPress={onNoteLongPress}
+          onPress={onNotePress}
           onTaskToggle={onTaskToggle}
-          isHighlighted={item.data.id === highlightedMessageId}
-          isSelected={selectedMessageIds?.has(item.data.id)}
+          isHighlighted={item.data.id === highlightedNoteId}
+          isSelected={selectedNoteIds?.has(item.data.id)}
         />
       )
     },
-    [onMessageLongPress, onMessagePress, onTaskToggle, highlightedMessageId, selectedMessageIds]
+    [onNoteLongPress, onNotePress, onTaskToggle, highlightedNoteId, selectedNoteIds]
   )
 
   const keyExtractor = useCallback((item: ListItem) => {

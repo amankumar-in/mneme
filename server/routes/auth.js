@@ -273,7 +273,7 @@ router.put('/me', authenticate, asyncHandler(async (req, res) => {
 
 /**
  * DELETE /api/auth/account-info
- * Clear profile information but keep data (chats, messages)
+ * Clear profile information but keep data (threads, notes)
  */
 router.delete('/account-info', authenticate, asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(req.user._id, {
@@ -289,7 +289,7 @@ router.delete('/account-info', authenticate, asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Account information deleted. Your threads and messages are preserved.',
+    message: 'Account information deleted. Your threads and notes are preserved.',
   });
 }));
 
@@ -301,30 +301,30 @@ router.delete('/me', authenticate, asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
   // Import models
-  const Chat = (await import('../models/Chat.js')).default;
-  const Message = (await import('../models/Message.js')).default;
-  const SharedChat = (await import('../models/SharedChat.js')).default;
+  const Thread = (await import('../models/Thread.js')).default;
+  const Note = (await import('../models/Note.js')).default;
+  const SharedThread = (await import('../models/SharedThread.js')).default;
 
-  // Delete all user's chats
-  const userChats = await Chat.find({ ownerId: userId });
-  const chatIds = userChats.map((c) => c._id);
+  // Delete all user's threads
+  const userThreads = await Thread.find({ ownerId: userId });
+  const threadIds = userThreads.map((t) => t._id);
 
-  // Delete all messages in user's chats
-  await Message.deleteMany({ chatId: { $in: chatIds } });
+  // Delete all notes in user's threads
+  await Note.deleteMany({ threadId: { $in: threadIds } });
 
-  // Delete all chats
-  await Chat.deleteMany({ ownerId: userId });
+  // Delete all threads
+  await Thread.deleteMany({ ownerId: userId });
 
-  // Delete all shared chat records
-  await SharedChat.deleteMany({
+  // Delete all shared thread records
+  await SharedThread.deleteMany({
     $or: [
       { sharedBy: userId },
       { sharedWith: userId },
     ],
   });
 
-  // Remove user from any chats they're a participant in
-  await Chat.updateMany(
+  // Remove user from any threads they're a participant in
+  await Thread.updateMany(
     { participants: userId },
     { $pull: { participants: userId } }
   );

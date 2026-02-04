@@ -8,34 +8,34 @@ export const SCHEMA_V1 = `
   -- Enable WAL mode for better concurrent access
   PRAGMA journal_mode = WAL;
 
-  -- Chats table
-  CREATE TABLE IF NOT EXISTS chats (
+  -- Threads table
+  CREATE TABLE IF NOT EXISTS threads (
     id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT UNIQUE,
     name TEXT NOT NULL,
     icon TEXT,
     is_pinned INTEGER NOT NULL DEFAULT 0,
     wallpaper TEXT,
-    last_message_content TEXT,
-    last_message_type TEXT,
-    last_message_timestamp TEXT,
+    last_note_content TEXT,
+    last_note_type TEXT,
+    last_note_timestamp TEXT,
     sync_status TEXT NOT NULL DEFAULT 'pending',
     deleted_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
 
-  -- Index for chat queries
-  CREATE INDEX IF NOT EXISTS idx_chats_deleted_at ON chats(deleted_at);
-  CREATE INDEX IF NOT EXISTS idx_chats_updated_at ON chats(updated_at);
-  CREATE INDEX IF NOT EXISTS idx_chats_sync_status ON chats(sync_status);
-  CREATE INDEX IF NOT EXISTS idx_chats_is_pinned ON chats(is_pinned);
+  -- Index for thread queries
+  CREATE INDEX IF NOT EXISTS idx_threads_deleted_at ON threads(deleted_at);
+  CREATE INDEX IF NOT EXISTS idx_threads_updated_at ON threads(updated_at);
+  CREATE INDEX IF NOT EXISTS idx_threads_sync_status ON threads(sync_status);
+  CREATE INDEX IF NOT EXISTS idx_threads_is_pinned ON threads(is_pinned);
 
-  -- Messages table
-  CREATE TABLE IF NOT EXISTS messages (
+  -- Notes table
+  CREATE TABLE IF NOT EXISTS notes (
     id TEXT PRIMARY KEY NOT NULL,
     server_id TEXT UNIQUE,
-    chat_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL,
     content TEXT,
     type TEXT NOT NULL DEFAULT 'text',
     -- Attachment fields
@@ -65,43 +65,43 @@ export const SCHEMA_V1 = `
     deleted_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
+    FOREIGN KEY (thread_id) REFERENCES threads(id) ON DELETE CASCADE
   );
 
-  -- Indexes for message queries
-  CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
-  CREATE INDEX IF NOT EXISTS idx_messages_deleted_at ON messages(deleted_at);
-  CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
-  CREATE INDEX IF NOT EXISTS idx_messages_sync_status ON messages(sync_status);
-  CREATE INDEX IF NOT EXISTS idx_messages_is_task ON messages(is_task);
-  CREATE INDEX IF NOT EXISTS idx_messages_is_completed ON messages(is_completed);
-  CREATE INDEX IF NOT EXISTS idx_messages_reminder_at ON messages(reminder_at);
+  -- Indexes for note queries
+  CREATE INDEX IF NOT EXISTS idx_notes_thread_id ON notes(thread_id);
+  CREATE INDEX IF NOT EXISTS idx_notes_deleted_at ON notes(deleted_at);
+  CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes(created_at);
+  CREATE INDEX IF NOT EXISTS idx_notes_sync_status ON notes(sync_status);
+  CREATE INDEX IF NOT EXISTS idx_notes_is_task ON notes(is_task);
+  CREATE INDEX IF NOT EXISTS idx_notes_is_completed ON notes(is_completed);
+  CREATE INDEX IF NOT EXISTS idx_notes_reminder_at ON notes(reminder_at);
 
   -- FTS5 virtual table for full-text search
-  CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+  CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
     id UNINDEXED,
-    chat_id UNINDEXED,
+    thread_id UNINDEXED,
     content,
-    content='messages',
+    content='notes',
     content_rowid='rowid'
   );
 
   -- Triggers to keep FTS index in sync
-  CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
-    INSERT INTO messages_fts(rowid, id, chat_id, content)
-    VALUES (NEW.rowid, NEW.id, NEW.chat_id, NEW.content);
+  CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
+    INSERT INTO notes_fts(rowid, id, thread_id, content)
+    VALUES (NEW.rowid, NEW.id, NEW.thread_id, NEW.content);
   END;
 
-  CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
-    INSERT INTO messages_fts(messages_fts, rowid, id, chat_id, content)
-    VALUES ('delete', OLD.rowid, OLD.id, OLD.chat_id, OLD.content);
+  CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
+    INSERT INTO notes_fts(notes_fts, rowid, id, thread_id, content)
+    VALUES ('delete', OLD.rowid, OLD.id, OLD.thread_id, OLD.content);
   END;
 
-  CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE ON messages BEGIN
-    INSERT INTO messages_fts(messages_fts, rowid, id, chat_id, content)
-    VALUES ('delete', OLD.rowid, OLD.id, OLD.chat_id, OLD.content);
-    INSERT INTO messages_fts(rowid, id, chat_id, content)
-    VALUES (NEW.rowid, NEW.id, NEW.chat_id, NEW.content);
+  CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
+    INSERT INTO notes_fts(notes_fts, rowid, id, thread_id, content)
+    VALUES ('delete', OLD.rowid, OLD.id, OLD.thread_id, OLD.content);
+    INSERT INTO notes_fts(rowid, id, thread_id, content)
+    VALUES (NEW.rowid, NEW.id, NEW.thread_id, NEW.content);
   END;
 
   -- User table (single row for current user)
@@ -117,7 +117,7 @@ export const SCHEMA_V1 = `
     -- Settings (flattened)
     settings_theme TEXT NOT NULL DEFAULT 'system',
     settings_notifications_task_reminders INTEGER NOT NULL DEFAULT 1,
-    settings_notifications_shared_messages INTEGER NOT NULL DEFAULT 1,
+    settings_notifications_shared_notes INTEGER NOT NULL DEFAULT 1,
     settings_privacy_visibility TEXT NOT NULL DEFAULT 'private',
     -- Sync fields
     sync_status TEXT NOT NULL DEFAULT 'pending',
@@ -142,7 +142,7 @@ export const SCHEMA_V1 = `
 export const MIGRATIONS: Record<number, string> = {
   // Example for future migration:
   // 2: `
-  //   ALTER TABLE chats ADD COLUMN new_field TEXT;
+  //   ALTER TABLE threads ADD COLUMN new_field TEXT;
   //   -- other migration statements
   // `
 }

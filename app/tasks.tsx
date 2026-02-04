@@ -9,8 +9,8 @@ import { SearchBar } from '../components/SearchBar'
 import { FilterChips } from '../components/FilterChips'
 import { useThemeColor } from '../hooks/useThemeColor'
 import { useTasks } from '../hooks/useTasks'
-import { useCompleteTask, useSetMessageTask } from '../hooks/useMessages'
-import type { MessageWithDetails, TaskFilter } from '../types'
+import { useCompleteTask, useSetNoteTask } from '../hooks/useNotes'
+import type { NoteWithDetails, TaskFilter } from '../types'
 
 const FILTER_OPTIONS = [
   { key: 'pending', label: 'Pending' },
@@ -19,13 +19,13 @@ const FILTER_OPTIONS = [
 ]
 
 interface TaskItemProps {
-  task: MessageWithDetails
+  task: NoteWithDetails
   onToggle: () => void
   onPress: () => void
-  showChatName?: boolean
+  showThreadName?: boolean
 }
 
-function TaskItem({ task, onToggle, onPress, showChatName = true }: TaskItemProps) {
+function TaskItem({ task, onToggle, onPress, showThreadName = true }: TaskItemProps) {
   const { successColor, accentColor, errorColor, iconColor } = useThemeColor()
   const isOverdue = task.task.reminderAt && new Date(task.task.reminderAt) < new Date()
 
@@ -63,15 +63,15 @@ function TaskItem({ task, onToggle, onPress, showChatName = true }: TaskItemProp
         </Text>
 
         <XStack alignItems="center" gap="$2">
-          {showChatName && task.chatName && (
+          {showThreadName && task.threadName && (
             <Text fontSize="$2" color="$colorSubtle">
-              {task.chatName}
+              {task.threadName}
             </Text>
           )}
 
           {task.task.reminderAt && (
             <>
-              {showChatName && task.chatName && (
+              {showThreadName && task.threadName && (
                 <Text fontSize="$2" color="$colorSubtle">
                   •
                 </Text>
@@ -104,9 +104,9 @@ function TaskItem({ task, onToggle, onPress, showChatName = true }: TaskItemProp
 
 export default function TasksScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ chatId?: string; chatName?: string }>()
-  const chatId = Array.isArray(params.chatId) ? params.chatId[0] : params.chatId
-  const chatName = Array.isArray(params.chatName) ? params.chatName[0] : params.chatName
+  const params = useLocalSearchParams<{ threadId?: string; threadName?: string }>()
+  const threadId = Array.isArray(params.threadId) ? params.threadId[0] : params.threadId
+  const threadName = Array.isArray(params.threadName) ? params.threadName[0] : params.threadName
   const insets = useSafeAreaInsets()
   const { iconColor, iconColorStrong } = useThemeColor()
   const queryClient = useQueryClient()
@@ -115,16 +115,16 @@ export default function TasksScreen() {
 
   // Fetch tasks from local database
   const { data, isLoading, refetch } = useTasks({
-    chatId: chatId || undefined,
+    threadId: threadId || undefined,
     filter: filter === 'all' ? undefined : filter,
   })
 
   const tasks = data?.tasks ?? []
 
   // Mutations for toggling task completion
-  // We need a chatId for the hooks, so we'll use the task's chatId
-  const completeMutation = useCompleteTask(chatId || '')
-  const setTaskMutation = useSetMessageTask(chatId || '')
+  // We need a threadId for the hooks, so we'll use the task's threadId
+  const completeMutation = useCompleteTask(threadId || '')
+  const setTaskMutation = useSetNoteTask(threadId || '')
 
   // Apply search filter (client-side)
   const filteredTasks = useMemo(() => {
@@ -138,17 +138,16 @@ export default function TasksScreen() {
   }, [router])
 
   const handleToggle = useCallback(
-    (task: MessageWithDetails) => {
-      // Create a new mutation for this specific chat
+    (task: NoteWithDetails) => {
       if (!task.task.isCompleted) {
         queryClient.invalidateQueries({ queryKey: ['tasks'] })
-        queryClient.invalidateQueries({ queryKey: ['messages', task.chatId] })
+        queryClient.invalidateQueries({ queryKey: ['notes', task.threadId] })
         completeMutation.mutate(task.id)
       } else {
         queryClient.invalidateQueries({ queryKey: ['tasks'] })
-        queryClient.invalidateQueries({ queryKey: ['messages', task.chatId] })
+        queryClient.invalidateQueries({ queryKey: ['notes', task.threadId] })
         setTaskMutation.mutate({
-          messageId: task.id,
+          noteId: task.id,
           isTask: true,
           reminderAt: task.task.reminderAt,
           isCompleted: false,
@@ -159,14 +158,14 @@ export default function TasksScreen() {
   )
 
   const handleTaskPress = useCallback(
-    (task: MessageWithDetails) => {
-      router.push(`/chat/${task.chatId}?messageId=${task.id}`)
+    (task: NoteWithDetails) => {
+      router.push(`/thread/${task.threadId}?noteId=${task.id}`)
     },
     [router]
   )
 
-  // Get title - use chatName param for thread-specific view
-  const title = chatId && chatName ? `${chatName} Tasks` : 'Tasks'
+  // Get title - use threadName param for thread-specific view
+  const title = threadId && threadName ? `${threadName} Tasks` : 'Tasks'
 
   return (
     <YStack flex={1} backgroundColor="$background">
@@ -218,7 +217,7 @@ export default function TasksScreen() {
               task={item}
               onToggle={() => handleToggle(item)}
               onPress={() => handleTaskPress(item)}
-              showChatName={!chatId}
+              showThreadName={!threadId}
             />
           )}
           ListEmptyComponent={
@@ -231,7 +230,7 @@ export default function TasksScreen() {
                 {searchQuery
                   ? `No tasks match "${searchQuery}"`
                   : filter === 'pending'
-                  ? 'Create a task by long-pressing a message'
+                  ? 'Create a task by long-pressing a note'
                   : filter === 'completed'
                   ? 'Completed tasks will appear here'
                   : 'No tasks yet'}

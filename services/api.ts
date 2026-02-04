@@ -1,7 +1,7 @@
 import { Platform } from 'react-native'
 import axios, { AxiosInstance, AxiosError } from 'axios'
 import { getAuthToken, setAuthToken, clearAuthToken } from './storage'
-import type { Chat, Message, User, MessageType } from '../types'
+import type { Thread, Note, User, NoteType } from '../types'
 
 // Android emulator uses 10.0.2.2 to reach host machine's localhost
 const getDefaultUrl = () => {
@@ -106,7 +106,7 @@ export async function deleteAccountInfo(): Promise<void> {
   await api.delete('/auth/account-info')
 }
 
-export async function deleteRemoteData(): Promise<{ chatsDeleted: number; messagesDeleted: number }> {
+export async function deleteRemoteData(): Promise<{ threadsDeleted: number; notesDeleted: number }> {
   const api = await getApi()
   const response = await api.delete('/sync/remote-data')
   return response.data.stats
@@ -168,142 +168,142 @@ export async function isAuthenticated(): Promise<boolean> {
   return !!token
 }
 
-// Chats
-export interface ChatsResponse {
-  chats: Chat[]
+// Threads
+export interface ThreadsResponse {
+  threads: Thread[]
   total: number
   page: number
   hasMore: boolean
 }
 
-export async function getChats(params?: {
+export async function getThreads(params?: {
   search?: string
   filter?: 'all' | 'tasks' | 'pinned'
   page?: number
   limit?: number
-}): Promise<ChatsResponse> {
+}): Promise<ThreadsResponse> {
   const api = await getApi()
-  const response = await api.get('/chats', { params })
+  const response = await api.get('/threads', { params })
   return response.data
 }
 
-export async function getChat(id: string): Promise<Chat> {
+export async function getThread(id: string): Promise<Thread> {
   const api = await getApi()
-  const response = await api.get(`/chats/${id}`)
-  return response.data.chat
+  const response = await api.get(`/threads/${id}`)
+  return response.data.thread
 }
 
-export async function createChat(data: { name: string; icon?: string }): Promise<Chat> {
+export async function createThread(data: { name: string; icon?: string }): Promise<Thread> {
   const api = await getApi()
-  const response = await api.post('/chats', data)
-  return response.data.chat
+  const response = await api.post('/threads', data)
+  return response.data.thread
 }
 
-export async function updateChat(
+export async function updateThread(
   id: string,
-  data: Partial<Pick<Chat, 'name' | 'icon' | 'isPinned' | 'wallpaper'>>
-): Promise<Chat> {
+  data: Partial<Pick<Thread, 'name' | 'icon' | 'isPinned' | 'wallpaper'>>
+): Promise<Thread> {
   const api = await getApi()
-  const response = await api.put(`/chats/${id}`, data)
-  return response.data.chat
+  const response = await api.put(`/threads/${id}`, data)
+  return response.data.thread
 }
 
-export async function deleteChat(
+export async function deleteThread(
   id: string
-): Promise<{ success: boolean; lockedMessagesCount: number }> {
+): Promise<{ success: boolean; lockedNotesCount: number }> {
   const api = await getApi()
-  const response = await api.delete(`/chats/${id}`)
+  const response = await api.delete(`/threads/${id}`)
   return response.data
 }
 
-// Messages
-export interface MessagesResponse {
-  messages: Message[]
+// Notes
+export interface NotesResponse {
+  notes: Note[]
   hasMore: boolean
 }
 
-export async function getMessages(
-  chatId: string,
+export async function getNotes(
+  threadId: string,
   params?: { before?: string; after?: string; limit?: number }
-): Promise<MessagesResponse> {
+): Promise<NotesResponse> {
   const api = await getApi()
-  const response = await api.get(`/chats/${chatId}/messages`, { params })
+  const response = await api.get(`/threads/${threadId}/notes`, { params })
   return response.data
 }
 
-export async function sendMessage(
-  chatId: string,
-  data: { content?: string; type: MessageType }
-): Promise<Message> {
+export async function sendNote(
+  threadId: string,
+  data: { content?: string; type: NoteType }
+): Promise<Note> {
   const api = await getApi()
-  const response = await api.post(`/chats/${chatId}/messages`, data)
-  return response.data.message
+  const response = await api.post(`/threads/${threadId}/notes`, data)
+  return response.data.note
 }
 
-export async function updateMessage(
-  chatId: string,
-  messageId: string,
+export async function updateNote(
+  threadId: string,
+  noteId: string,
   data: { content: string }
-): Promise<Message> {
+): Promise<Note> {
   const api = await getApi()
-  const response = await api.put(`/chats/${chatId}/messages/${messageId}`, data)
-  return response.data.message
+  const response = await api.put(`/threads/${threadId}/notes/${noteId}`, data)
+  return response.data.note
 }
 
-export async function deleteMessage(chatId: string, messageId: string): Promise<void> {
+export async function deleteNote(threadId: string, noteId: string): Promise<void> {
   const api = await getApi()
-  await api.delete(`/chats/${chatId}/messages/${messageId}`)
+  await api.delete(`/threads/${threadId}/notes/${noteId}`)
 }
 
-export async function lockMessage(
-  chatId: string,
-  messageId: string,
+export async function lockNote(
+  threadId: string,
+  noteId: string,
   isLocked: boolean
-): Promise<Message> {
+): Promise<Note> {
   const api = await getApi()
-  const response = await api.put(`/chats/${chatId}/messages/${messageId}/lock`, {
+  const response = await api.put(`/threads/${threadId}/notes/${noteId}/lock`, {
     isLocked,
   })
-  return response.data.message
+  return response.data.note
 }
 
-export async function starMessage(
-  chatId: string,
-  messageId: string,
+export async function starNote(
+  threadId: string,
+  noteId: string,
   isStarred: boolean
-): Promise<Message> {
+): Promise<Note> {
   const api = await getApi()
-  const response = await api.put(`/chats/${chatId}/messages/${messageId}/star`, {
+  const response = await api.put(`/threads/${threadId}/notes/${noteId}/star`, {
     isStarred,
   })
-  return response.data.message
+  return response.data.note
 }
 
-export async function setMessageTask(
-  chatId: string,
-  messageId: string,
+export async function setNoteTask(
+  threadId: string,
+  noteId: string,
   data: { isTask: boolean; reminderAt?: string; isCompleted?: boolean }
-): Promise<Message> {
+): Promise<Note> {
   const api = await getApi()
-  const response = await api.put(`/chats/${chatId}/messages/${messageId}/task`, data)
-  return response.data.message
+  const response = await api.put(`/threads/${threadId}/notes/${noteId}/task`, data)
+  return response.data.note
 }
 
-export async function completeTask(chatId: string, messageId: string): Promise<Message> {
+export async function completeTask(threadId: string, noteId: string): Promise<Note> {
   const api = await getApi()
-  const response = await api.put(`/chats/${chatId}/messages/${messageId}/task/complete`)
-  return response.data.message
+  const response = await api.put(`/threads/${threadId}/notes/${noteId}/task/complete`)
+  return response.data.note
 }
 
 // Tasks
 export interface TasksResponse {
-  tasks: Message[]
+  tasks: Note[]
   total: number
 }
 
 export async function getTasks(params?: {
   filter?: 'pending' | 'completed' | 'overdue'
-  chatId?: string
+  threadId?: string
   page?: number
   limit?: number
 }): Promise<TasksResponse> {
@@ -312,7 +312,7 @@ export async function getTasks(params?: {
   return response.data
 }
 
-export async function getUpcomingTasks(days?: number): Promise<{ tasks: Message[] }> {
+export async function getUpcomingTasks(days?: number): Promise<{ tasks: Note[] }> {
   const api = await getApi()
   const response = await api.get('/tasks/upcoming', { params: { days } })
   return response.data
@@ -321,15 +321,15 @@ export async function getUpcomingTasks(days?: number): Promise<{ tasks: Message[
 // Search
 export interface SearchResponse {
   results: {
-    chats: Chat[]
-    messages: Message[]
+    threads: Thread[]
+    notes: Note[]
   }
   total: number
 }
 
 export async function search(params: {
   q: string
-  type?: 'all' | 'chats' | 'messages'
+  type?: 'all' | 'threads' | 'notes'
   page?: number
   limit?: number
 }): Promise<SearchResponse> {
@@ -338,22 +338,22 @@ export async function search(params: {
   return response.data
 }
 
-export async function searchInChat(
-  chatId: string,
+export async function searchInThread(
+  threadId: string,
   params: { q: string; page?: number; limit?: number }
-): Promise<{ messages: Message[]; total: number }> {
+): Promise<{ notes: Note[]; total: number }> {
   const api = await getApi()
-  const response = await api.get(`/search/chat/${chatId}`, { params })
+  const response = await api.get(`/search/thread/${threadId}`, { params })
   return response.data
 }
 
 // Export
-export async function exportChat(
-  chatId: string,
+export async function exportThread(
+  threadId: string,
   format: 'txt' | 'json' = 'txt'
 ): Promise<string> {
   const api = await getApi()
-  const response = await api.get(`/chats/${chatId}/export`, {
+  const response = await api.get(`/threads/${threadId}/export`, {
     params: { format },
     responseType: 'text',
   })

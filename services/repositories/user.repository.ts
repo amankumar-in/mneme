@@ -51,7 +51,7 @@ export class UserRepository {
       theme?: 'light' | 'dark' | 'system'
       notifications?: {
         taskReminders?: boolean
-        sharedMessages?: boolean
+        sharedNotes?: boolean
       }
       privacy?: {
         visibility?: 'public' | 'private' | 'contacts'
@@ -72,7 +72,7 @@ export class UserRepository {
            avatar = ?,
            settings_theme = ?,
            settings_notifications_task_reminders = ?,
-           settings_notifications_shared_messages = ?,
+           settings_notifications_shared_notes = ?,
            settings_privacy_visibility = ?,
            sync_status = 'pending',
            updated_at = ?
@@ -89,8 +89,8 @@ export class UserRepository {
               existing.settings.notifications.taskReminders
           ),
           fromBoolean(
-            data.settings?.notifications?.sharedMessages ??
-              existing.settings.notifications.sharedMessages
+            data.settings?.notifications?.sharedNotes ??
+              existing.settings.notifications.sharedNotes
           ),
           data.settings?.privacy?.visibility ?? existing.settings.privacy.visibility,
           now,
@@ -104,7 +104,7 @@ export class UserRepository {
         `INSERT INTO user (
            id, device_id, name, username, email, phone, avatar,
            settings_theme, settings_notifications_task_reminders,
-           settings_notifications_shared_messages, settings_privacy_visibility,
+           settings_notifications_shared_notes, settings_privacy_visibility,
            sync_status, created_at, updated_at
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
         [
@@ -117,7 +117,7 @@ export class UserRepository {
           data.avatar ?? null,
           data.settings?.theme ?? 'system',
           fromBoolean(data.settings?.notifications?.taskReminders ?? true),
-          fromBoolean(data.settings?.notifications?.sharedMessages ?? true),
+          fromBoolean(data.settings?.notifications?.sharedNotes ?? true),
           data.settings?.privacy?.visibility ?? 'private',
           now,
           now,
@@ -141,7 +141,7 @@ export class UserRepository {
       theme?: 'light' | 'dark' | 'system'
       notifications?: {
         taskReminders?: boolean
-        sharedMessages?: boolean
+        sharedNotes?: boolean
       }
       privacy?: {
         visibility?: 'public' | 'private' | 'contacts'
@@ -182,9 +182,9 @@ export class UserRepository {
       updates.push('settings_notifications_task_reminders = ?')
       values.push(fromBoolean(data.settings.notifications.taskReminders))
     }
-    if (data.settings?.notifications?.sharedMessages !== undefined) {
-      updates.push('settings_notifications_shared_messages = ?')
-      values.push(fromBoolean(data.settings.notifications.sharedMessages))
+    if (data.settings?.notifications?.sharedNotes !== undefined) {
+      updates.push('settings_notifications_shared_notes = ?')
+      values.push(fromBoolean(data.settings.notifications.sharedNotes))
     }
     if (data.settings?.privacy?.visibility !== undefined) {
       updates.push('settings_privacy_visibility = ?')
@@ -251,7 +251,7 @@ export class UserRepository {
       theme: 'light' | 'dark' | 'system'
       notifications: {
         taskReminders: boolean
-        sharedMessages: boolean
+        sharedNotes: boolean
       }
       privacy: {
         visibility: 'public' | 'private' | 'contacts'
@@ -285,7 +285,7 @@ export class UserRepository {
            avatar = ?,
            settings_theme = ?,
            settings_notifications_task_reminders = ?,
-           settings_notifications_shared_messages = ?,
+           settings_notifications_shared_notes = ?,
            settings_privacy_visibility = ?,
            sync_status = 'synced',
            updated_at = ?
@@ -299,7 +299,7 @@ export class UserRepository {
           serverUser.avatar ?? null,
           serverUser.settings.theme,
           fromBoolean(serverUser.settings.notifications.taskReminders),
-          fromBoolean(serverUser.settings.notifications.sharedMessages),
+          fromBoolean(serverUser.settings.notifications.sharedNotes),
           serverUser.settings.privacy.visibility,
           serverUser.updatedAt,
           existing.id,
@@ -327,7 +327,7 @@ export class UserRepository {
         theme: row.settings_theme as 'light' | 'dark' | 'system',
         notifications: {
           taskReminders: toBoolean(row.settings_notifications_task_reminders),
-          sharedMessages: toBoolean(row.settings_notifications_shared_messages),
+          sharedNotes: toBoolean(row.settings_notifications_shared_notes),
         },
         privacy: {
           visibility: row.settings_privacy_visibility as 'public' | 'private' | 'contacts',

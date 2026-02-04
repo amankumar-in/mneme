@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const chatSchema = new mongoose.Schema({
+const threadSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -28,11 +28,11 @@ const chatSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  isSystemChat: {
+  isSystemThread: {
     type: Boolean,
     default: false,
   },
-  systemChatType: {
+  systemThreadType: {
     type: String,
     enum: ['locked_notes', null],
     default: null,
@@ -40,7 +40,7 @@ const chatSchema = new mongoose.Schema({
   wallpaper: {
     type: String,
   },
-  lastMessage: {
+  lastNote: {
     content: String,
     type: {
       type: String,
@@ -57,18 +57,18 @@ const chatSchema = new mongoose.Schema({
 });
 
 // Compound indexes for efficient queries
-chatSchema.index({ ownerId: 1, isPinned: -1, updatedAt: -1 });
-chatSchema.index({ participants: 1 });
-chatSchema.index({ ownerId: 1, isSystemChat: 1, systemChatType: 1 });
+threadSchema.index({ ownerId: 1, isPinned: -1, updatedAt: -1 });
+threadSchema.index({ participants: 1 });
+threadSchema.index({ ownerId: 1, isSystemThread: 1, systemThreadType: 1 });
 
 // Pre-save middleware
-chatSchema.pre('save', function (next) {
+threadSchema.pre('save', function (next) {
   this.updatedAt = new Date();
   next();
 });
 
 // Instance method to check if user has access
-chatSchema.methods.hasAccess = function (userId) {
+threadSchema.methods.hasAccess = function (userId) {
   const userIdStr = userId.toString();
   return (
     this.ownerId.toString() === userIdStr ||
@@ -77,34 +77,34 @@ chatSchema.methods.hasAccess = function (userId) {
 };
 
 // Instance method to check if user can edit
-chatSchema.methods.canEdit = function (userId) {
+threadSchema.methods.canEdit = function (userId) {
   return this.ownerId.toString() === userId.toString();
 };
 
-// Static method to get or create locked notes chat
-chatSchema.statics.getLockedNotesChat = async function (userId) {
-  let lockedChat = await this.findOne({
+// Static method to get or create locked notes thread
+threadSchema.statics.getLockedNotesThread = async function (userId) {
+  let lockedThread = await this.findOne({
     ownerId: userId,
-    isSystemChat: true,
-    systemChatType: 'locked_notes',
+    isSystemThread: true,
+    systemThreadType: 'locked_notes',
   });
 
-  if (!lockedChat) {
-    lockedChat = await this.create({
+  if (!lockedThread) {
+    lockedThread = await this.create({
       name: 'Locked Notes',
       icon: '🔒',
       ownerId: userId,
-      isSystemChat: true,
-      systemChatType: 'locked_notes',
+      isSystemThread: true,
+      systemThreadType: 'locked_notes',
       isPinned: true,
     });
   }
 
-  return lockedChat;
+  return lockedThread;
 };
 
-// Static method to get user's chats with pagination
-chatSchema.statics.getUserChats = async function (userId, options = {}) {
+// Static method to get user's threads with pagination
+threadSchema.statics.getUserThreads = async function (userId, options = {}) {
   const {
     page = 1,
     limit = 50,
@@ -130,20 +130,20 @@ chatSchema.statics.getUserChats = async function (userId, options = {}) {
   }
 
   const total = await this.countDocuments(query);
-  const chats = await this.find(query)
-    .sort({ isPinned: -1, 'lastMessage.timestamp': -1, updatedAt: -1 })
+  const threads = await this.find(query)
+    .sort({ isPinned: -1, 'lastNote.timestamp': -1, updatedAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit)
     .lean();
 
   return {
-    chats,
+    threads,
     total,
     page,
     hasMore: page * limit < total,
   };
 };
 
-const Chat = mongoose.model('Chat', chatSchema);
+const Thread = mongoose.model('Thread', threadSchema);
 
-export default Chat;
+export default Thread;

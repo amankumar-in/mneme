@@ -2,58 +2,58 @@ import { useCallback, useState } from 'react'
 import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 import { useDb } from '@/contexts/DatabaseContext'
-import { getMessageRepository, getChatRepository } from '@/services/repositories'
+import { getNoteRepository, getThreadRepository } from '@/services/repositories'
 
 interface ExportState {
   isExporting: boolean
   error: string | null
 }
 
-export function useExportChat() {
+export function useExportThread() {
   const db = useDb()
   const [state, setState] = useState<ExportState>({
     isExporting: false,
     error: null,
   })
 
-  const handleExport = useCallback(async (chatId: string, chatName: string) => {
+  const handleExport = useCallback(async (threadId: string, threadName: string) => {
     setState({ isExporting: true, error: null })
 
     try {
-      const chatRepo = getChatRepository(db)
-      const messageRepo = getMessageRepository(db)
+      const threadRepo = getThreadRepository(db)
+      const noteRepo = getNoteRepository(db)
 
-      // Get chat info
-      const chat = await chatRepo.getById(chatId)
-      if (!chat) {
-        throw new Error('Chat not found')
+      // Get thread info
+      const thread = await threadRepo.getById(threadId)
+      if (!thread) {
+        throw new Error('Thread not found')
       }
 
-      // Get all messages for this chat
-      const allMessages: string[] = []
+      // Get all notes for this thread
+      const allNotes: string[] = []
       let hasMore = true
       let cursor: string | undefined
 
       while (hasMore) {
-        const result = await messageRepo.getByChat(chatId, { before: cursor, limit: 100 })
-        // Messages come newest first, we want oldest first for export
-        const messagesFormatted = result.data.reverse().map(msg => {
-          const date = new Date(msg.createdAt).toLocaleString()
-          let content = msg.content || ''
+        const result = await noteRepo.getByThread(threadId, { before: cursor, limit: 100 })
+        // Notes come newest first, we want oldest first for export
+        const notesFormatted = result.data.reverse().map(note => {
+          const date = new Date(note.createdAt).toLocaleString()
+          let content = note.content || ''
 
-          if (msg.type === 'image') content = '[Image]'
-          else if (msg.type === 'voice') content = '[Voice Note]'
-          else if (msg.type === 'file') content = `[File: ${msg.attachment?.filename || 'attachment'}]`
-          else if (msg.type === 'location') content = `[Location: ${msg.location?.address || 'shared location'}]`
+          if (note.type === 'image') content = '[Image]'
+          else if (note.type === 'voice') content = '[Voice Note]'
+          else if (note.type === 'file') content = `[File: ${note.attachment?.filename || 'attachment'}]`
+          else if (note.type === 'location') content = `[Location: ${note.location?.address || 'shared location'}]`
 
-          if (msg.task.isTask) {
-            content = `[${msg.task.isCompleted ? '✓' : '○'}] ${content}`
+          if (note.task.isTask) {
+            content = `[${note.task.isCompleted ? '✓' : '○'}] ${content}`
           }
 
           return `[${date}] ${content}`
         })
 
-        allMessages.push(...messagesFormatted)
+        allNotes.push(...notesFormatted)
         hasMore = result.hasMore
         if (result.data.length > 0) {
           cursor = result.data[0].createdAt // oldest in this batch (we reversed)
@@ -61,21 +61,21 @@ export function useExportChat() {
       }
 
       // Reverse to get chronological order
-      allMessages.reverse()
+      allNotes.reverse()
 
       // Build export text
       const exportText = [
-        `# ${chat.name}`,
+        `# ${thread.name}`,
         `Exported on ${new Date().toLocaleString()}`,
-        `Total messages: ${allMessages.length}`,
+        `Total notes: ${allNotes.length}`,
         '',
         '---',
         '',
-        ...allMessages,
+        ...allNotes,
       ].join('\n')
 
-      // Create filename with sanitized chat name
-      const sanitizedName = chatName.replace(/[^a-zA-Z0-9]/g, '_')
+      // Create filename with sanitized thread name
+      const sanitizedName = threadName.replace(/[^a-zA-Z0-9]/g, '_')
       const timestamp = new Date().toISOString().split('T')[0]
       const filename = `${sanitizedName}_${timestamp}.txt`
 
@@ -94,7 +94,7 @@ export function useExportChat() {
       // Share the file
       await Sharing.shareAsync(file.uri, {
         mimeType: 'text/plain',
-        dialogTitle: `Export ${chatName}`,
+        dialogTitle: `Export ${threadName}`,
       })
 
       // Clean up temp file after sharing
@@ -109,7 +109,7 @@ export function useExportChat() {
   }, [db])
 
   return {
-    exportChat: handleExport,
+    exportThread: handleExport,
     isExporting: state.isExporting,
     exportError: state.error,
   }

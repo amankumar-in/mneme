@@ -6,22 +6,22 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 
-import { ChatHeader } from '../../../components/chat/ChatHeader'
-import { MessageList, MessageListRef } from '../../../components/message/MessageList'
-import { MessageInput } from '../../../components/message/MessageInput'
-import { SelectionActionBar } from '../../../components/message/SelectionActionBar'
-import { useChat, useUpdateChat } from '../../../hooks/useChats'
-import { useMessages, useSendMessage, useUpdateMessage, useDeleteMessage, useLockMessage, useStarMessage, useSetMessageTask, useCompleteTask } from '../../../hooks/useMessages'
-import type { ChatWithLastMessage, MessageWithDetails, MessageType } from '../../../types'
+import { ThreadHeader } from '../../../components/thread/ThreadHeader'
+import { NoteList, NoteListRef } from '../../../components/note/NoteList'
+import { NoteInput } from '../../../components/note/NoteInput'
+import { SelectionActionBar } from '../../../components/note/SelectionActionBar'
+import { useThread, useUpdateThread } from '../../../hooks/useThreads'
+import { useNotes, useSendNote, useUpdateNote, useDeleteNote, useLockNote, useStarNote, useSetNoteTask, useCompleteTask } from '../../../hooks/useNotes'
+import type { ThreadWithLastNote, NoteWithDetails, NoteType } from '../../../types'
 
-export default function ChatScreen() {
+export default function ThreadScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ id: string; new?: string; messageId?: string }>()
+  const params = useLocalSearchParams<{ id: string; new?: string; noteId?: string }>()
   const id = Array.isArray(params.id) ? params.id[0] : params.id
   const isNew = Array.isArray(params.new) ? params.new[0] : params.new
-  const targetMessageId = Array.isArray(params.messageId) ? params.messageId[0] : params.messageId
+  const targetNoteId = Array.isArray(params.noteId) ? params.noteId[0] : params.noteId
   const insets = useSafeAreaInsets()
-  const [editingMessage, setEditingMessage] = useState<MessageWithDetails | null>(null)
+  const [editingNote, setEditingNote] = useState<NoteWithDetails | null>(null)
   const [showAttachments, setShowAttachments] = useState(false)
   const [isEditingName, setIsEditingName] = useState(isNew === '1')
   const [editedName, setEditedName] = useState('')
@@ -30,13 +30,13 @@ export default function ChatScreen() {
   const [isSearching, setIsSearching] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResultIndex, setSearchResultIndex] = useState(0)
-  const messageListRef = useRef<MessageListRef>(null)
+  const noteListRef = useRef<NoteListRef>(null)
 
   // Selection state
-  const [selectedMessageIds, setSelectedMessageIds] = useState<Set<string>>(new Set())
+  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set())
 
   // Flash highlight state (for navigating from tasks page)
-  const [flashMessageId, setFlashMessageId] = useState<string | undefined>(undefined)
+  const [flashNoteId, setFlashNoteId] = useState<string | undefined>(undefined)
 
   // Date picker state for reminders
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -44,67 +44,67 @@ export default function ChatScreen() {
   const [reminderDate, setReminderDate] = useState(new Date())
 
   // API hooks
-  const chatId = id || ''
-  const { data: chat, isLoading: chatLoading } = useChat(chatId)
-  const { data: messagesData, isLoading: messagesLoading, fetchNextPage, hasNextPage } = useMessages(chatId)
-  const updateChat = useUpdateChat()
-  const sendMessageMutation = useSendMessage(chatId)
-  const updateMessageMutation = useUpdateMessage(chatId)
-  const deleteMessageMutation = useDeleteMessage(chatId)
-  const lockMessageMutation = useLockMessage(chatId)
-  const starMessageMutation = useStarMessage(chatId)
-  const setMessageTaskMutation = useSetMessageTask(chatId)
-  const completeTaskMutation = useCompleteTask(chatId)
+  const threadId = id || ''
+  const { data: thread, isLoading: threadLoading } = useThread(threadId)
+  const { data: notesData, isLoading: notesLoading, fetchNextPage, hasNextPage } = useNotes(threadId)
+  const updateThread = useUpdateThread()
+  const sendNoteMutation = useSendNote(threadId)
+  const updateNoteMutation = useUpdateNote(threadId)
+  const deleteNoteMutation = useDeleteNote(threadId)
+  const lockNoteMutation = useLockNote(threadId)
+  const starNoteMutation = useStarNote(threadId)
+  const setNoteTaskMutation = useSetNoteTask(threadId)
+  const completeTaskMutation = useCompleteTask(threadId)
 
-  const messages = messagesData?.pages.flatMap(page => page.messages) ?? []
-  const isLoading = messagesLoading
+  const notes = notesData?.pages.flatMap(page => page.notes) ?? []
+  const isLoading = notesLoading
 
-  // Set initial edited name when chat loads
+  // Set initial edited name when thread loads
   useEffect(() => {
-    if (chat?.name) {
-      setEditedName(chat.name)
+    if (thread?.name) {
+      setEditedName(thread.name)
     }
-  }, [chat?.name])
+  }, [thread?.name])
 
   const taskCount = useMemo(() => {
-    return messages.filter((m) => m.task.isTask && !m.task.isCompleted).length
-  }, [messages])
+    return notes.filter((n) => n.task.isTask && !n.task.isCompleted).length
+  }, [notes])
 
   // Flash highlight for navigating from tasks page
   useEffect(() => {
-    if (targetMessageId) {
-      setFlashMessageId(targetMessageId)
+    if (targetNoteId) {
+      setFlashNoteId(targetNoteId)
       const timer = setTimeout(() => {
-        setFlashMessageId(undefined)
+        setFlashNoteId(undefined)
       }, 2000)
       return () => clearTimeout(timer)
     }
-  }, [targetMessageId])
+  }, [targetNoteId])
 
-  // Search results - find messages matching query
+  // Search results - find notes matching query
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return []
     const query = searchQuery.toLowerCase()
-    return messages.filter(m =>
-      m.content?.toLowerCase().includes(query)
+    return notes.filter(n =>
+      n.content?.toLowerCase().includes(query)
     )
-  }, [messages, searchQuery])
+  }, [notes, searchQuery])
 
-  const highlightedMessageId = useMemo(() => {
+  const highlightedNoteId = useMemo(() => {
     // Prioritize search results when searching
     if (searchResults.length > 0) {
       return searchResults[searchResultIndex]?.id
     }
-    // Otherwise use flashMessageId from navigation (e.g., from tasks page)
-    return flashMessageId
-  }, [searchResults, searchResultIndex, flashMessageId])
+    // Otherwise use flashNoteId from navigation (e.g., from tasks page)
+    return flashNoteId
+  }, [searchResults, searchResultIndex, flashNoteId])
 
   const handleBack = useCallback(() => {
     router.back()
   }, [router])
 
-  const handleChatPress = useCallback(() => {
-    router.push(`/chat/${id}/info`)
+  const handleThreadPress = useCallback(() => {
+    router.push(`/thread/${id}/info`)
   }, [router, id])
 
   const handleSearch = useCallback(() => {
@@ -139,9 +139,9 @@ export default function ChatScreen() {
   }, [searchResults.length])
 
   const handleTasks = useCallback(() => {
-    const chatName = encodeURIComponent(chat?.name || 'Thread')
-    router.push(`/tasks?chatId=${id}&chatName=${chatName}`)
-  }, [router, id, chat?.name])
+    const threadName = encodeURIComponent(thread?.name || 'Thread')
+    router.push(`/tasks?threadId=${id}&threadName=${threadName}`)
+  }, [router, id, thread?.name])
 
   const handleMenu = useCallback(() => {
     console.log('Menu:', id)
@@ -158,86 +158,86 @@ export default function ChatScreen() {
   }, [])
 
   const handleNameSubmit = useCallback(() => {
-    if (editedName.trim() && editedName !== chat?.name) {
-      updateChat.mutate({ id: id || '', data: { name: editedName.trim() } })
+    if (editedName.trim() && editedName !== thread?.name) {
+      updateThread.mutate({ id: id || '', data: { name: editedName.trim() } })
     }
     setIsEditingName(false)
-  }, [editedName, chat?.name, updateChat, id])
+  }, [editedName, thread?.name, updateThread, id])
 
   const handleSend = useCallback(
-    (message: { content?: string; type: MessageType }) => {
-      if (editingMessage) {
-        updateMessageMutation.mutate({
-          messageId: editingMessage.id,
-          content: message.content || '',
+    (note: { content?: string; type: NoteType }) => {
+      if (editingNote) {
+        updateNoteMutation.mutate({
+          noteId: editingNote.id,
+          content: note.content || '',
         })
-        setEditingMessage(null)
+        setEditingNote(null)
       } else {
-        sendMessageMutation.mutate({
-          content: message.content,
-          type: message.type,
+        sendNoteMutation.mutate({
+          content: note.content,
+          type: note.type,
         })
       }
     },
-    [editingMessage, sendMessageMutation, updateMessageMutation]
+    [editingNote, sendNoteMutation, updateNoteMutation]
   )
 
-  const isSelectionMode = selectedMessageIds.size > 0
+  const isSelectionMode = selectedNoteIds.size > 0
 
-  const handleMessageLongPress = useCallback((message: MessageWithDetails) => {
-    setSelectedMessageIds(new Set([message.id]))
+  const handleNoteLongPress = useCallback((note: NoteWithDetails) => {
+    setSelectedNoteIds(new Set([note.id]))
   }, [])
 
-  const handleMessagePress = useCallback((message: MessageWithDetails) => {
-    if (selectedMessageIds.size > 0) {
-      setSelectedMessageIds(prev => {
+  const handleNotePress = useCallback((note: NoteWithDetails) => {
+    if (selectedNoteIds.size > 0) {
+      setSelectedNoteIds(prev => {
         const next = new Set(prev)
-        if (next.has(message.id)) {
-          next.delete(message.id)
+        if (next.has(note.id)) {
+          next.delete(note.id)
         } else {
-          next.add(message.id)
+          next.add(note.id)
         }
         return next
       })
     }
-  }, [selectedMessageIds.size])
+  }, [selectedNoteIds.size])
 
   const handleClearSelection = useCallback(() => {
-    setSelectedMessageIds(new Set())
+    setSelectedNoteIds(new Set())
   }, [])
 
-  const selectedMessages = useMemo(() => {
-    return messages.filter(m => selectedMessageIds.has(m.id))
-  }, [messages, selectedMessageIds])
+  const selectedNotes = useMemo(() => {
+    return notes.filter(n => selectedNoteIds.has(n.id))
+  }, [notes, selectedNoteIds])
 
   const handleSelectionLock = useCallback(() => {
-    const shouldLock = !selectedMessages.every(m => m.isLocked)
-    selectedMessages.forEach(m => {
-      lockMessageMutation.mutate({
-        messageId: m.id,
+    const shouldLock = !selectedNotes.every(n => n.isLocked)
+    selectedNotes.forEach(n => {
+      lockNoteMutation.mutate({
+        noteId: n.id,
         isLocked: shouldLock,
       })
     })
     handleClearSelection()
-  }, [selectedMessages, lockMessageMutation, handleClearSelection])
+  }, [selectedNotes, lockNoteMutation, handleClearSelection])
 
   const handleSelectionDelete = useCallback(() => {
-    const lockedCount = selectedMessages.filter(m => m.isLocked).length
+    const lockedCount = selectedNotes.filter(n => n.isLocked).length
     if (lockedCount > 0) {
-      Alert.alert('Cannot Delete', `${lockedCount} message(s) are locked. Unlock them first.`)
+      Alert.alert('Cannot Delete', `${lockedCount} note(s) are locked. Unlock them first.`)
       return
     }
     Alert.alert(
-      'Delete Messages',
-      `Delete ${selectedMessages.length} message(s)?`,
+      'Delete Notes',
+      `Delete ${selectedNotes.length} note(s)?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            selectedMessages.forEach(m => {
-              deleteMessageMutation.mutate(m.id)
+            selectedNotes.forEach(n => {
+              deleteNoteMutation.mutate(n.id)
             })
             handleClearSelection()
           },
@@ -245,10 +245,10 @@ export default function ChatScreen() {
       ],
       { cancelable: true }
     )
-  }, [selectedMessages, deleteMessageMutation, handleClearSelection])
+  }, [selectedNotes, deleteNoteMutation, handleClearSelection])
 
   const handleSelectionTask = useCallback(() => {
-    const shouldMakeTask = !selectedMessages.every(m => m.task?.isTask)
+    const shouldMakeTask = !selectedNotes.every(n => n.task?.isTask)
     if (shouldMakeTask) {
       // Set default to tomorrow 9am
       const defaultDate = new Date()
@@ -257,15 +257,15 @@ export default function ChatScreen() {
       setReminderDate(defaultDate)
       setShowDatePicker(true)
     } else {
-      selectedMessages.forEach(m => {
-        setMessageTaskMutation.mutate({
-          messageId: m.id,
+      selectedNotes.forEach(n => {
+        setNoteTaskMutation.mutate({
+          noteId: n.id,
           isTask: false,
         })
       })
       handleClearSelection()
     }
-  }, [selectedMessages, setMessageTaskMutation, handleClearSelection])
+  }, [selectedNotes, setNoteTaskMutation, handleClearSelection])
 
   const handleDateChange = useCallback((event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') {
@@ -285,48 +285,48 @@ export default function ChatScreen() {
     if (Platform.OS === 'android' && event.type === 'dismissed') return
 
     const finalDate = date || reminderDate
-    selectedMessages.forEach(m => {
-      setMessageTaskMutation.mutate({
-        messageId: m.id,
+    selectedNotes.forEach(n => {
+      setNoteTaskMutation.mutate({
+        noteId: n.id,
         isTask: true,
         reminderAt: finalDate.toISOString(),
       })
     })
     handleClearSelection()
     setShowDatePicker(false)
-  }, [reminderDate, selectedMessages, setMessageTaskMutation, handleClearSelection])
+  }, [reminderDate, selectedNotes, setNoteTaskMutation, handleClearSelection])
 
   const handleSelectionEdit = useCallback(() => {
-    if (selectedMessages.length === 1) {
-      setEditingMessage(selectedMessages[0])
+    if (selectedNotes.length === 1) {
+      setEditingNote(selectedNotes[0])
       handleClearSelection()
     }
-  }, [selectedMessages, handleClearSelection])
+  }, [selectedNotes, handleClearSelection])
 
   const handleSelectionStar = useCallback(() => {
-    const shouldStar = !selectedMessages.every(m => m.isStarred)
-    selectedMessages.forEach(m => {
-      starMessageMutation.mutate({
-        messageId: m.id,
+    const shouldStar = !selectedNotes.every(n => n.isStarred)
+    selectedNotes.forEach(n => {
+      starNoteMutation.mutate({
+        noteId: n.id,
         isStarred: shouldStar,
       })
     })
     handleClearSelection()
-  }, [selectedMessages, starMessageMutation, handleClearSelection])
+  }, [selectedNotes, starNoteMutation, handleClearSelection])
 
-  const handleTaskToggle = useCallback((message: MessageWithDetails) => {
-    if (!message.task.isCompleted) {
-      completeTaskMutation.mutate(message.id)
+  const handleTaskToggle = useCallback((note: NoteWithDetails) => {
+    if (!note.task.isCompleted) {
+      completeTaskMutation.mutate(note.id)
     } else {
       // Uncomplete by setting task again
-      setMessageTaskMutation.mutate({
-        messageId: message.id,
+      setNoteTaskMutation.mutate({
+        noteId: note.id,
         isTask: true,
-        reminderAt: message.task.reminderAt,
+        reminderAt: note.task.reminderAt,
         isCompleted: false,
       })
     }
-  }, [completeTaskMutation, setMessageTaskMutation])
+  }, [completeTaskMutation, setNoteTaskMutation])
 
   const handleAttachmentSelect = useCallback((type: string) => {
     console.log('Selected attachment:', type)
@@ -337,7 +337,7 @@ export default function ChatScreen() {
     setShowAttachments((prev) => !prev)
   }, [])
 
-  
+
   const handleVoiceStart = useCallback(() => {
     console.log('Start voice recording')
   }, [])
@@ -347,24 +347,24 @@ export default function ChatScreen() {
   }, [])
 
   const handleCancelEdit = useCallback(() => {
-    setEditingMessage(null)
+    setEditingNote(null)
   }, [])
 
-  // Create a display chat object for the header
-  const displayChat: ChatWithLastMessage = chat || {
+  // Create a display thread object for the header
+  const displayThread: ThreadWithLastNote = thread || {
     id: id || '',
     serverId: null,
     name: editedName || 'New Thread',
     icon: null,
     isPinned: false,
     wallpaper: null,
-    lastMessage: null,
+    lastNote: null,
     syncStatus: 'pending',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
 
-  if (chatLoading) {
+  if (threadLoading) {
     return (
       <YStack flex={1} backgroundColor="$background" justifyContent="center" alignItems="center">
         <ActivityIndicator size="large" />
@@ -375,10 +375,10 @@ export default function ChatScreen() {
 
   return (
     <YStack flex={1} backgroundColor="$background" paddingBottom={insets.bottom}>
-      <ChatHeader
-        chat={{ ...displayChat, name: isEditingName ? editedName : displayChat.name }}
+      <ThreadHeader
+        thread={{ ...displayThread, name: isEditingName ? editedName : displayThread.name }}
         onBack={isSearching ? handleSearchClose : handleBack}
-        onChatPress={handleChatPress}
+        onThreadPress={handleThreadPress}
         onSearch={handleSearch}
         onTasks={handleTasks}
         onMenu={handleMenu}
@@ -397,40 +397,40 @@ export default function ChatScreen() {
       />
 
       <KeyboardAvoidingView style={{ flex: 1, overflow: 'hidden' }} behavior="padding">
-        <MessageList
-          ref={messageListRef}
-          messages={messages}
+        <NoteList
+          ref={noteListRef}
+          notes={notes}
           onLoadMore={handleLoadMore}
           isLoading={isLoading}
-          chatId={id || '1'}
-          onMessageLongPress={handleMessageLongPress}
-          onMessagePress={handleMessagePress}
+          threadId={id || '1'}
+          onNoteLongPress={handleNoteLongPress}
+          onNotePress={handleNotePress}
           onTaskToggle={handleTaskToggle}
-          highlightedMessageId={highlightedMessageId}
-          selectedMessageIds={selectedMessageIds}
+          highlightedNoteId={highlightedNoteId}
+          selectedNoteIds={selectedNoteIds}
         />
 
         {isSelectionMode ? (
           <SelectionActionBar
-            selectedCount={selectedMessageIds.size}
+            selectedCount={selectedNoteIds.size}
             onClose={handleClearSelection}
             onLock={handleSelectionLock}
             onDelete={handleSelectionDelete}
             onTask={handleSelectionTask}
             onEdit={handleSelectionEdit}
             onStar={handleSelectionStar}
-            allLocked={selectedMessages.every(m => m.isLocked)}
-            allStarred={selectedMessages.every(m => m.isStarred)}
-            allTasks={selectedMessages.every(m => m.task?.isTask)}
-            canEdit={selectedMessageIds.size === 1}
+            allLocked={selectedNotes.every(n => n.isLocked)}
+            allStarred={selectedNotes.every(n => n.isStarred)}
+            allTasks={selectedNotes.every(n => n.task?.isTask)}
+            canEdit={selectedNoteIds.size === 1}
           />
         ) : (
-          <MessageInput
+          <NoteInput
             onSend={handleSend}
             onAttachmentSelect={handleAttachmentSelect}
             onVoiceStart={handleVoiceStart}
             onVoiceEnd={handleVoiceEnd}
-            editingMessage={editingMessage}
+            editingNote={editingNote}
             onCancelEdit={handleCancelEdit}
             showAttachments={showAttachments}
             onToggleAttachments={handleToggleAttachments}

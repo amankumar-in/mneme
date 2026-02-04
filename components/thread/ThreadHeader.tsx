@@ -4,12 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { TextInput, Image } from 'react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
-import type { ChatWithLastMessage } from '../../types'
+import type { ThreadWithLastNote } from '../../types'
 
-interface ChatHeaderProps {
-  chat: ChatWithLastMessage
+interface ThreadHeaderProps {
+  thread: ThreadWithLastNote
   onBack: () => void
-  onChatPress: () => void
+  onThreadPress: () => void
   onSearch: () => void
   onTasks: () => void
   onMenu: () => void
@@ -30,16 +30,16 @@ interface ChatHeaderProps {
 
 const menuOptions = [
   { id: 'media', icon: 'images', label: 'Media Files' },
-  { id: 'wallpaper', icon: 'color-palette', label: 'Chat Wallpaper' },
+  { id: 'wallpaper', icon: 'color-palette', label: 'Thread Wallpaper' },
   { id: 'shortcut', icon: 'add-circle', label: 'Add Shortcut' },
-  { id: 'export', icon: 'download', label: 'Export Chat' },
+  { id: 'export', icon: 'download', label: 'Export Thread' },
   { id: 'share', icon: 'share', label: 'Share' },
 ] as const
 
-export function ChatHeader({
-  chat,
+export function ThreadHeader({
+  thread,
   onBack,
-  onChatPress,
+  onThreadPress,
   onSearch,
   onTasks,
   onMenu,
@@ -55,7 +55,7 @@ export function ChatHeader({
   onSearchNext,
   searchResultIndex = 0,
   searchResultCount = 0,
-}: ChatHeaderProps) {
+}: ThreadHeaderProps) {
   const insets = useSafeAreaInsets()
   const { iconColorStrong, brandText, iconColor, colorSubtle } = useThemeColor()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -80,7 +80,7 @@ export function ChatHeader({
 
   const handleMenuSelect = (id: string) => {
     setMenuOpen(false)
-    console.log('Menu selected:', id, chat.id)
+    console.log('Menu selected:', id, thread.id)
     onMenu()
   }
 
@@ -175,17 +175,17 @@ export function ChatHeader({
         flex={1}
         alignItems="center"
         gap="$2"
-        onPress={isEditingName ? undefined : onChatPress}
+        onPress={isEditingName ? undefined : onThreadPress}
         pressStyle={isEditingName ? undefined : { opacity: 0.7 }}
       >
-        {chat.icon ? (
-          chat.icon.startsWith('file://') || chat.icon.startsWith('content://') ? (
+        {thread.icon ? (
+          thread.icon.startsWith('file://') || thread.icon.startsWith('content://') ? (
             <Image
-              source={{ uri: chat.icon }}
+              source={{ uri: thread.icon }}
               style={{ width: 36, height: 36, borderRadius: 18 }}
             />
           ) : (
-            <Text fontSize="$5">{chat.icon}</Text>
+            <Text fontSize="$5">{thread.icon}</Text>
           )
         ) : (
           <XStack
@@ -197,7 +197,7 @@ export function ChatHeader({
             justifyContent="center"
           >
             <Text color={brandText} fontWeight="600" fontSize="$3">
-              {chat.name.slice(0, 2).toUpperCase()}
+              {thread.name.slice(0, 2).toUpperCase()}
             </Text>
           </XStack>
         )}
@@ -211,7 +211,7 @@ export function ChatHeader({
             backgroundColor="transparent"
             borderWidth={0}
             paddingHorizontal={0}
-            value={chat.name}
+            value={thread.name}
             onChangeText={onNameChange}
             onSubmitEditing={onNameSubmit}
             selectTextOnFocus
@@ -219,7 +219,7 @@ export function ChatHeader({
           />
         ) : (
           <Text fontSize="$5" fontWeight="600" numberOfLines={1} flex={1} color="$color">
-            {chat.name}
+            {thread.name}
           </Text>
         )}
       </XStack>

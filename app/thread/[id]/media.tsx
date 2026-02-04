@@ -43,7 +43,7 @@ export default function MediaFilesScreen() {
           Coming soon
         </Text>
         <Text fontSize="$3" color="$colorMuted" marginTop="$2" textAlign="center">
-          View all media, links and documents shared in this chat
+          View all media, links and documents shared in this thread
         </Text>
       </YStack>
     </YStack>

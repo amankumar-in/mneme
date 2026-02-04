@@ -1,11 +1,11 @@
 import User from './User.js';
-import Chat from './Chat.js';
-import Message from './Message.js';
-import SharedChat from './SharedChat.js';
+import Thread from './Thread.js';
+import Note from './Note.js';
+import SharedThread from './SharedThread.js';
 
 export {
   User,
-  Chat,
-  Message,
-  SharedChat,
+  Thread,
+  Note,
+  SharedThread,
 };

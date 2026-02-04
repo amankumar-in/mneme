@@ -3,38 +3,38 @@ import axios, { AxiosInstance } from 'axios'
 import type { SQLiteDatabase } from 'expo-sqlite'
 import { getAuthToken } from '../storage'
 import {
-  getChatRepository,
-  getMessageRepository,
+  getThreadRepository,
+  getNoteRepository,
   getUserRepository,
 } from '../repositories'
 import type {
-  ChatRow,
-  MessageRow,
+  ThreadRow,
+  NoteRow,
   UserRow,
-  MessageType,
+  NoteType,
 } from '../database/types'
 
 // Server response types
-interface ServerChat {
+interface ServerThread {
   _id: string
   name: string
   icon?: string
   isPinned: boolean
   wallpaper?: string
-  lastMessage?: {
+  lastNote?: {
     content: string
-    type: MessageType
+    type: NoteType
     timestamp: string
   }
   createdAt: string
   updatedAt: string
 }
 
-interface ServerMessage {
+interface ServerNote {
   _id: string
-  chatId: string
+  threadId: string
   content?: string
-  type: MessageType
+  type: NoteType
   attachment?: {
     url: string
     filename?: string
@@ -75,7 +75,7 @@ interface ServerUser {
     theme: 'light' | 'dark' | 'system'
     notifications: {
       taskReminders: boolean
-      sharedMessages: boolean
+      sharedNotes: boolean
     }
     privacy: {
       visibility: 'public' | 'private' | 'contacts'
@@ -87,17 +87,17 @@ interface ServerUser {
 
 interface SyncChangesResponse {
   user?: ServerUser
-  chats: ServerChat[]
-  messages: ServerMessage[]
-  deletedChatIds: string[]
-  deletedMessageIds: string[]
+  threads: ServerThread[]
+  notes: ServerNote[]
+  deletedThreadIds: string[]
+  deletedNoteIds: string[]
   serverTime: string
 }
 
 interface SyncPushResponse {
   user?: { localId: string; serverId: string }
-  chats: Array<{ localId: string; serverId: string }>
-  messages: Array<{ localId: string; serverId: string }>
+  threads: Array<{ localId: string; serverId: string }>
+  notes: Array<{ localId: string; serverId: string }>
 }
 
 const getDefaultUrl = () => {
@@ -218,11 +218,11 @@ export class SyncService {
         params: { since: lastSync },
       })
 
-      const { user, chats, messages, deletedChatIds, deletedMessageIds, serverTime } =
+      const { user, threads: serverThreads, notes: serverNotes, deletedThreadIds: deletedThreadServerIds, deletedNoteIds: deletedNoteServerIds, serverTime } =
         response.data
 
-      const chatRepo = getChatRepository(this.db)
-      const messageRepo = getMessageRepository(this.db)
+      const threadRepo = getThreadRepository(this.db)
+      const noteRepo = getNoteRepository(this.db)
       const userRepo = getUserRepository(this.db)
 
       // Process user
@@ -230,36 +230,36 @@ export class SyncService {
         await userRepo.upsertFromServer(user)
       }
 
-      // Process deleted chats first
-      for (const serverId of deletedChatIds) {
-        const chat = await chatRepo.getByServerId(serverId)
-        if (chat) {
+      // Process deleted threads first
+      for (const serverId of deletedThreadServerIds) {
+        const thread = await threadRepo.getByServerId(serverId)
+        if (thread) {
           await this.db.runAsync(
-            'UPDATE chats SET deleted_at = ?, sync_status = ? WHERE server_id = ?',
+            'UPDATE threads SET deleted_at = ?, sync_status = ? WHERE server_id = ?',
             [serverTime, 'synced', serverId]
           )
         }
       }
 
-      // Process deleted messages
-      for (const serverId of deletedMessageIds) {
+      // Process deleted notes
+      for (const serverId of deletedNoteServerIds) {
         await this.db.runAsync(
-          'UPDATE messages SET deleted_at = ?, sync_status = ? WHERE server_id = ?',
+          'UPDATE notes SET deleted_at = ?, sync_status = ? WHERE server_id = ?',
           [serverTime, 'synced', serverId]
         )
       }
 
-      // Process chats
-      for (const chat of chats) {
-        await chatRepo.upsertFromServer(chat)
+      // Process threads
+      for (const serverThread of serverThreads) {
+        await threadRepo.upsertFromServer(serverThread)
       }
 
-      // Process messages - need to map server chatId to local chatId
-      for (const message of messages) {
-        // Find local chat by server ID
-        const localChat = await chatRepo.getByServerId(message.chatId)
-        if (localChat) {
-          await messageRepo.upsertFromServer(localChat.id, message)
+      // Process notes - need to map server threadId to local threadId
+      for (const serverNote of serverNotes) {
+        // Find local thread by server ID
+        const localThread = await threadRepo.getByServerId(serverNote.threadId)
+        if (localThread) {
+          await noteRepo.upsertFromServer(localThread.id, serverNote)
         }
       }
 
@@ -299,57 +299,35 @@ export class SyncService {
     try {
       await this.setSyncing(true)
 
-      const chatRepo = getChatRepository(this.db)
-      const messageRepo = getMessageRepository(this.db)
+      const threadRepo = getThreadRepository(this.db)
+      const noteRepo = getNoteRepository(this.db)
       const userRepo = getUserRepository(this.db)
 
       // Gather pending changes
-      const pendingChats = await chatRepo.getPendingSync()
-      const pendingMessages = await messageRepo.getPendingSync()
+      const pendingThreads = await threadRepo.getPendingSync()
+      const pendingNotes = await noteRepo.getPendingSync()
       const pendingUser = await userRepo.getPendingSync()
 
-      // Include chats referenced by pending messages so server can resolve chatLocalId
-      const pendingChatIds = new Set(pendingChats.map((c) => c.id))
-      const referencedChatIds = [
-        ...new Set(pendingMessages.map((m) => m.chat_id)),
-      ].filter((id) => !pendingChatIds.has(id))
-      const referencedChats = (
+      // Include threads referenced by pending notes so server can resolve threadLocalId
+      const pendingThreadIds = new Set(pendingThreads.map((t) => t.id))
+      const referencedThreadIds = [
+        ...new Set(pendingNotes.map((n) => n.thread_id)),
+      ].filter((id) => !pendingThreadIds.has(id))
+      const referencedThreads = (
         await Promise.all(
-          referencedChatIds.map((id) => chatRepo.getRowById(id))
+          referencedThreadIds.map((id) => threadRepo.getRowById(id))
         )
-      ).filter((c): c is ChatRow => c != null)
-      // Include any chat that has never been synced (no server_id) so we always send it
-      const neverSyncedChats = await chatRepo.getNeverSynced()
+      ).filter((t): t is ThreadRow => t != null)
+      // Include any thread that has never been synced (no server_id) so we always send it
+      const neverSyncedThreads = await threadRepo.getNeverSynced()
       const alreadyIncluded = new Set([
-        ...pendingChatIds,
-        ...referencedChats.map((c) => c.id),
+        ...pendingThreadIds,
+        ...referencedThreads.map((t) => t.id),
       ])
-      const extraNeverSynced = neverSyncedChats.filter((c) => !alreadyIncluded.has(c.id))
-      const chatsToSend = [...pendingChats, ...referencedChats, ...extraNeverSynced]
+      const extraNeverSynced = neverSyncedThreads.filter((t) => !alreadyIncluded.has(t.id))
+      const threadsToSend = [...pendingThreads, ...referencedThreads, ...extraNeverSynced]
 
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/909ea40f-d299-4969-83a5-58f6881ded01', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: 'debug-session',
-          runId: 'pre-fix',
-          hypothesisId: 'H1',
-          location: 'services/sync/sync.service.ts:312',
-          message: 'Pending entities before push',
-          data: {
-            pendingChatCount: pendingChats.length,
-            pendingMessageCount: pendingMessages.length,
-            hasPendingUser: !!pendingUser,
-            pendingChatServerIds: pendingChats.map((c) => c.server_id || null),
-            pendingChatSyncStatus: pendingChats.map((c) => c.sync_status)
-          },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
-
-      if (!pendingUser && chatsToSend.length === 0 && pendingMessages.length === 0) {
+      if (!pendingUser && threadsToSend.length === 0 && pendingNotes.length === 0) {
         console.log('[Sync] No pending changes to push')
         return
       }
@@ -362,18 +340,18 @@ export class SyncService {
               data: this.mapUserToServer(pendingUser),
             }
           : undefined,
-        chats: chatsToSend.map((chat) => ({
-          localId: chat.id,
-          serverId: chat.server_id,
-          data: this.mapChatToServer(chat),
-          deleted: chat.deleted_at !== null,
+        threads: threadsToSend.map((thread) => ({
+          localId: thread.id,
+          serverId: thread.server_id,
+          data: this.mapThreadToServer(thread),
+          deleted: thread.deleted_at !== null,
         })),
-        messages: pendingMessages.map((msg) => ({
-          localId: msg.id,
-          serverId: msg.server_id,
-          chatLocalId: msg.chat_id,
-          data: this.mapMessageToServer(msg),
-          deleted: msg.deleted_at !== null,
+        notes: pendingNotes.map((note) => ({
+          localId: note.id,
+          serverId: note.server_id,
+          threadLocalId: note.thread_id,
+          data: this.mapNoteToServer(note),
+          deleted: note.deleted_at !== null,
         })),
       })
 
@@ -384,12 +362,12 @@ export class SyncService {
         await userRepo.markSynced(result.user.serverId)
       }
 
-      for (const { localId, serverId } of result.chats) {
-        await chatRepo.markSynced(localId, serverId)
+      for (const { localId, serverId } of result.threads) {
+        await threadRepo.markSynced(localId, serverId)
       }
 
-      for (const { localId, serverId } of result.messages) {
-        await messageRepo.markSynced(localId, serverId)
+      for (const { localId, serverId } of result.notes) {
+        await noteRepo.markSynced(localId, serverId)
       }
 
       console.log('[Sync] Push completed successfully')
@@ -459,7 +437,7 @@ export class SyncService {
         theme: user.settings_theme,
         notifications: {
           taskReminders: user.settings_notifications_task_reminders === 1,
-          sharedMessages: user.settings_notifications_shared_messages === 1,
+          sharedNotes: user.settings_notifications_shared_notes === 1,
         },
         privacy: {
           visibility: user.settings_privacy_visibility,
@@ -468,47 +446,47 @@ export class SyncService {
     }
   }
 
-  private mapChatToServer(chat: ChatRow) {
+  private mapThreadToServer(thread: ThreadRow) {
     return {
-      name: chat.name,
-      icon: chat.icon,
-      isPinned: chat.is_pinned === 1,
-      wallpaper: chat.wallpaper,
+      name: thread.name,
+      icon: thread.icon,
+      isPinned: thread.is_pinned === 1,
+      wallpaper: thread.wallpaper,
     }
   }
 
-  private mapMessageToServer(msg: MessageRow) {
+  private mapNoteToServer(note: NoteRow) {
     return {
-      content: msg.content,
-      type: msg.type,
-      attachment: msg.attachment_url
+      content: note.content,
+      type: note.type,
+      attachment: note.attachment_url
         ? {
-            url: msg.attachment_url,
-            filename: msg.attachment_filename,
-            mimeType: msg.attachment_mime_type,
-            size: msg.attachment_size,
-            duration: msg.attachment_duration,
-            thumbnail: msg.attachment_thumbnail,
-            width: msg.attachment_width,
-            height: msg.attachment_height,
+            url: note.attachment_url,
+            filename: note.attachment_filename,
+            mimeType: note.attachment_mime_type,
+            size: note.attachment_size,
+            duration: note.attachment_duration,
+            thumbnail: note.attachment_thumbnail,
+            width: note.attachment_width,
+            height: note.attachment_height,
           }
         : undefined,
       location:
-        msg.location_latitude !== null
+        note.location_latitude !== null
           ? {
-              latitude: msg.location_latitude,
-              longitude: msg.location_longitude,
-              address: msg.location_address,
+              latitude: note.location_latitude,
+              longitude: note.location_longitude,
+              address: note.location_address,
             }
           : undefined,
-      isLocked: msg.is_locked === 1,
-      isStarred: msg.is_starred === 1,
-      isEdited: msg.is_edited === 1,
+      isLocked: note.is_locked === 1,
+      isStarred: note.is_starred === 1,
+      isEdited: note.is_edited === 1,
       task: {
-        isTask: msg.is_task === 1,
-        reminderAt: msg.reminder_at,
-        isCompleted: msg.is_completed === 1,
-        completedAt: msg.completed_at,
+        isTask: note.is_task === 1,
+        reminderAt: note.reminder_at,
+        isCompleted: note.is_completed === 1,
+        completedAt: note.completed_at,
       },
     }
   }

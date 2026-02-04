@@ -2,10 +2,10 @@ import { XStack, YStack, Text } from 'tamagui'
 import { Image } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useThemeColor } from '../hooks/useThemeColor'
-import type { ChatWithLastMessage } from '../types'
+import type { ThreadWithLastNote } from '../types'
 
 interface NoteListItemProps {
-  chat: ChatWithLastMessage
+  thread: ThreadWithLastNote
   onPress: () => void
   onLongPress: () => void
 }
@@ -30,10 +30,10 @@ function formatRelativeTime(dateString: string): string {
   })
 }
 
-function getMessagePreview(chat: ChatWithLastMessage): string {
-  if (!chat.lastMessage) return 'It is a blank slate!'
+function getNotePreview(thread: ThreadWithLastNote): string {
+  if (!thread.lastNote) return 'It is a blank slate!'
 
-  switch (chat.lastMessage.type) {
+  switch (thread.lastNote.type) {
     case 'image':
       return '📷 Photo'
     case 'voice':
@@ -43,7 +43,7 @@ function getMessagePreview(chat: ChatWithLastMessage): string {
     case 'location':
       return '📍 Location'
     default:
-      return chat.lastMessage.content || ''
+      return thread.lastNote.content || ''
   }
 }
 
@@ -56,9 +56,9 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-export function NoteListItem({ chat, onPress, onLongPress }: NoteListItemProps) {
+export function NoteListItem({ thread, onPress, onLongPress }: NoteListItemProps) {
   const { warningColor } = useThemeColor()
-  const timestamp = chat.lastMessage?.timestamp || chat.updatedAt
+  const timestamp = thread.lastNote?.timestamp || thread.updatedAt
 
   return (
     <XStack
@@ -72,9 +72,9 @@ export function NoteListItem({ chat, onPress, onLongPress }: NoteListItemProps) 
       onLongPress={onLongPress}
       cursor="pointer"
     >
-      {chat.icon && (chat.icon.startsWith('file://') || chat.icon.startsWith('content://')) ? (
+      {thread.icon && (thread.icon.startsWith('file://') || thread.icon.startsWith('content://')) ? (
         <Image
-          source={{ uri: chat.icon }}
+          source={{ uri: thread.icon }}
           style={{ width: 48, height: 48, borderRadius: 24 }}
         />
       ) : (
@@ -86,11 +86,11 @@ export function NoteListItem({ chat, onPress, onLongPress }: NoteListItemProps) 
           alignItems="center"
           justifyContent="center"
         >
-          {chat.icon ? (
-            <Text fontSize="$5">{chat.icon}</Text>
+          {thread.icon ? (
+            <Text fontSize="$5">{thread.icon}</Text>
           ) : (
             <Text color="$accentColor" fontWeight="600">
-              {getInitials(chat.name)}
+              {getInitials(thread.name)}
             </Text>
           )}
         </XStack>
@@ -99,7 +99,7 @@ export function NoteListItem({ chat, onPress, onLongPress }: NoteListItemProps) 
       <YStack flex={1} gap="$1">
         <XStack justifyContent="space-between" alignItems="center">
           <Text fontSize="$5" fontWeight="600" numberOfLines={1} flex={1} color="$color">
-            {chat.name}
+            {thread.name}
           </Text>
           <Text fontSize="$2" color="$colorSubtle">
             {formatRelativeTime(timestamp)}
@@ -108,9 +108,9 @@ export function NoteListItem({ chat, onPress, onLongPress }: NoteListItemProps) 
 
         <XStack alignItems="center" gap="$2">
           <Text fontSize="$3" color="$colorSubtle" numberOfLines={1} flex={1} ellipsizeMode="tail">
-            {getMessagePreview(chat)}
+            {getNotePreview(thread)}
           </Text>
-          {chat.isPinned && (
+          {thread.isPinned && (
             <Ionicons name="bookmark" size={14} color={warningColor} />
           )}
         </XStack>

@@ -3,7 +3,7 @@ import { XStack, YStack, Input, Button, Text } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
 import { Keyboard, TextInput } from 'react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
-import type { MessageWithDetails, MessageType } from '../../types'
+import type { NoteWithDetails, NoteType } from '../../types'
 
 const attachmentOptions = [
   { id: 'image', icon: 'image-outline', label: 'Image', color: '$purple5' },
@@ -14,36 +14,36 @@ const attachmentOptions = [
   { id: 'audio', icon: 'musical-notes-outline', label: 'Audio', color: '$pink5' },
 ] as const
 
-interface MessageInputProps {
-  onSend: (message: { content?: string; type: MessageType }) => void
+interface NoteInputProps {
+  onSend: (note: { content?: string; type: NoteType }) => void
   onAttachmentSelect: (type: string) => void
   onVoiceStart: () => void
   onVoiceEnd: (uri: string) => void
-  editingMessage?: MessageWithDetails | null
+  editingNote?: NoteWithDetails | null
   onCancelEdit?: () => void
   showAttachments: boolean
   onToggleAttachments: () => void
 }
 
-export function MessageInput({
+export function NoteInput({
   onSend,
   onAttachmentSelect,
   onVoiceStart,
   onVoiceEnd,
-  editingMessage,
+  editingNote,
   onCancelEdit,
   showAttachments,
   onToggleAttachments,
-}: MessageInputProps) {
+}: NoteInputProps) {
   const { iconColor, brandText, placeholderColor } = useThemeColor()
   const [text, setText] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const inputRef = useRef<TextInput>(null)
 
-  // Populate input with message content when editing, clear when done
+  // Populate input with note content when editing, clear when done
   useEffect(() => {
-    if (editingMessage) {
-      const content = editingMessage.content || ''
+    if (editingNote) {
+      const content = editingNote.content || ''
       setText(content)
       // Focus input and move cursor to end
       setTimeout(() => {
@@ -53,7 +53,7 @@ export function MessageInput({
     } else {
       setText('')
     }
-  }, [editingMessage])
+  }, [editingNote])
 
   const handleSend = useCallback(() => {
     const trimmedText = text.trim()
@@ -127,7 +127,7 @@ export function MessageInput({
     >
       {attachmentPanel}
 
-      {editingMessage && (
+      {editingNote && (
         <XStack
           backgroundColor="$backgroundStrong"
           paddingLeft="$4"
@@ -177,7 +177,7 @@ export function MessageInput({
             flex={1}
             borderWidth={0}
             backgroundColor="transparent"
-            placeholder="Type a message..."
+            placeholder="Type a note..."
             placeholderTextColor={placeholderColor}
             value={text}
             onChangeText={setText}

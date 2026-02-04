@@ -1,8 +1,8 @@
 import express from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
-import Chat from '../models/Chat.js';
-import Message from '../models/Message.js';
+import Thread from '../models/Thread.js';
+import Note from '../models/Note.js';
 import User from '../models/User.js';
 
 const router = express.Router();
@@ -35,69 +35,69 @@ router.get('/changes', authenticate, asyncHandler(async (req, res) => {
     };
   }
 
-  // Get all chats owned by user (including deleted ones for sync)
-  const allChats = await Chat.find({
+  // Get all threads owned by user (including deleted ones for sync)
+  const allThreads = await Thread.find({
     ownerId: userId,
   }).lean();
 
-  // Filter to only return chats updated since last sync
-  const chats = allChats
-    .filter(chat => new Date(chat.updatedAt) > sinceDate && !chat.deletedAt)
-    .map(chat => ({
-      _id: chat._id,
-      name: chat.name,
-      icon: chat.icon,
-      isPinned: chat.isPinned,
-      wallpaper: chat.wallpaper,
-      lastMessage: chat.lastMessage,
-      createdAt: chat.createdAt,
-      updatedAt: chat.updatedAt,
+  // Filter to only return threads updated since last sync
+  const threads = allThreads
+    .filter(thread => new Date(thread.updatedAt) > sinceDate && !thread.deletedAt)
+    .map(thread => ({
+      _id: thread._id,
+      name: thread.name,
+      icon: thread.icon,
+      isPinned: thread.isPinned,
+      wallpaper: thread.wallpaper,
+      lastNote: thread.lastNote,
+      createdAt: thread.createdAt,
+      updatedAt: thread.updatedAt,
     }));
 
-  // Get deleted chat IDs
-  const deletedChatIds = allChats
-    .filter(chat => chat.deletedAt && new Date(chat.deletedAt) > sinceDate)
-    .map(chat => chat._id.toString());
+  // Get deleted thread IDs
+  const deletedThreadIds = allThreads
+    .filter(thread => thread.deletedAt && new Date(thread.deletedAt) > sinceDate)
+    .map(thread => thread._id.toString());
 
-  // Get chat IDs for message queries
-  const chatIds = allChats.map(chat => chat._id);
+  // Get thread IDs for note queries
+  const threadIds = allThreads.map(thread => thread._id);
 
-  // Get all messages in user's chats (including deleted ones for sync)
-  const allMessages = await Message.find({
-    chatId: { $in: chatIds },
+  // Get all notes in user's threads (including deleted ones for sync)
+  const allNotes = await Note.find({
+    threadId: { $in: threadIds },
     updatedAt: { $gt: sinceDate },
   }).lean();
 
-  // Filter to active messages
-  const messages = allMessages
-    .filter(msg => !msg.isDeleted && !msg.deletedAt)
-    .map(msg => ({
-      _id: msg._id,
-      chatId: msg.chatId,
-      content: msg.content,
-      type: msg.type,
-      attachment: msg.attachment,
-      location: msg.location,
-      isLocked: msg.isLocked,
-      isStarred: msg.isStarred,
-      isEdited: msg.isEdited,
-      isDeleted: msg.isDeleted,
-      task: msg.task,
-      createdAt: msg.createdAt,
-      updatedAt: msg.updatedAt,
+  // Filter to active notes
+  const notes = allNotes
+    .filter(note => !note.isDeleted && !note.deletedAt)
+    .map(note => ({
+      _id: note._id,
+      threadId: note.threadId,
+      content: note.content,
+      type: note.type,
+      attachment: note.attachment,
+      location: note.location,
+      isLocked: note.isLocked,
+      isStarred: note.isStarred,
+      isEdited: note.isEdited,
+      isDeleted: note.isDeleted,
+      task: note.task,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
     }));
 
-  // Get deleted message IDs
-  const deletedMessageIds = allMessages
-    .filter(msg => msg.isDeleted || msg.deletedAt)
-    .map(msg => msg._id.toString());
+  // Get deleted note IDs
+  const deletedNoteIds = allNotes
+    .filter(note => note.isDeleted || note.deletedAt)
+    .map(note => note._id.toString());
 
   res.json({
     user,
-    chats,
-    messages,
-    deletedChatIds,
-    deletedMessageIds,
+    threads,
+    notes,
+    deletedThreadIds,
+    deletedNoteIds,
     serverTime,
   });
 }));
@@ -107,13 +107,13 @@ router.get('/changes', authenticate, asyncHandler(async (req, res) => {
  * Push local changes to server
  */
 router.post('/push', authenticate, asyncHandler(async (req, res) => {
-  const { user: userChanges, chats: chatChanges, messages: messageChanges } = req.body;
+  const { user: userChanges, threads: threadChanges, notes: noteChanges } = req.body;
   const userId = req.user._id;
 
   const result = {
     user: null,
-    chats: [],
-    messages: [],
+    threads: [],
+    notes: [],
   };
 
   // Process user changes
@@ -175,28 +175,28 @@ router.post('/push', authenticate, asyncHandler(async (req, res) => {
     };
   }
 
-  // Process chat changes (with merge: new chat with same name as existing → use existing)
-  if (chatChanges && chatChanges.length > 0) {
-    for (const { localId, serverId, data, deleted } of chatChanges) {
+  // Process thread changes (with merge: new thread with same name as existing → use existing)
+  if (threadChanges && threadChanges.length > 0) {
+    for (const { localId, serverId, data, deleted } of threadChanges) {
       if (deleted) {
         // Handle deletion
         if (serverId) {
-          await Chat.findOneAndUpdate(
+          await Thread.findOneAndUpdate(
             { _id: serverId, ownerId: userId },
             { deletedAt: new Date() }
           );
-          // Also mark all messages as deleted
-          await Message.updateMany(
-            { chatId: serverId },
+          // Also mark all notes as deleted
+          await Note.updateMany(
+            { threadId: serverId },
             { isDeleted: true, deletedAt: new Date() }
           );
         }
-        result.chats.push({ localId, serverId: serverId || localId });
+        result.threads.push({ localId, serverId: serverId || localId });
       } else if (serverId) {
-        // Update existing chat if it exists; otherwise create (client had stale/wrong serverId)
-        const existing = await Chat.findOne({ _id: serverId, ownerId: userId }).lean();
+        // Update existing thread if it exists; otherwise create (client had stale/wrong serverId)
+        const existing = await Thread.findOne({ _id: serverId, ownerId: userId }).lean();
         if (existing) {
-          await Chat.findOneAndUpdate(
+          await Thread.findOneAndUpdate(
             { _id: serverId, ownerId: userId },
             {
               name: data.name,
@@ -205,93 +205,93 @@ router.post('/push', authenticate, asyncHandler(async (req, res) => {
               wallpaper: data.wallpaper,
             }
           );
-          result.chats.push({ localId, serverId });
+          result.threads.push({ localId, serverId });
         } else {
-          const chat = await Chat.create({
+          const thread = await Thread.create({
             name: data.name,
             icon: data.icon,
             isPinned: data.isPinned,
             wallpaper: data.wallpaper,
             ownerId: userId,
           });
-          result.chats.push({ localId, serverId: chat._id.toString() });
+          result.threads.push({ localId, serverId: thread._id.toString() });
         }
       } else {
-        // New chat (no serverId): merge into existing chat with same name if any (reinstall scenario)
+        // New thread (no serverId): merge into existing thread with same name if any (reinstall scenario)
         const nameTrimmed = data.name && typeof data.name === 'string' ? data.name.trim() : '';
         const existing = nameTrimmed
-          ? await Chat.findOne({
+          ? await Thread.findOne({
               ownerId: userId,
               name: nameTrimmed,
               $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }],
             }).lean()
           : null;
         if (existing) {
-          result.chats.push({ localId, serverId: existing._id.toString() });
+          result.threads.push({ localId, serverId: existing._id.toString() });
         } else {
-          const chat = await Chat.create({
+          const thread = await Thread.create({
             name: data.name,
             icon: data.icon,
             isPinned: data.isPinned,
             wallpaper: data.wallpaper,
             ownerId: userId,
           });
-          result.chats.push({ localId, serverId: chat._id.toString() });
+          result.threads.push({ localId, serverId: thread._id.toString() });
         }
       }
     }
   }
 
-  // Build a map of local chat IDs to server IDs
-  const chatIdMap = new Map();
-  for (const { localId, serverId } of result.chats) {
-    chatIdMap.set(localId, serverId);
+  // Build a map of local thread IDs to server IDs
+  const threadIdMap = new Map();
+  for (const { localId, serverId } of result.threads) {
+    threadIdMap.set(localId, serverId);
   }
 
-  // Process message changes
-  if (messageChanges && messageChanges.length > 0) {
-    for (const { localId, serverId, chatLocalId, data, deleted } of messageChanges) {
-      // Resolve chat ID (use server ID if available, otherwise look up from map)
-      let chatServerId = chatIdMap.get(chatLocalId);
-      if (!chatServerId) {
-        // Try to find existing chat by looking at the message's current server ID
+  // Process note changes
+  if (noteChanges && noteChanges.length > 0) {
+    for (const { localId, serverId, threadLocalId, data, deleted } of noteChanges) {
+      // Resolve thread ID (use server ID if available, otherwise look up from map)
+      let threadServerId = threadIdMap.get(threadLocalId);
+      if (!threadServerId) {
+        // Try to find existing thread by looking at the note's current server ID
         if (serverId) {
-          const existingMsg = await Message.findById(serverId);
-          if (existingMsg) {
-            chatServerId = existingMsg.chatId.toString();
+          const existingNote = await Note.findById(serverId);
+          if (existingNote) {
+            threadServerId = existingNote.threadId.toString();
           }
         }
       }
 
-      // Skip if we can't find the chat
-      if (!chatServerId && !serverId) {
-        console.warn(`Skipping message ${localId}: no chat found`);
+      // Skip if we can't find the thread
+      if (!threadServerId && !serverId) {
+        console.warn(`Skipping note ${localId}: no thread found`);
         continue;
       }
 
       if (deleted) {
         // Handle deletion
         if (serverId) {
-          await Message.findByIdAndUpdate(serverId, {
+          await Note.findByIdAndUpdate(serverId, {
             isDeleted: true,
             deletedAt: new Date(),
           });
         }
-        result.messages.push({ localId, serverId: serverId || localId });
+        result.notes.push({ localId, serverId: serverId || localId });
       } else if (serverId) {
-        // Update existing message
-        await Message.findByIdAndUpdate(serverId, {
+        // Update existing note
+        await Note.findByIdAndUpdate(serverId, {
           content: data.content,
           isLocked: data.isLocked,
           isStarred: data.isStarred,
           isEdited: data.isEdited,
           task: data.task,
         });
-        result.messages.push({ localId, serverId });
-      } else if (chatServerId) {
-        // Create new message
-        const message = await Message.create({
-          chatId: chatServerId,
+        result.notes.push({ localId, serverId });
+      } else if (threadServerId) {
+        // Create new note
+        const note = await Note.create({
+          threadId: threadServerId,
           senderId: userId,
           content: data.content,
           type: data.type,
@@ -303,16 +303,16 @@ router.post('/push', authenticate, asyncHandler(async (req, res) => {
           task: data.task,
         });
 
-        // Update chat's last message
-        await Chat.findByIdAndUpdate(chatServerId, {
-          lastMessage: {
+        // Update thread's last note
+        await Thread.findByIdAndUpdate(threadServerId, {
+          lastNote: {
             content: data.content,
             type: data.type,
-            timestamp: message.createdAt,
+            timestamp: note.createdAt,
           },
         });
 
-        result.messages.push({ localId, serverId: message._id.toString() });
+        result.notes.push({ localId, serverId: note._id.toString() });
       }
     }
   }
@@ -322,27 +322,27 @@ router.post('/push', authenticate, asyncHandler(async (req, res) => {
 
 /**
  * DELETE /api/sync/remote-data
- * Delete all remote chats and messages for the authenticated user
+ * Delete all remote threads and notes for the authenticated user
  */
 router.delete('/remote-data', authenticate, asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  // Get all chats owned by user
-  const userChats = await Chat.find({ ownerId: userId });
-  const chatIds = userChats.map(c => c._id);
+  // Get all threads owned by user
+  const userThreads = await Thread.find({ ownerId: userId });
+  const threadIds = userThreads.map(t => t._id);
 
-  // Delete all messages in those chats
-  const deletedMessages = await Message.deleteMany({ chatId: { $in: chatIds } });
+  // Delete all notes in those threads
+  const deletedNotes = await Note.deleteMany({ threadId: { $in: threadIds } });
 
-  // Delete all chats
-  const deletedChats = await Chat.deleteMany({ ownerId: userId });
+  // Delete all threads
+  const deletedThreads = await Thread.deleteMany({ ownerId: userId });
 
   res.json({
     success: true,
     message: 'Remote data deleted successfully',
     stats: {
-      chatsDeleted: deletedChats.deletedCount,
-      messagesDeleted: deletedMessages.deletedCount,
+      threadsDeleted: deletedThreads.deletedCount,
+      notesDeleted: deletedNotes.deletedCount,
     },
   });
 }));

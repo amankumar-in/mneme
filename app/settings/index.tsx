@@ -206,7 +206,7 @@ export default function SettingsScreen() {
               const stats = await deleteRemoteData()
               Alert.alert(
                 'Remote Data Deleted',
-                `Deleted ${stats.chatsDeleted} threads and ${stats.messagesDeleted} messages from the server.`
+                `Deleted ${stats.threadsDeleted} threads and ${stats.notesDeleted} notes from the server.`
               )
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.error || 'Failed to delete remote data')
@@ -220,7 +220,7 @@ export default function SettingsScreen() {
   const handleDeleteAccountInfo = useCallback(() => {
     Alert.alert(
       'Delete Account Information',
-      'This will remove your name, email, phone, username, and password. Your threads and messages will be preserved. Sync will be disabled until you set up your profile again.',
+      'This will remove your name, email, phone, username, and password. Your threads and notes will be preserved. Sync will be disabled until you set up your profile again.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -239,7 +239,7 @@ export default function SettingsScreen() {
               })
               // Clear auth token since credentials are deleted
               await logout()
-              Alert.alert('Account Info Deleted', 'Your profile information has been removed. Your threads and messages are preserved.')
+              Alert.alert('Account Info Deleted', 'Your profile information has been removed. Your threads and notes are preserved.')
             } catch (error: any) {
               Alert.alert('Error', error.response?.data?.error || 'Failed to delete account information')
             }

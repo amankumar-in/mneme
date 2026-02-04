@@ -136,8 +136,8 @@ export function useDeleteAccount() {
       }
 
       // Delete ALL local SQLite data
-      await db.runAsync('DELETE FROM messages')
-      await db.runAsync('DELETE FROM chats')
+      await db.runAsync('DELETE FROM notes')
+      await db.runAsync('DELETE FROM threads')
       await db.runAsync('DELETE FROM user')
       await db.runAsync('UPDATE sync_meta SET last_sync_timestamp = NULL, is_syncing = 0')
 

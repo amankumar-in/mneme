@@ -1,7 +1,7 @@
 import express from 'express';
 import User from '../models/User.js';
-import Chat from '../models/Chat.js';
-import SharedChat from '../models/SharedChat.js';
+import Thread from '../models/Thread.js';
+import SharedThread from '../models/SharedThread.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
@@ -43,10 +43,10 @@ router.post('/lookup', authenticate, asyncHandler(async (req, res) => {
 }));
 
 /**
- * POST /api/share/chat/:chatId
- * Share a chat with another user
+ * POST /api/share/thread/:threadId
+ * Share a thread with another user
  */
-router.post('/chat/:chatId', authenticate, asyncHandler(async (req, res) => {
+router.post('/thread/:threadId', authenticate, asyncHandler(async (req, res) => {
   const { userId, permissions = {} } = req.body;
 
   // Check if current user has required profile fields
@@ -57,27 +57,27 @@ router.post('/chat/:chatId', authenticate, asyncHandler(async (req, res) => {
     });
   }
 
-  const chat = await Chat.findById(req.params.chatId);
+  const thread = await Thread.findById(req.params.threadId);
 
-  if (!chat) {
+  if (!thread) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'Chat not found',
+      message: 'Thread not found',
     });
   }
 
-  if (!chat.canEdit(req.user._id)) {
+  if (!thread.canEdit(req.user._id)) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'Only the owner can share this chat',
+      message: 'Only the owner can share this thread',
     });
   }
 
-  // System chats cannot be shared
-  if (chat.isSystemChat) {
+  // System threads cannot be shared
+  if (thread.isSystemThread) {
     return res.status(400).json({
       error: 'Invalid Operation',
-      message: 'System chats cannot be shared',
+      message: 'System threads cannot be shared',
     });
   }
 
@@ -92,22 +92,22 @@ router.post('/chat/:chatId', authenticate, asyncHandler(async (req, res) => {
   }
 
   // Check if already shared
-  const existingShare = await SharedChat.findOne({
-    chatId: chat._id,
+  const existingShare = await SharedThread.findOne({
+    threadId: thread._id,
     sharedWith: userId,
   });
 
   if (existingShare) {
     return res.status(409).json({
       error: 'Already shared',
-      message: 'This chat is already shared with this user',
+      message: 'This thread is already shared with this user',
       status: existingShare.status,
     });
   }
 
   // Create share record
-  const sharedChat = await SharedChat.create({
-    chatId: chat._id,
+  const sharedThread = await SharedThread.create({
+    threadId: thread._id,
     sharedBy: req.user._id,
     sharedWith: userId,
     permissions: {
@@ -116,7 +116,7 @@ router.post('/chat/:chatId', authenticate, asyncHandler(async (req, res) => {
     },
   });
 
-  res.status(201).json({ sharedChat });
+  res.status(201).json({ sharedThread });
 }));
 
 /**
@@ -124,7 +124,7 @@ router.post('/chat/:chatId', authenticate, asyncHandler(async (req, res) => {
  * Get pending share requests for current user
  */
 router.get('/pending', authenticate, asyncHandler(async (req, res) => {
-  const pendingShares = await SharedChat.getPendingShares(req.user._id);
+  const pendingShares = await SharedThread.getPendingShares(req.user._id);
   res.json({ pendingShares });
 }));
 
@@ -133,7 +133,7 @@ router.get('/pending', authenticate, asyncHandler(async (req, res) => {
  * Accept a share request
  */
 router.put('/accept/:shareId', authenticate, asyncHandler(async (req, res) => {
-  const share = await SharedChat.findOne({
+  const share = await SharedThread.findOne({
     _id: req.params.shareId,
     sharedWith: req.user._id,
     status: 'pending',
@@ -159,7 +159,7 @@ router.put('/accept/:shareId', authenticate, asyncHandler(async (req, res) => {
  * Reject a share request
  */
 router.put('/reject/:shareId', authenticate, asyncHandler(async (req, res) => {
-  const share = await SharedChat.findOne({
+  const share = await SharedThread.findOne({
     _id: req.params.shareId,
     sharedWith: req.user._id,
     status: 'pending',
@@ -181,42 +181,42 @@ router.put('/reject/:shareId', authenticate, asyncHandler(async (req, res) => {
 }));
 
 /**
- * DELETE /api/share/chat/:chatId/user/:userId
- * Remove a user from a shared chat
+ * DELETE /api/share/thread/:threadId/user/:userId
+ * Remove a user from a shared thread
  */
-router.delete('/chat/:chatId/user/:userId', authenticate, asyncHandler(async (req, res) => {
-  const chat = await Chat.findById(req.params.chatId);
+router.delete('/thread/:threadId/user/:userId', authenticate, asyncHandler(async (req, res) => {
+  const thread = await Thread.findById(req.params.threadId);
 
-  if (!chat) {
+  if (!thread) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'Chat not found',
+      message: 'Thread not found',
     });
   }
 
   // Only owner can remove others, or user can remove themselves
-  const isOwner = chat.canEdit(req.user._id);
+  const isOwner = thread.canEdit(req.user._id);
   const isSelf = req.params.userId === req.user._id.toString();
 
   if (!isOwner && !isSelf) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'You cannot remove this user from the chat',
+      message: 'You cannot remove this user from the thread',
     });
   }
 
-  const removed = await SharedChat.removeShare(chat._id, req.params.userId);
+  const removed = await SharedThread.removeShare(thread._id, req.params.userId);
 
   if (!removed) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'User is not a participant in this chat',
+      message: 'User is not a participant in this thread',
     });
   }
 
   res.json({
     success: true,
-    message: 'User removed from chat',
+    message: 'User removed from thread',
   });
 }));
 

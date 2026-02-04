@@ -1,19 +1,19 @@
 import express from 'express';
-import Chat from '../models/Chat.js';
-import Message from '../models/Message.js';
+import Thread from '../models/Thread.js';
+import Note from '../models/Note.js';
 import { authenticate } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = express.Router();
 
 /**
- * GET /api/chats
- * Get all chats for current user
+ * GET /api/threads
+ * Get all threads for current user
  */
 router.get('/', authenticate, asyncHandler(async (req, res) => {
   const { search, filter, page = 1, limit = 50 } = req.query;
 
-  const result = await Chat.getUserChats(req.user._id, {
+  const result = await Thread.getUserThreads(req.user._id, {
     search,
     filter,
     page: parseInt(page),
@@ -24,8 +24,8 @@ router.get('/', authenticate, asyncHandler(async (req, res) => {
 }));
 
 /**
- * POST /api/chats
- * Create a new chat
+ * POST /api/threads
+ * Create a new thread
  */
 router.post('/', authenticate, asyncHandler(async (req, res) => {
   const { name, icon } = req.body;
@@ -33,193 +33,193 @@ router.post('/', authenticate, asyncHandler(async (req, res) => {
   if (!name?.trim()) {
     return res.status(400).json({
       error: 'Name required',
-      message: 'Chat name is required',
+      message: 'Thread name is required',
     });
   }
 
-  const chat = await Chat.create({
+  const thread = await Thread.create({
     name: name.trim(),
     icon,
     ownerId: req.user._id,
   });
 
-  res.status(201).json({ chat });
+  res.status(201).json({ thread });
 }));
 
 /**
- * GET /api/chats/:id
- * Get a specific chat
+ * GET /api/threads/:id
+ * Get a specific thread
  */
 router.get('/:id', authenticate, asyncHandler(async (req, res) => {
-  const chat = await Chat.findById(req.params.id);
+  const thread = await Thread.findById(req.params.id);
 
-  if (!chat) {
+  if (!thread) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'Chat not found',
+      message: 'Thread not found',
     });
   }
 
-  if (!chat.hasAccess(req.user._id)) {
+  if (!thread.hasAccess(req.user._id)) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'You do not have access to this chat',
+      message: 'You do not have access to this thread',
     });
   }
 
-  res.json({ chat });
+  res.json({ thread });
 }));
 
 /**
- * PUT /api/chats/:id
- * Update a chat
+ * PUT /api/threads/:id
+ * Update a thread
  */
 router.put('/:id', authenticate, asyncHandler(async (req, res) => {
   const { name, icon, isPinned, wallpaper } = req.body;
 
-  const chat = await Chat.findById(req.params.id);
+  const thread = await Thread.findById(req.params.id);
 
-  if (!chat) {
+  if (!thread) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'Chat not found',
+      message: 'Thread not found',
     });
   }
 
-  if (!chat.hasAccess(req.user._id)) {
+  if (!thread.hasAccess(req.user._id)) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'You do not have access to this chat',
+      message: 'You do not have access to this thread',
     });
   }
 
-  // System chats cannot be renamed
-  if (chat.isSystemChat && name) {
+  // System threads cannot be renamed
+  if (thread.isSystemThread && name) {
     return res.status(400).json({
       error: 'Invalid Operation',
-      message: 'System chats cannot be renamed',
+      message: 'System threads cannot be renamed',
     });
   }
 
   // Update fields
-  if (name !== undefined) chat.name = name;
-  if (icon !== undefined) chat.icon = icon;
-  if (isPinned !== undefined) chat.isPinned = isPinned;
-  if (wallpaper !== undefined) chat.wallpaper = wallpaper;
+  if (name !== undefined) thread.name = name;
+  if (icon !== undefined) thread.icon = icon;
+  if (isPinned !== undefined) thread.isPinned = isPinned;
+  if (wallpaper !== undefined) thread.wallpaper = wallpaper;
 
-  await chat.save();
+  await thread.save();
 
-  res.json({ chat });
+  res.json({ thread });
 }));
 
 /**
- * DELETE /api/chats/:id
- * Delete a chat
+ * DELETE /api/threads/:id
+ * Delete a thread
  */
 router.delete('/:id', authenticate, asyncHandler(async (req, res) => {
-  const chat = await Chat.findById(req.params.id);
+  const thread = await Thread.findById(req.params.id);
 
-  if (!chat) {
+  if (!thread) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'Chat not found',
+      message: 'Thread not found',
     });
   }
 
-  if (!chat.canEdit(req.user._id)) {
+  if (!thread.canEdit(req.user._id)) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'Only the owner can delete this chat',
+      message: 'Only the owner can delete this thread',
     });
   }
 
-  // System chats cannot be deleted
-  if (chat.isSystemChat) {
+  // System threads cannot be deleted
+  if (thread.isSystemThread) {
     return res.status(400).json({
       error: 'Invalid Operation',
-      message: 'System chats cannot be deleted',
+      message: 'System threads cannot be deleted',
     });
   }
 
-  // Check for locked messages
-  const lockedMessages = await Message.find({
-    chatId: chat._id,
+  // Check for locked notes
+  const lockedNotes = await Note.find({
+    threadId: thread._id,
     isLocked: true,
   });
 
-  let lockedMessagesCount = 0;
+  let lockedNotesCount = 0;
 
-  if (lockedMessages.length > 0) {
-    // Get or create locked notes chat
-    const lockedChat = await Chat.getLockedNotesChat(req.user._id);
+  if (lockedNotes.length > 0) {
+    // Get or create locked notes thread
+    const lockedThread = await Thread.getLockedNotesThread(req.user._id);
 
-    // Move locked messages to locked notes chat
-    await Message.updateMany(
-      { chatId: chat._id, isLocked: true },
+    // Move locked notes to locked notes thread
+    await Note.updateMany(
+      { threadId: thread._id, isLocked: true },
       {
-        chatId: lockedChat._id,
-        originalChatName: chat.name,
+        threadId: lockedThread._id,
+        originalThreadName: thread.name,
       }
     );
 
-    lockedMessagesCount = lockedMessages.length;
+    lockedNotesCount = lockedNotes.length;
   }
 
-  // Delete unlocked messages
-  await Message.deleteMany({
-    chatId: chat._id,
+  // Delete unlocked notes
+  await Note.deleteMany({
+    threadId: thread._id,
     isLocked: false,
   });
 
-  // Delete the chat
-  await Chat.findByIdAndDelete(chat._id);
+  // Delete the thread
+  await Thread.findByIdAndDelete(thread._id);
 
   res.json({
     success: true,
-    lockedMessagesCount,
-    message: lockedMessagesCount > 0
-      ? `Chat deleted. ${lockedMessagesCount} locked message(s) preserved.`
-      : 'Chat deleted successfully',
+    lockedNotesCount,
+    message: lockedNotesCount > 0
+      ? `Thread deleted. ${lockedNotesCount} locked note(s) preserved.`
+      : 'Thread deleted successfully',
   });
 }));
 
 /**
- * GET /api/chats/:id/export
- * Export a chat as text or JSON
+ * GET /api/threads/:id/export
+ * Export a thread as text or JSON
  */
 router.get('/:id/export', authenticate, asyncHandler(async (req, res) => {
   const { format = 'txt' } = req.query;
 
-  const chat = await Chat.findById(req.params.id);
+  const thread = await Thread.findById(req.params.id);
 
-  if (!chat) {
+  if (!thread) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'Chat not found',
+      message: 'Thread not found',
     });
   }
 
-  if (!chat.hasAccess(req.user._id)) {
+  if (!thread.hasAccess(req.user._id)) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'You do not have access to this chat',
+      message: 'You do not have access to this thread',
     });
   }
 
-  // Get all messages for the chat
-  const messages = await Message.find({
-    chatId: chat._id,
+  // Get all notes for the thread
+  const notes = await Note.find({
+    threadId: thread._id,
     isDeleted: false,
   }).sort({ createdAt: 1 }).lean();
 
   if (format === 'json') {
     res.json({
-      chat: {
-        name: chat.name,
-        createdAt: chat.createdAt,
+      thread: {
+        name: thread.name,
+        createdAt: thread.createdAt,
         exportedAt: new Date().toISOString(),
       },
-      messages: messages.map(m => ({
+      notes: notes.map(m => ({
         content: m.content,
         type: m.type,
         createdAt: m.createdAt,
@@ -246,20 +246,20 @@ router.get('/:id/export', authenticate, asyncHandler(async (req, res) => {
       return `${day} ${month} ${year}, ${time}`;
     };
 
-    let text = `${chat.name}\n`;
+    let text = `${thread.name}\n`;
     text += `Exported: ${formatDate(new Date())}\n`;
     text += `${'─'.repeat(40)}\n\n`;
 
-    for (const msg of messages) {
-      const date = formatDateTime(msg.createdAt);
-      const prefix = msg.task?.isTask ? '☐ ' : '';
-      const locked = msg.isLocked ? ' 🔒' : '';
+    for (const note of notes) {
+      const date = formatDateTime(note.createdAt);
+      const prefix = note.task?.isTask ? '☐ ' : '';
+      const locked = note.isLocked ? ' 🔒' : '';
 
-      if (msg.type === 'text') {
-        text += `${prefix}${msg.content}${locked}\n`;
+      if (note.type === 'text') {
+        text += `${prefix}${note.content}${locked}\n`;
         text += `  ${date}\n\n`;
       } else {
-        text += `[${msg.type}]${locked}\n`;
+        text += `[${note.type}]${locked}\n`;
         text += `  ${date}\n\n`;
       }
     }
@@ -269,30 +269,30 @@ router.get('/:id/export', authenticate, asyncHandler(async (req, res) => {
 }));
 
 /**
- * GET /api/chats/:id/media
- * Get media from a chat
+ * GET /api/threads/:id/media
+ * Get media from a thread
  */
 router.get('/:id/media', authenticate, asyncHandler(async (req, res) => {
   const { type, page = 1, limit = 20 } = req.query;
 
-  const chat = await Chat.findById(req.params.id);
+  const thread = await Thread.findById(req.params.id);
 
-  if (!chat) {
+  if (!thread) {
     return res.status(404).json({
       error: 'Not Found',
-      message: 'Chat not found',
+      message: 'Thread not found',
     });
   }
 
-  if (!chat.hasAccess(req.user._id)) {
+  if (!thread.hasAccess(req.user._id)) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'You do not have access to this chat',
+      message: 'You do not have access to this thread',
     });
   }
 
   const query = {
-    chatId: chat._id,
+    threadId: thread._id,
     isDeleted: false,
   };
 
@@ -309,8 +309,8 @@ router.get('/:id/media', authenticate, asyncHandler(async (req, res) => {
     query.type = { $in: ['image', 'voice', 'file'] };
   }
 
-  const total = await Message.countDocuments(query);
-  const media = await Message.find(query)
+  const total = await Note.countDocuments(query);
+  const media = await Note.find(query)
     .sort({ createdAt: -1 })
     .skip((parseInt(page) - 1) * parseInt(limit))
     .limit(parseInt(limit))

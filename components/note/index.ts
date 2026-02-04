@@ -1,4 +1,4 @@
 export { DateSeparator } from './DateSeparator'
-export { MessageInput } from './MessageInput'
-export { MessageList } from './MessageList'
+export { NoteInput } from './NoteInput'
+export { NoteList } from './NoteList'
 export { NoteBubble } from './NoteBubble'

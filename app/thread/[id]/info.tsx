@@ -6,22 +6,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 
-import { useChat, useUpdateChat } from '../../../hooks/useChats'
-import { useExportChat } from '../../../hooks/useExportChat'
+import { useThread, useUpdateThread } from '../../../hooks/useThreads'
+import { useExportThread } from '../../../hooks/useExportThread'
 import { useShortcuts } from '../../../hooks/useShortcuts'
 import { useThemeColor } from '../../../hooks/useThemeColor'
 
 const EMOJI_OPTIONS = ['💡', '📝', '🎯', '💼', '🏠', '❤️', '🎨', '🎵', '📚', '✈️', '🍕']
 
-export default function ChatInfoScreen() {
+export default function ThreadInfoScreen() {
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
   const insets = useSafeAreaInsets()
   const { iconColorStrong, iconColor, brandText, color } = useThemeColor()
 
-  const { data: chat, isLoading } = useChat(id || '')
-  const updateChat = useUpdateChat()
-  const { exportChat, isExporting } = useExportChat()
+  const { data: thread, isLoading } = useThread(id || '')
+  const updateThread = useUpdateThread()
+  const { exportThread, isExporting } = useExportThread()
   const { addShortcut } = useShortcuts()
 
   const [isEditingName, setIsEditingName] = useState(false)
@@ -43,26 +43,26 @@ export default function ChatInfoScreen() {
   }, [router])
 
   const handleEditName = useCallback(() => {
-    setEditedName(chat?.name || '')
+    setEditedName(thread?.name || '')
     setIsEditingName(true)
-  }, [chat?.name])
+  }, [thread?.name])
 
   const handleSaveName = useCallback(() => {
-    if (editedName.trim() && editedName !== chat?.name) {
-      updateChat.mutate({ id: id || '', data: { name: editedName.trim() } })
+    if (editedName.trim() && editedName !== thread?.name) {
+      updateThread.mutate({ id: id || '', data: { name: editedName.trim() } })
     }
     setIsEditingName(false)
-  }, [editedName, chat?.name, updateChat, id])
+  }, [editedName, thread?.name, updateThread, id])
 
   const handleSelectEmoji = useCallback((emoji: string) => {
-    updateChat.mutate({ id: id || '', data: { icon: emoji } })
+    updateThread.mutate({ id: id || '', data: { icon: emoji } })
     setShowEmojiPicker(false)
-  }, [updateChat, id])
+  }, [updateThread, id])
 
   const handleRemoveEmoji = useCallback(() => {
-    updateChat.mutate({ id: id || '', data: { icon: '' } })
+    updateThread.mutate({ id: id || '', data: { icon: '' } })
     setShowEmojiPicker(false)
-  }, [updateChat, id])
+  }, [updateThread, id])
 
   const handleSelectImage = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -74,39 +74,39 @@ export default function ChatInfoScreen() {
 
     if (!result.canceled && result.assets[0]) {
       // For now, store the URI - in production this would upload to server
-      updateChat.mutate({ id: id || '', data: { icon: result.assets[0].uri } })
+      updateThread.mutate({ id: id || '', data: { icon: result.assets[0].uri } })
       setShowEmojiPicker(false)
     }
-  }, [updateChat, id])
+  }, [updateThread, id])
 
   const handleExport = useCallback(async () => {
-    if (!chat) return
+    if (!thread) return
     try {
-      await exportChat(chat.id, chat.name)
+      await exportThread(thread.id, thread.name)
     } catch {
-      Alert.alert('Export Failed', 'Could not export the chat.')
+      Alert.alert('Export Failed', 'Could not export the thread.')
     }
-  }, [chat, exportChat])
+  }, [thread, exportThread])
 
   const handleAddShortcut = useCallback(async () => {
-    if (!chat) return
-    const success = await addShortcut(chat)
+    if (!thread) return
+    const success = await addShortcut(thread)
     if (success) {
-      Alert.alert('Shortcut Added', `${chat.name} added to shortcuts.`)
+      Alert.alert('Shortcut Added', `${thread.name} added to shortcuts.`)
     } else {
       Alert.alert('Failed', 'Could not add shortcut.')
     }
-  }, [chat, addShortcut])
+  }, [thread, addShortcut])
 
   const handleMediaFiles = useCallback(() => {
-    router.push(`/chat/${id}/media`)
+    router.push(`/thread/${id}/media`)
   }, [router, id])
 
   const handleTasks = useCallback(() => {
     router.push('/tasks')
   }, [router])
 
-  if (isLoading || !chat) {
+  if (isLoading || !thread) {
     return (
       <YStack flex={1} backgroundColor="$background" justifyContent="center" alignItems="center">
         <Text color="$colorSubtle">Loading...</Text>
@@ -138,7 +138,7 @@ export default function ChatInfoScreen() {
       </XStack>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
-        {/* Chat Icon & Name */}
+        {/* Thread Icon & Name */}
         <YStack alignItems="center" padding="$6" gap="$4">
           <Button
             size="$8"
@@ -147,18 +147,18 @@ export default function ChatInfoScreen() {
             onPress={() => setShowEmojiPicker(!showEmojiPicker)}
             overflow="hidden"
           >
-            {chat.icon ? (
-              chat.icon.startsWith('file://') || chat.icon.startsWith('content://') ? (
+            {thread.icon ? (
+              thread.icon.startsWith('file://') || thread.icon.startsWith('content://') ? (
                 <Image
-                  source={{ uri: chat.icon }}
+                  source={{ uri: thread.icon }}
                   style={{ width: 80, height: 80, borderRadius: 40 }}
                 />
               ) : (
-                <Text fontSize={40}>{chat.icon}</Text>
+                <Text fontSize={40}>{thread.icon}</Text>
               )
             ) : (
               <Text color={brandText} fontSize={28} fontWeight="700">
-                {chat.name.slice(0, 2).toUpperCase()}
+                {thread.name.slice(0, 2).toUpperCase()}
               </Text>
             )}
           </Button>
@@ -184,7 +184,7 @@ export default function ChatInfoScreen() {
                   </Button>
                 ))}
               </XStack>
-              {chat.icon && (
+              {thread.icon && (
                 <Button
                   size="$3"
                   chromeless
@@ -226,7 +226,7 @@ export default function ChatInfoScreen() {
           ) : (
             <YStack alignItems="center" gap="$1">
               <Text fontSize="$6" fontWeight="600" color="$color">
-                {chat.name}
+                {thread.name}
               </Text>
               <Text fontSize="$2" color="$accentColor" onPress={handleEditName}>
                 Edit
@@ -235,7 +235,7 @@ export default function ChatInfoScreen() {
           )}
 
           <Text color="$colorSubtle" fontSize="$3">
-            Created {new Date(chat.createdAt).toLocaleDateString()}
+            Created {new Date(thread.createdAt).toLocaleDateString()}
           </Text>
         </YStack>
 
@@ -261,7 +261,7 @@ export default function ChatInfoScreen() {
           />
           <MenuItem
             icon="download-outline"
-            label="Export Chat"
+            label="Export Thread"
             onPress={handleExport}
             loading={isExporting}
             iconColor={iconColor}

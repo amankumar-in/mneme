@@ -3,13 +3,13 @@ import { XStack, YStack, Text } from 'tamagui'
 import { Pressable } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useThemeColor } from '../../hooks/useThemeColor'
-import type { MessageWithDetails } from '../../types'
+import type { NoteWithDetails } from '../../types'
 
 interface NoteBubbleProps {
-  message: MessageWithDetails
-  onLongPress: (message: MessageWithDetails) => void
-  onPress?: (message: MessageWithDetails) => void
-  onTaskToggle?: (message: MessageWithDetails) => void
+  note: NoteWithDetails
+  onLongPress: (note: NoteWithDetails) => void
+  onPress?: (note: NoteWithDetails) => void
+  onTaskToggle?: (note: NoteWithDetails) => void
   isHighlighted?: boolean
   isSelected?: boolean
 }
@@ -31,16 +31,16 @@ function formatDuration(seconds: number): string {
 
 const MAX_LINES = 30
 
-export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHighlighted = false, isSelected = false }: NoteBubbleProps) {
+export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, isHighlighted = false, isSelected = false }: NoteBubbleProps) {
   const { brandText, iconColor, accentColor, background } = useThemeColor()
   const [isExpanded, setIsExpanded] = useState(false)
 
   const handleLongPress = () => {
-    onLongPress(message)
+    onLongPress(note)
   }
 
   const handlePress = () => {
-    onPress?.(message)
+    onPress?.(note)
   }
 
   const toggleExpand = () => {
@@ -48,15 +48,15 @@ export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHigh
   }
 
   // Check if content needs truncation (by newlines or estimated character count)
-  const contentLines = message.content?.split('\n').length || 0
-  const estimatedLines = Math.ceil((message.content?.length || 0) / 40) // ~40 chars per line
+  const contentLines = note.content?.split('\n').length || 0
+  const estimatedLines = Math.ceil((note.content?.length || 0) / 40) // ~40 chars per line
   const totalEstimatedLines = Math.max(contentLines, estimatedLines)
   const needsTruncation = totalEstimatedLines > MAX_LINES
 
   const showHighlight = isHighlighted || isSelected
 
   const renderContent = () => {
-    switch (message.type) {
+    switch (note.type) {
       case 'image':
         return (
           <YStack>
@@ -70,9 +70,9 @@ export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHigh
             >
               <Ionicons name="image" size={40} color={iconColor} />
             </XStack>
-            {message.content && (
+            {note.content && (
               <Text fontSize="$4" marginTop="$2" color={brandText}>
-                {message.content}
+                {note.content}
               </Text>
             )}
           </YStack>
@@ -94,8 +94,8 @@ export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHigh
             <YStack flex={1} gap="$1">
               <XStack height={20} backgroundColor="$blue8" borderRadius="$2" />
               <Text fontSize="$2" color="$blue12">
-                {message.attachment?.duration
-                  ? formatDuration(message.attachment.duration)
+                {note.attachment?.duration
+                  ? formatDuration(note.attachment.duration)
                   : '0:00'}
               </Text>
             </YStack>
@@ -117,11 +117,11 @@ export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHigh
             </XStack>
             <YStack flex={1}>
               <Text fontSize="$3" fontWeight="500" numberOfLines={1} color={brandText}>
-                {message.attachment?.filename || 'File'}
+                {note.attachment?.filename || 'File'}
               </Text>
               <Text fontSize="$2" color="$blue12">
-                {message.attachment?.size
-                  ? `${(message.attachment.size / 1024).toFixed(1)} KB`
+                {note.attachment?.size
+                  ? `${(note.attachment.size / 1024).toFixed(1)} KB`
                   : ''}
               </Text>
             </YStack>
@@ -141,9 +141,9 @@ export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHigh
             >
               <Ionicons name="location" size={40} color={iconColor} />
             </XStack>
-            {message.location?.address && (
+            {note.location?.address && (
               <Text fontSize="$3" marginTop="$2" color="$blue12">
-                {message.location.address}
+                {note.location.address}
               </Text>
             )}
           </YStack>
@@ -151,8 +151,8 @@ export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHigh
 
       default: {
         const displayContent = !isExpanded && needsTruncation
-          ? message.content?.split('\n').slice(0, MAX_LINES).join('\n')
-          : message.content
+          ? note.content?.split('\n').slice(0, MAX_LINES).join('\n')
+          : note.content
         return (
           <YStack>
             <Text fontSize="$4" color={brandText}>
@@ -191,46 +191,46 @@ export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHigh
           borderBottomRightRadius="$1"
           maxWidth="80%"
           position="relative"
-          borderWidth={message.isStarred ? 1 : 0}
+          borderWidth={note.isStarred ? 1 : 0}
           borderColor="#F59E0B"
         >
-          {message.isStarred && (
+          {note.isStarred && (
             <XStack position="absolute" left={-24} top={8}>
               <Ionicons name="star" size={16} color="#F59E0B" />
             </XStack>
           )}
-          {message.task?.isTask && (
+          {note.task?.isTask && (
             <Pressable
-              onPress={() => onTaskToggle?.(message)}
+              onPress={() => onTaskToggle?.(note)}
               style={{ position: 'absolute', top: 8, right: 8 }}
             >
               <Ionicons
-                name={message.task.isCompleted ? 'checkbox' : 'square-outline'}
+                name={note.task.isCompleted ? 'checkbox' : 'square-outline'}
                 size={20}
                 color={brandText}
               />
             </Pressable>
           )}
 
-          <YStack paddingRight={message.task?.isTask ? '$6' : 0}>
+          <YStack paddingRight={note.task?.isTask ? '$6' : 0}>
             {renderContent()}
           </YStack>
 
           <XStack justifyContent="flex-end" alignItems="center" gap="$1" marginTop="$1">
-            {message.isLocked && (
+            {note.isLocked && (
               <Ionicons name="lock-closed" size={12} color={brandText} />
             )}
-            {message.isEdited && (
+            {note.isEdited && (
               <Text fontSize={10} color="$blue12" marginRight="$1">
                 edited
               </Text>
             )}
             <Text fontSize={10} color="$blue12">
-              {formatTime(message.createdAt)}
+              {formatTime(note.createdAt)}
             </Text>
           </XStack>
 
-          {message.task?.isTask && message.task.reminderAt && (
+          {note.task?.isTask && note.task.reminderAt && (
             <XStack
               alignItems="center"
               gap="$1"
@@ -241,7 +241,7 @@ export function NoteBubble({ message, onLongPress, onPress, onTaskToggle, isHigh
             >
               <Ionicons name="alarm" size={12} color={brandText} />
               <Text fontSize={10} color="$blue12">
-                {new Date(message.task.reminderAt).toLocaleDateString(undefined, {
+                {new Date(note.task.reminderAt).toLocaleDateString(undefined, {
                   month: 'short',
                   day: 'numeric',
                   hour: 'numeric',

@@ -114,7 +114,7 @@ export default function PrivacyScreen() {
           Who can find me
         </Text>
         <Text fontSize="$3" color="$colorSubtle" marginBottom="$4">
-          Control who can look you up by username, email, or phone to share chats with
+          Control who can look you up by username, email, or phone to share notes with
           you.
         </Text>
 
@@ -122,7 +122,7 @@ export default function PrivacyScreen() {
           <Option
             value="public"
             label="Everyone"
-            description="Anyone can find and share chats with you"
+            description="Anyone can find and share notes with you"
             selected={visibility === 'public'}
             onSelect={() => handleVisibilityChange('public')}
           />
@@ -138,7 +138,7 @@ export default function PrivacyScreen() {
           <Option
             value="private"
             label="No One"
-            description="Nobody can find you or share chats with you"
+            description="Nobody can find you or share notes with you"
             selected={visibility === 'private'}
             onSelect={() => handleVisibilityChange('private')}
           />
@@ -157,7 +157,7 @@ export default function PrivacyScreen() {
                 Your notes are always private
               </Text>
               <Text fontSize="$2" color="$colorSubtle" marginTop="$1">
-                This setting only controls who can find you to share chats. Your personal
+                This setting only controls who can find you to share notes. Your personal
                 notes remain completely private and encrypted on your device.
               </Text>
             </YStack>

@@ -27,8 +27,8 @@ export function useSyncService(): SyncServiceHook {
   const syncService = syncServiceRef.current
 
   const invalidateAllQueries = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['chats'] })
-    queryClient.invalidateQueries({ queryKey: ['messages'] })
+    queryClient.invalidateQueries({ queryKey: ['threads'] })
+    queryClient.invalidateQueries({ queryKey: ['notes'] })
     queryClient.invalidateQueries({ queryKey: ['tasks'] })
     queryClient.invalidateQueries({ queryKey: ['user'] })
     queryClient.invalidateQueries({ queryKey: ['search'] })
