@@ -1,4 +1,4 @@
-# Mneme: Talk to yourself, store important notes in a hurry.
+# LaterBox: Talk to yourself, store important notes in a hurry.
 
 I want to build a chat app that will act as an idea, quick note dump.
 

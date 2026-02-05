@@ -1,4 +1,4 @@
-# Mneme App - Implementation Plan & Bug Tracker
+# LaterBox App - Implementation Plan & Bug Tracker
 
 ## Session Summary (Feb 4, 2026)
 

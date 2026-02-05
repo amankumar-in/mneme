@@ -7,9 +7,9 @@
  * Edit EMAIL and THREAD_NAME below or pass as env: FETCH_USER_EMAIL, FETCH_THREAD_NAME
  */
 import mongoose from 'mongoose';
-import { User, Thread, Note } from '../models/index.js';
+import { Note, Thread, User } from '../models/index.js';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mneme';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/laterbox';
 const EMAIL = process.env.FETCH_USER_EMAIL || 'eyeclik@gmail.com';
 const THREAD_NAME = process.env.FETCH_THREAD_NAME || 'Plot';
 

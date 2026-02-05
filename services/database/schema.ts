@@ -1,7 +1,7 @@
 // SQLite schema definitions for offline-first architecture
 
 export const DATABASE_VERSION = 3
-export const DATABASE_NAME = 'mneme.db'
+export const DATABASE_NAME = 'laterbox.db'
 
 // Schema for version 1
 export const SCHEMA_V1 = `

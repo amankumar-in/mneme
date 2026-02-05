@@ -1,7 +1,7 @@
-import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
+import express from 'express';
 import fs from 'fs';
+import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -17,12 +17,12 @@ fs.mkdirSync(EXPORTS_DIR, { recursive: true });
 
 // Routes
 import authRoutes from './routes/auth.js';
-import threadRoutes from './routes/threads.js';
 import noteRoutes from './routes/notes.js';
-import taskRoutes from './routes/tasks.js';
 import searchRoutes from './routes/search.js';
-import syncRoutes from './routes/sync.js';
 import shareRoutes from './routes/share.js';
+import syncRoutes from './routes/sync.js';
+import taskRoutes from './routes/tasks.js';
+import threadRoutes from './routes/threads.js';
 import verifyRoutes from './routes/verify.js';
 
 // Middleware
@@ -30,7 +30,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mneme';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/laterbox';
 
 // Middleware
 app.use(cors());
@@ -57,7 +57,7 @@ mongoose.connect(MONGODB_URI)
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
-    message: 'Mneme API is running',
+    message: 'LaterBox API is running',
     version: '1.0.0',
   });
 });

@@ -1,3 +1,10 @@
+import { useDb } from '@/contexts/DatabaseContext'
+import {
+  cancelAllReminders,
+  requestPermissions,
+  scheduleTaskReminder,
+} from '@/services/notifications/notification.service'
+import { getNoteRepository } from '@/services/repositories'
 import { Ionicons } from '@expo/vector-icons'
 import { Directory, Paths } from 'expo-file-system/next'
 import { useFocusEffect, useRouter } from 'expo-router'
@@ -6,18 +13,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert, Image, ScrollView, Switch } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Separator, Text, XStack, YStack } from 'tamagui'
-import { useThemeColor } from '../../hooks/useThemeColor'
 import { useSyncService } from '../../hooks/useSyncService'
+import { useThemeColor } from '../../hooks/useThemeColor'
 import { useDeleteAccount, useUpdateUser, useUser } from '../../hooks/useUser'
 import { deleteAccountInfo, deleteRemoteData, logout } from '../../services/api'
 import { clearAll, getSyncEnabled, setSyncEnabled } from '../../services/storage'
-import { useDb } from '@/contexts/DatabaseContext'
-import { getNoteRepository } from '@/services/repositories'
-import {
-  cancelAllReminders,
-  scheduleTaskReminder,
-  requestPermissions,
-} from '@/services/notifications/notification.service'
 
 function getInitials(name: string): string {
   const words = name.trim().split(/\s+/)
@@ -202,13 +202,13 @@ export default function SettingsScreen() {
   }, [router])
 
   const handleHelp = useCallback(() => {
-    console.log('Help')
-  }, [])
+    router.push('/settings/help')
+  }, [router])
 
   const handleAbout = useCallback(() => {
     Alert.alert(
-      'About Mneme',
-      'Version 1.0.0\n\nA personal note-taking app using familiar instant messaging UI.\n\nBuilt with Expo and Tamagui.'
+      'About LaterBox',
+      'Version 1.0.0\n\nA privacy-focused, offline-first notes app with a familiar messaging interface. Your data stays on your device — cloud sync is entirely optional.\n\nMade by XCore Apps.'
     )
   }, [])
 
@@ -423,13 +423,6 @@ export default function SettingsScreen() {
 
         <Separator />
 
-        <SettingsItem
-          icon="lock-closed-outline"
-          iconColor={successColor}
-          title="Privacy"
-          subtitle="Who can find you"
-          onPress={handlePrivacy}
-        />
         <SettingsToggleItem
           icon="alarm-outline"
           iconColor={warningColor}
@@ -482,18 +475,6 @@ export default function SettingsScreen() {
           subtitle="Appearance and theme"
           onPress={handleCustomize}
           customIcon={<SunMoon size={20} color={accentColor} />}
-        />
-        <SettingsItem
-          icon="help-circle-outline"
-          iconColor="#6366f1"
-          title="Help"
-          onPress={handleHelp}
-        />
-        <SettingsItem
-          icon="information-circle-outline"
-          iconColor={iconColor}
-          title="About Mneme"
-          onPress={handleAbout}
         />
 
         <SectionHeader title="Data Control" />
@@ -569,6 +550,20 @@ subtitle="Remove identity data from cloud and this device"          onPress={han
           onPress={handleDeleteEverything}
           showArrow={false}
           danger
+        />
+
+        <SectionHeader title="Information" />
+        <SettingsItem
+          icon="help-circle-outline"
+          iconColor="#6366f1"
+          title="Help"
+          onPress={handleHelp}
+        />
+        <SettingsItem
+          icon="information-circle-outline"
+          iconColor={iconColor}
+          title="About LaterBox"
+          onPress={handleAbout}
         />
 
         <YStack height={insets.bottom + 20} />

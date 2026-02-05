@@ -2,8 +2,8 @@ import axios from 'axios';
 import twilio from 'twilio';
 
 const ZEPTOMAIL_API_KEY = process.env.ZEPTOMAIL_API_KEY;
-const ZEPTOMAIL_FROM_EMAIL = process.env.ZEPTOMAIL_FROM_EMAIL || 'noreply@mneme.app';
-const ZEPTOMAIL_FROM_NAME = process.env.ZEPTOMAIL_FROM_NAME || 'Mneme';
+const ZEPTOMAIL_FROM_EMAIL = process.env.ZEPTOMAIL_FROM_EMAIL || 'noreply@laterbox.app';
+const ZEPTOMAIL_FROM_NAME = process.env.ZEPTOMAIL_FROM_NAME || 'LaterBox';
 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -37,11 +37,11 @@ export async function sendEmailVerification(email, code) {
           },
         },
       ],
-      subject: 'Your Mneme verification code',
+      subject: 'Your LaterBox verification code',
       htmlbody: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 400px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #333; margin-bottom: 20px;">Verify your email</h2>
-          <p style="color: #666; margin-bottom: 20px;">Use this code to verify your email address in Mneme:</p>
+          <p style="color: #666; margin-bottom: 20px;">Use this code to verify your email address in LaterBox:</p>
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px;">
             <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #333;">${code}</span>
           </div>
@@ -69,7 +69,7 @@ export async function sendSmsVerification(phone, code) {
   }
 
   const message = await twilioClient.messages.create({
-    body: `Your Mneme verification code is: ${code}. It expires in 10 minutes.`,
+    body: `Your LaterBox verification code is: ${code}. It expires in 10 minutes.`,
     from: TWILIO_PHONE_NUMBER,
     to: phone,
   });

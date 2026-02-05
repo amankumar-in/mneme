@@ -1,8 +1,8 @@
-import { useCallback } from 'react'
-import { YStack, XStack, Text, Button } from 'tamagui'
-import { useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
+import { useCallback } from 'react'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Button, Text, XStack, YStack } from 'tamagui'
 
 export default function QRScanScreen() {
   const router = useRouter()
@@ -53,7 +53,7 @@ export default function QRScanScreen() {
         </XStack>
 
         <Text color="#ffffff" fontSize="$4" marginTop="$6" textAlign="center">
-          Scan QR code on web.mneme.app
+          Scan QR code on web.laterbox.app
         </Text>
         <Text color="#94a3b8" fontSize="$3" marginTop="$2" textAlign="center">
           Access your notes from any browser

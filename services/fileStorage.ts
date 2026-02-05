@@ -2,7 +2,7 @@ import { Directory, File, Paths } from 'expo-file-system'
 import * as VideoThumbnails from 'expo-video-thumbnails'
 import { generateUUID } from './database'
 
-const ATTACHMENTS_DIR = 'mneme/attachments'
+const ATTACHMENTS_DIR = 'laterbox/attachments'
 
 type AttachmentCategory = 'images' | 'videos' | 'documents' | 'audio'
 
@@ -33,7 +33,7 @@ export function ensureDirectories(): Promise<void> {
 
   directoriesReady = Promise.resolve().then(() => {
     // Create parent dirs first, then leaf dirs
-    const base = new Directory(Paths.document, 'mneme')
+    const base = new Directory(Paths.document, 'laterbox')
     createDirIfNeeded(base)
     const attachments = new Directory(base, 'attachments')
     createDirIfNeeded(attachments)

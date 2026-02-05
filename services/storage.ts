@@ -3,11 +3,11 @@ import * as FileSystem from 'expo-file-system'
 import { Platform } from 'react-native'
 import { DATABASE_NAME } from './database/schema'
 
-const DEVICE_ID_KEY = '@mneme:deviceId'
-const USER_KEY = '@mneme:user'
-const AUTH_TOKEN_KEY = '@mneme:authToken'
-const THEME_KEY = '@mneme:appTheme'
-const SYNC_ENABLED_KEY = '@mneme:syncEnabled'
+const DEVICE_ID_KEY = '@laterbox:deviceId'
+const USER_KEY = '@laterbox:user'
+const AUTH_TOKEN_KEY = '@laterbox:authToken'
+const THEME_KEY = '@laterbox:appTheme'
+const SYNC_ENABLED_KEY = '@laterbox:syncEnabled'
 
 export type AppTheme = 'light' | 'dark' | 'system'
 

@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Mneme",
-    "slug": "mneme",
+    "name": "LaterBox",
+    "slug": "laterbox",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mneme",
+    "scheme": "laterbox",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.xcore.mneme",
+      "bundleIdentifier": "com.xcore.laterbox",
       "buildNumber": "1"
     },
     "android": {
@@ -21,7 +21,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.xcore.mneme",
+      "package": "com.xcore.laterbox",
       "versionCode": 1
     },
     "web": {
@@ -68,13 +68,13 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Mneme to access your location for sharing."
+          "locationAlwaysAndWhenInUsePermission": "Allow LaterBox to access your location for sharing."
         }
       ],
       [
         "expo-contacts",
         {
-          "contactsPermission": "Allow Mneme to access your contacts for sharing."
+          "contactsPermission": "Allow LaterBox to access your contacts for sharing."
         }
       ],
       "expo-video"

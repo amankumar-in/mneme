@@ -1,30 +1,30 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
-import { FlatList, Alert, ActivityIndicator, RefreshControl, BackHandler } from 'react-native'
-import { YStack, XStack, Text, Separator, Button } from 'tamagui'
-import { useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { ScanLine } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
+import { useRouter } from 'expo-router'
+import { ScanLine } from 'lucide-react-native'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ActivityIndicator, Alert, BackHandler, FlatList, RefreshControl } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Button, Separator, Text, XStack, YStack } from 'tamagui'
 
+import { FAB } from '../components/FAB'
+import { FilterChips } from '../components/FilterChips'
 import { Header } from '../components/Header'
 import { SearchBar } from '../components/SearchBar'
-import { FilterChips } from '../components/FilterChips'
-import { ThreadListItem } from '../components/ThreadListItem'
-import { FAB } from '../components/FAB'
 import { ThreadActionBar } from '../components/thread/ThreadActionBar'
-import {
-  useThreads,
-  useCreateThread,
-  useUpdateThread,
-  useDeleteThread,
-} from '../hooks/useThreads'
+import { ThreadListItem } from '../components/ThreadListItem'
 import { useExportThread } from '../hooks/useExportThread'
 import { useShortcuts } from '../hooks/useShortcuts'
-import { useUser } from '../hooks/useUser'
 import { useSyncService } from '../hooks/useSyncService'
 import { useThemeColor } from '../hooks/useThemeColor'
-import type { ThreadWithLastNote, ThreadFilter } from '../types'
+import {
+    useCreateThread,
+    useDeleteThread,
+    useThreads,
+    useUpdateThread,
+} from '../hooks/useThreads'
+import { useUser } from '../hooks/useUser'
+import type { ThreadFilter, ThreadWithLastNote } from '../types'
 
 const FILTER_OPTIONS = [
   { key: 'threads', label: 'Threads' },
@@ -404,7 +404,7 @@ export default function HomeScreen() {
   return (
     <YStack flex={1} backgroundColor="$background">
       <Header
-        title="Mneme"
+        title="LaterBox"
         leftIcon={{
           icon: <ScanLine size={24} color={iconColorStrong} />,
           onPress: handleQRPress,

@@ -1,4 +1,4 @@
-# Claude Rules for Mneme
+# Claude Rules for LaterBox
 
 ## Development Principles
 
