@@ -12,7 +12,7 @@ import { useThreadMedia } from '../../../hooks/useNotes'
 import { useExportThread } from '../../../hooks/useExportThread'
 import { useShortcuts } from '../../../hooks/useShortcuts'
 import { useThemeColor } from '../../../hooks/useThemeColor'
-import { resolveAttachmentUri } from '../../../services/fileStorage'
+import { resolveAttachmentUri, attachmentExists } from '../../../services/fileStorage'
 import type { NoteType, NoteWithDetails } from '../../../services/database/types'
 
 function getInitials(name: string): string {
@@ -322,11 +322,33 @@ export default function ThreadInfoScreen() {
 
 function MediaThumb({ note, iconColor }: { note: NoteWithDetails; iconColor: string }) {
   const isVisual = note.type === 'image' || note.type === 'video'
-  const thumbUri = note.type === 'video' && note.attachment?.thumbnail
+  const fileMissing = note.attachment?.url ? !attachmentExists(note.attachment.url) : true
+
+  const thumbUri = !fileMissing && note.type === 'video' && note.attachment?.thumbnail && attachmentExists(note.attachment.thumbnail)
     ? resolveAttachmentUri(note.attachment.thumbnail)
-    : note.attachment?.url
+    : !fileMissing && note.attachment?.url
       ? resolveAttachmentUri(note.attachment.url)
       : null
+
+  if (fileMissing) {
+    const icon = note.type === 'image' ? 'image-outline'
+      : note.type === 'video' ? 'videocam-outline'
+      : 'document-outline'
+    return (
+      <YStack
+        width={THUMB_SIZE}
+        height={THUMB_SIZE}
+        borderRadius="$2"
+        backgroundColor="$backgroundStrong"
+        justifyContent="center"
+        alignItems="center"
+        opacity={0.5}
+      >
+        <Ionicons name={icon} size={24} color={iconColor} />
+        <Text fontSize={8} color="$colorSubtle" marginTop={2}>Unavailable</Text>
+      </YStack>
+    )
+  }
 
   if (isVisual && thumbUri) {
     return (

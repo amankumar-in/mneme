@@ -64,7 +64,7 @@ function getInitials(name: string): string {
 
 export function ThreadListItem({ thread, onPress, onLongPress, isSelected }: ThreadListItemProps) {
   const { warningColor } = useThemeColor()
-  const timestamp = thread.lastNote?.timestamp || thread.updatedAt
+  const timestamp = thread.lastNote?.timestamp || thread.createdAt
 
   return (
     <XStack

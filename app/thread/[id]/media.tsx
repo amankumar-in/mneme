@@ -13,7 +13,7 @@ import { useThreadMedia } from '../../../hooks/useNotes'
 import { useThemeColor } from '../../../hooks/useThemeColor'
 import { ImageViewerModal } from '../../../components/note/ImageViewerModal'
 import { VideoPlayerModal } from '../../../components/note/VideoPlayerModal'
-import { resolveAttachmentUri } from '../../../services/fileStorage'
+import { resolveAttachmentUri, attachmentExists } from '../../../services/fileStorage'
 import type { NoteType, NoteWithDetails } from '../../../services/database/types'
 
 const SCREEN_WIDTH = Dimensions.get('window').width
@@ -118,11 +118,15 @@ export default function MediaScreen() {
   }, [])
 
   const handleItemPress = useCallback((note: NoteWithDetails) => {
-    if (note.type === 'image' && note.attachment?.url) {
+    if (!note.attachment?.url || !attachmentExists(note.attachment.url)) {
+      Alert.alert('File Unavailable', 'This file is no longer available on this device.')
+      return
+    }
+    if (note.type === 'image') {
       setViewerImage(resolveAttachmentUri(note.attachment.url))
-    } else if (note.type === 'video' && note.attachment?.url) {
+    } else if (note.type === 'video') {
       setViewerVideo(resolveAttachmentUri(note.attachment.url))
-    } else if (note.attachment?.url) {
+    } else {
       openDocument(note.attachment.url)
     }
   }, [])
@@ -282,17 +286,24 @@ function GridCell({
   iconColor: string
   onPress: (note: NoteWithDetails) => void
 }) {
+  const fileMissing = note.attachment?.url ? !attachmentExists(note.attachment.url) : true
+
   if (tab === 'photos') {
-    const uri = note.attachment?.url ? resolveAttachmentUri(note.attachment.url) : null
+    const uri = !fileMissing && note.attachment?.url ? resolveAttachmentUri(note.attachment.url) : null
     return (
       <Pressable onPress={() => onPress(note)}>
-        <YStack width={CELL_SIZE} height={CELL_SIZE} backgroundColor="$backgroundStrong" overflow="hidden">
-          {uri && (
+        <YStack width={CELL_SIZE} height={CELL_SIZE} backgroundColor="$backgroundStrong" overflow="hidden" justifyContent="center" alignItems="center">
+          {uri ? (
             <Image
               source={{ uri }}
               style={{ width: CELL_SIZE, height: CELL_SIZE }}
               contentFit="cover"
             />
+          ) : (
+            <YStack alignItems="center" opacity={0.5}>
+              <Ionicons name="image-outline" size={24} color={iconColor} />
+              <Text fontSize={9} color="$colorSubtle" marginTop={2}>Unavailable</Text>
+            </YStack>
           )}
         </YStack>
       </Pressable>
@@ -300,39 +311,47 @@ function GridCell({
   }
 
   if (tab === 'videos') {
-    const thumbUri = note.attachment?.thumbnail
+    const thumbExists = note.attachment?.thumbnail ? attachmentExists(note.attachment.thumbnail) : false
+    const thumbUri = !fileMissing && thumbExists && note.attachment?.thumbnail
       ? resolveAttachmentUri(note.attachment.thumbnail)
-      : note.attachment?.url
-        ? resolveAttachmentUri(note.attachment.url)
-        : null
+      : null
 
     return (
       <Pressable onPress={() => onPress(note)}>
-        <YStack width={CELL_SIZE} height={CELL_SIZE} backgroundColor="$backgroundStrong" overflow="hidden">
-          {thumbUri && (
-            <Image
-              source={{ uri: thumbUri }}
-              style={{ width: CELL_SIZE, height: CELL_SIZE }}
-              contentFit="cover"
-            />
-          )}
-          <YStack
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.85)" />
-          </YStack>
-          {note.attachment?.duration != null && (
-            <YStack position="absolute" bottom={4} right={4}>
-              <Text fontSize={10} color="white" backgroundColor="rgba(0,0,0,0.6)" paddingHorizontal={4} paddingVertical={1} borderRadius={2}>
-                {formatDuration(note.attachment.duration)}
-              </Text>
+        <YStack width={CELL_SIZE} height={CELL_SIZE} backgroundColor="$backgroundStrong" overflow="hidden" justifyContent="center" alignItems="center">
+          {fileMissing ? (
+            <YStack alignItems="center" opacity={0.5}>
+              <Ionicons name="videocam-outline" size={24} color={iconColor} />
+              <Text fontSize={9} color="$colorSubtle" marginTop={2}>Unavailable</Text>
             </YStack>
+          ) : (
+            <>
+              {thumbUri && (
+                <Image
+                  source={{ uri: thumbUri }}
+                  style={{ width: CELL_SIZE, height: CELL_SIZE }}
+                  contentFit="cover"
+                />
+              )}
+              <YStack
+                position="absolute"
+                top={0}
+                left={0}
+                right={0}
+                bottom={0}
+                justifyContent="center"
+                alignItems="center"
+              >
+                <Ionicons name="play-circle" size={32} color="rgba(255,255,255,0.85)" />
+              </YStack>
+              {note.attachment?.duration != null && (
+                <YStack position="absolute" bottom={4} right={4}>
+                  <Text fontSize={10} color="white" backgroundColor="rgba(0,0,0,0.6)" paddingHorizontal={4} paddingVertical={1} borderRadius={2}>
+                    {formatDuration(note.attachment.duration)}
+                  </Text>
+                </YStack>
+              )}
+            </>
           )}
         </YStack>
       </Pressable>
@@ -351,6 +370,7 @@ function GridCell({
         justifyContent="center"
         alignItems="center"
         padding="$2"
+        opacity={fileMissing ? 0.5 : 1}
       >
         <Ionicons name={iconName} size={28} color={iconColor} />
         <Text
@@ -360,7 +380,7 @@ function GridCell({
           textAlign="center"
           marginTop="$1"
         >
-          {note.attachment?.filename || note.content || 'File'}
+          {fileMissing ? 'Unavailable' : (note.attachment?.filename || note.content || 'File')}
         </Text>
       </YStack>
     </Pressable>

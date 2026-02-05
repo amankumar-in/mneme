@@ -46,6 +46,25 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   // Reset stale sync flag — if the app just launched, nothing is syncing
   await db.runAsync('UPDATE sync_meta SET is_syncing = 0 WHERE id = 1')
 
+  // Refresh Protected Notes thread preview with the most recent locked note
+  const latestLocked = await db.getFirstAsync<{
+    content: string | null
+    type: string | null
+    created_at: string | null
+  }>(
+    `SELECT content, type, created_at FROM notes
+     WHERE is_locked = 1 AND deleted_at IS NULL
+     ORDER BY created_at DESC LIMIT 1`
+  )
+  if (latestLocked) {
+    await db.runAsync(
+      `UPDATE threads SET
+         last_note_content = ?, last_note_type = ?, last_note_timestamp = ?
+       WHERE id = 'system-protected-notes'`,
+      [latestLocked.content, latestLocked.type, latestLocked.created_at]
+    )
+  }
+
   // Update the database version
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`)
 }

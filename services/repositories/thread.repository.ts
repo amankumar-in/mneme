@@ -96,7 +96,7 @@ export class ThreadRepository {
     const rows = await this.db.getAllAsync<ThreadRow>(
       `SELECT * FROM threads ${whereClause}
        ORDER BY is_pinned DESC,
-                COALESCE(last_note_timestamp, updated_at) DESC
+                COALESCE(last_note_timestamp, created_at) DESC
        LIMIT ? OFFSET ?`,
       [...queryParams, limit, offset]
     )
@@ -178,6 +178,8 @@ export class ThreadRepository {
          WHERE thread_id = ? AND is_locked = 1 AND deleted_at IS NULL`,
         [now, id]
       )
+      // Update Protected Notes thread preview with the most recent locked note
+      await this.refreshProtectedNotesPreview()
     }
 
     // Soft delete the thread
@@ -398,6 +400,39 @@ export class ThreadRepository {
   }
 
   /**
+   * Refresh the Protected Notes system thread's lastNote preview
+   * with the most recent locked note across all threads.
+   */
+  async refreshProtectedNotesPreview(): Promise<void> {
+    const now = getTimestamp()
+    const latest = await this.db.getFirstAsync<{
+      content: string | null
+      type: string | null
+      created_at: string | null
+    }>(
+      `SELECT content, type, created_at FROM notes
+       WHERE is_locked = 1 AND deleted_at IS NULL
+       ORDER BY created_at DESC LIMIT 1`
+    )
+
+    if (latest) {
+      await this.db.runAsync(
+        `UPDATE threads SET
+           last_note_content = ?, last_note_type = ?, last_note_timestamp = ?, updated_at = ?
+         WHERE id = 'system-protected-notes'`,
+        [latest.content, latest.type, latest.created_at, now]
+      )
+    } else {
+      await this.db.runAsync(
+        `UPDATE threads SET
+           last_note_content = NULL, last_note_type = NULL, last_note_timestamp = NULL, updated_at = ?
+         WHERE id = 'system-protected-notes'`,
+        [now]
+      )
+    }
+  }
+
+  /**
    * Map database row to ThreadWithLastNote
    */
   private mapToThread(row: ThreadRow): ThreadWithLastNote {
@@ -414,7 +449,7 @@ export class ThreadRepository {
           ? {
               content: row.last_note_content ?? '',
               type: (row.last_note_type as NoteType) ?? 'text',
-              timestamp: row.last_note_timestamp ?? row.updated_at,
+              timestamp: row.last_note_timestamp ?? row.created_at,
             }
           : null,
       syncStatus: row.sync_status as SyncStatus,

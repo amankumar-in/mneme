@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Image } from 'expo-image'
 import FileViewer from 'react-native-file-viewer'
 import { useThemeColor } from '../../hooks/useThemeColor'
-import { resolveAttachmentUri } from '../../services/fileStorage'
+import { resolveAttachmentUri, attachmentExists } from '../../services/fileStorage'
 import type { NoteWithDetails } from '../../types'
 
 interface NoteBubbleProps {
@@ -74,6 +74,24 @@ function openInMaps(location?: { latitude: number; longitude: number; address?: 
   Linking.openURL(`https://maps.google.com/?q=${location.latitude},${location.longitude}`)
 }
 
+function MissingFile({ icon, label, iconColor }: { icon: string; label: string; iconColor: string }) {
+  return (
+    <XStack
+      backgroundColor="$backgroundStrong"
+      borderRadius="$3"
+      paddingHorizontal="$3"
+      paddingVertical="$2"
+      alignItems="center"
+      gap="$2"
+      minWidth={180}
+      opacity={0.7}
+    >
+      <Ionicons name={icon as any} size={20} color={iconColor} />
+      <Text fontSize="$3" color="$colorSubtle">{label}</Text>
+    </XStack>
+  )
+}
+
 const MAX_LINES = 30
 
 export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageView, onVideoView, onAudioToggle, playingNoteId, isAudioPlaying, audioPositionMs = 0, audioDurationMs = 0, isHighlighted = false, isSelected = false }: NoteBubbleProps) {
@@ -102,10 +120,11 @@ export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageVi
 
   const renderContent = () => {
     switch (note.type) {
-      case 'image':
+      case 'image': {
+        const imageExists = note.attachment?.url ? attachmentExists(note.attachment.url) : false
         return (
           <YStack>
-            {note.attachment?.url ? (
+            {note.attachment?.url && imageExists ? (
               <Pressable onPress={() => {
                 if (note.attachment?.url) {
                   onImageView?.(resolveAttachmentUri(note.attachment.url))
@@ -117,6 +136,8 @@ export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageVi
                   contentFit="cover"
                 />
               </Pressable>
+            ) : note.attachment?.url ? (
+              <MissingFile icon="image-outline" label="Photo unavailable" iconColor={iconColor} />
             ) : (
               <XStack
                 backgroundColor="$backgroundStrong"
@@ -136,70 +157,76 @@ export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageVi
             )}
           </YStack>
         )
+      }
 
-      case 'video':
+      case 'video': {
+        const videoExists = note.attachment?.url ? attachmentExists(note.attachment.url) : false
         return (
           <YStack>
-            <Pressable onPress={() => {
-              if (note.attachment?.url) {
-                onVideoView?.(resolveAttachmentUri(note.attachment.url))
-              }
-            }}>
-              <XStack position="relative">
-                {note.attachment?.thumbnail ? (
-                  <Image
-                    source={{ uri: resolveAttachmentUri(note.attachment.thumbnail) }}
-                    style={{ width: 200, height: 150, borderRadius: 8 }}
-                    contentFit="cover"
-                  />
-                ) : (
-                  <XStack
-                    backgroundColor="$backgroundStrong"
-                    borderRadius="$3"
-                    width={200}
-                    height={150}
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    <Ionicons name="videocam" size={40} color={iconColor} />
-                  </XStack>
-                )}
-                <XStack
-                  position="absolute"
-                  top={0}
-                  left={0}
-                  right={0}
-                  bottom={0}
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <XStack
-                    width={44}
-                    height={44}
-                    borderRadius={22}
-                    backgroundColor="rgba(0,0,0,0.5)"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    <Ionicons name="play" size={24} color="#fff" />
-                  </XStack>
-                </XStack>
-                {note.attachment?.duration != null && (
+            {note.attachment?.url && !videoExists ? (
+              <MissingFile icon="videocam-outline" label="Video unavailable" iconColor={iconColor} />
+            ) : (
+              <Pressable onPress={() => {
+                if (note.attachment?.url) {
+                  onVideoView?.(resolveAttachmentUri(note.attachment.url))
+                }
+              }}>
+                <XStack position="relative">
+                  {note.attachment?.thumbnail && attachmentExists(note.attachment.thumbnail) ? (
+                    <Image
+                      source={{ uri: resolveAttachmentUri(note.attachment.thumbnail) }}
+                      style={{ width: 200, height: 150, borderRadius: 8 }}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <XStack
+                      backgroundColor="$backgroundStrong"
+                      borderRadius="$3"
+                      width={200}
+                      height={150}
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      <Ionicons name="videocam" size={40} color={iconColor} />
+                    </XStack>
+                  )}
                   <XStack
                     position="absolute"
-                    bottom={4}
-                    right={4}
-                    backgroundColor="rgba(0,0,0,0.6)"
-                    borderRadius={4}
-                    paddingHorizontal="$1"
+                    top={0}
+                    left={0}
+                    right={0}
+                    bottom={0}
+                    alignItems="center"
+                    justifyContent="center"
                   >
-                    <Text color="#fff" fontSize={10}>
-                      {formatDuration(note.attachment.duration)}
-                    </Text>
+                    <XStack
+                      width={44}
+                      height={44}
+                      borderRadius={22}
+                      backgroundColor="rgba(0,0,0,0.5)"
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      <Ionicons name="play" size={24} color="#fff" />
+                    </XStack>
                   </XStack>
-                )}
-              </XStack>
-            </Pressable>
+                  {note.attachment?.duration != null && (
+                    <XStack
+                      position="absolute"
+                      bottom={4}
+                      right={4}
+                      backgroundColor="rgba(0,0,0,0.6)"
+                      borderRadius={4}
+                      paddingHorizontal="$1"
+                    >
+                      <Text color="#fff" fontSize={10}>
+                        {formatDuration(note.attachment.duration)}
+                      </Text>
+                    </XStack>
+                  )}
+                </XStack>
+              </Pressable>
+            )}
             {note.content && (
               <Text fontSize="$4" marginTop="$2" color={brandText}>
                 {note.content}
@@ -207,12 +234,25 @@ export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageVi
             )}
           </YStack>
         )
+      }
 
       case 'voice': {
+        const voiceExists = note.attachment?.url ? attachmentExists(note.attachment.url) : false
+        if (note.attachment?.url && !voiceExists) {
+          return (
+            <YStack>
+              <MissingFile icon="mic-outline" label="Voice note unavailable" iconColor={iconColor} />
+              {note.content && (
+                <Text fontSize="$4" marginTop="$2" color={brandText}>
+                  {note.content}
+                </Text>
+              )}
+            </YStack>
+          )
+        }
         const isThisPlaying = playingNoteId === note.id && isAudioPlaying
         const isThisActive = playingNoteId === note.id
         const waveformBars = generateWaveform(note.id)
-        const totalDurationMs = (note.attachment?.duration || 0) * 1000
         const progressRatio = isThisActive && audioDurationMs > 0
           ? audioPositionMs / audioDurationMs
           : 0
@@ -265,7 +305,17 @@ export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageVi
         )
       }
 
-      case 'file':
+      case 'file': {
+        const fileExists = note.attachment?.url ? attachmentExists(note.attachment.url) : false
+        if (note.attachment?.url && !fileExists) {
+          return (
+            <MissingFile
+              icon="document-outline"
+              label="File unavailable"
+              iconColor={iconColor}
+            />
+          )
+        }
         return (
           <Pressable onPress={() => note.attachment?.url && openDocument(note.attachment.url)}>
             <XStack alignItems="center" gap="$2" minWidth={180}>
@@ -290,6 +340,7 @@ export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageVi
             </XStack>
           </Pressable>
         )
+      }
 
       case 'location':
         return (
@@ -342,6 +393,16 @@ export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageVi
         )
 
       case 'audio': {
+        const audioFileExists = note.attachment?.url ? attachmentExists(note.attachment.url) : false
+        if (note.attachment?.url && !audioFileExists) {
+          return (
+            <MissingFile
+              icon="musical-notes-outline"
+              label="Audio unavailable"
+              iconColor={iconColor}
+            />
+          )
+        }
         const isThisPlaying = playingNoteId === note.id && isAudioPlaying
         return (
           <Pressable onPress={() => {

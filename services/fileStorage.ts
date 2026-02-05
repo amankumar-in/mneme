@@ -90,6 +90,24 @@ export function resolveAttachmentUri(storedPath: string): string {
   return file.uri
 }
 
+/**
+ * Check if an attachment file exists on disk.
+ * Returns false for HTTP URLs (remote-only) or missing local files.
+ */
+export function attachmentExists(storedPath: string): boolean {
+  if (!storedPath) return false
+  // Remote URLs — can't verify, assume available
+  if (storedPath.startsWith('http')) return true
+  try {
+    if (storedPath.startsWith('file://')) {
+      return new File(storedPath).exists
+    }
+    return new File(Paths.document, storedPath).exists
+  } catch {
+    return false
+  }
+}
+
 export async function deleteAttachment(storedPath: string): Promise<void> {
   try {
     const uri = resolveAttachmentUri(storedPath)

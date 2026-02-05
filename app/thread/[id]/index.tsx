@@ -149,14 +149,14 @@ export default function ThreadScreen() {
   const handleSearchPrev = useCallback(() => {
     if (searchResults.length === 0) return
     setSearchResultIndex(prev =>
-      prev === 0 ? searchResults.length - 1 : prev - 1
+      prev === searchResults.length - 1 ? 0 : prev + 1
     )
   }, [searchResults.length])
 
   const handleSearchNext = useCallback(() => {
     if (searchResults.length === 0) return
     setSearchResultIndex(prev =>
-      prev === searchResults.length - 1 ? 0 : prev + 1
+      prev === 0 ? searchResults.length - 1 : prev - 1
     )
   }, [searchResults.length])
 

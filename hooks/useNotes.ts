@@ -95,6 +95,7 @@ export function useSendNote(threadId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
+      queryClient.invalidateQueries({ queryKey: ['thread-media', threadId] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
       schedulePush()
     },
@@ -112,6 +113,7 @@ export function useUpdateNote(threadId: string) {
       noteRepo.update(noteId, { content }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
+      queryClient.invalidateQueries({ queryKey: ['thread-media', threadId] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
       schedulePush()
     },
@@ -143,6 +145,7 @@ export function useDeleteNote(threadId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
+      queryClient.invalidateQueries({ queryKey: ['thread-media', threadId] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
       schedulePush()
     },
@@ -160,6 +163,7 @@ export function useLockNote(threadId: string) {
       noteRepo.setLocked(noteId, isLocked),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
+      queryClient.invalidateQueries({ queryKey: ['thread-media', threadId] })
       // Protected Notes aggregates all locked notes — invalidate its cache too
       queryClient.invalidateQueries({ queryKey: ['notes', 'system-protected-notes'] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
