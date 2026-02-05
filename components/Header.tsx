@@ -6,7 +6,8 @@ import { useThemeColor } from '../hooks/useThemeColor'
 interface HeaderProps {
   title: string
   leftIcon?: {
-    name: keyof typeof Ionicons.glyphMap
+    name?: keyof typeof Ionicons.glyphMap
+    icon?: React.ReactNode
     onPress: () => void
   }
   rightIcon?: {
@@ -35,7 +36,11 @@ export function Header({ title, leftIcon, rightIcon }: HeaderProps) {
             circular
             chromeless
             onPress={leftIcon.onPress}
-            icon={<Ionicons name={leftIcon.name} size={24} color={iconColorStrong} />}
+            icon={
+              leftIcon.icon ?? (
+                <Ionicons name={leftIcon.name!} size={24} color={iconColorStrong} />
+              )
+            }
           />
         )}
       </XStack>

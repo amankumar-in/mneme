@@ -379,6 +379,58 @@ export class NoteRepository {
   }
 
   /**
+   * Save a scheduled notification ID for a task note
+   */
+  async saveNotificationId(noteId: string, notificationId: string): Promise<void> {
+    await this.db.runAsync(
+      `UPDATE notes SET notification_id = ? WHERE id = ?`,
+      [notificationId, noteId]
+    )
+  }
+
+  /**
+   * Clear the notification ID for a task note
+   */
+  async clearNotificationId(noteId: string): Promise<void> {
+    await this.db.runAsync(
+      `UPDATE notes SET notification_id = NULL WHERE id = ?`,
+      [noteId]
+    )
+  }
+
+  /**
+   * Clear all notification IDs (used when notifications are disabled)
+   */
+  async clearAllNotificationIds(): Promise<void> {
+    await this.db.runAsync(
+      `UPDATE notes SET notification_id = NULL WHERE notification_id IS NOT NULL`
+    )
+  }
+
+  /**
+   * Get incomplete future tasks that need notification scheduling
+   */
+  async getTasksNeedingNotifications(): Promise<NoteWithDetails[]> {
+    const now = new Date().toISOString()
+
+    const rows = await this.db.getAllAsync<NoteRow>(
+      `SELECT n.*, t.name as thread_name
+       FROM notes n
+       LEFT JOIN threads t ON n.thread_id = t.id
+       WHERE n.is_task = 1
+         AND n.is_completed = 0
+         AND n.deleted_at IS NULL
+         AND n.reminder_at IS NOT NULL
+         AND n.reminder_at > ?
+         AND n.notification_id IS NULL
+       ORDER BY n.reminder_at ASC`,
+      [now]
+    )
+
+    return rows.map((row) => this.mapToNote(row))
+  }
+
+  /**
    * Full-text search across notes
    */
   async search(params: {
@@ -675,6 +727,7 @@ export class NoteRepository {
         reminderAt: row.reminder_at ?? undefined,
         isCompleted: toBoolean(row.is_completed),
         completedAt: row.completed_at ?? undefined,
+        notificationId: row.notification_id ?? undefined,
       },
       syncStatus: row.sync_status as SyncStatus,
       createdAt: row.created_at,

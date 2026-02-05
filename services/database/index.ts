@@ -16,7 +16,10 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   // Fresh database - create initial schema
   if (currentVersion === 0) {
     await db.execAsync(SCHEMA_V1)
-    currentVersion = 1
+    // V1 schema already includes changes from migration 2
+    // (is_system_thread column + Protected Notes thread),
+    // so skip to version 2 to avoid duplicate ALTER TABLE errors.
+    currentVersion = 2
   }
 
   // Run any pending migrations
@@ -30,6 +33,18 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
 
     currentVersion = nextVersion
   }
+
+  // Ensure notification_id column exists
+  // (handles case where version was set to 3 but ALTER TABLE didn't persist)
+  const columns = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(notes)'
+  )
+  if (!columns.some(col => col.name === 'notification_id')) {
+    await db.execAsync('ALTER TABLE notes ADD COLUMN notification_id TEXT')
+  }
+
+  // Reset stale sync flag — if the app just launched, nothing is syncing
+  await db.runAsync('UPDATE sync_meta SET is_syncing = 0 WHERE id = 1')
 
   // Update the database version
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`)

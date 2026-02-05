@@ -10,6 +10,13 @@ import { useThemeColor } from '../../hooks/useThemeColor'
 import { useDeleteAccount, useUpdateUser, useUser } from '../../hooks/useUser'
 import { deleteAccountInfo, deleteRemoteData, logout } from '../../services/api'
 import { clearAll } from '../../services/storage'
+import { useDb } from '@/contexts/DatabaseContext'
+import { getNoteRepository } from '@/services/repositories'
+import {
+  cancelAllReminders,
+  scheduleTaskReminder,
+  requestPermissions,
+} from '@/services/notifications/notification.service'
 
 function getInitials(name: string): string {
   const words = name.trim().split(/\s+/)
@@ -156,6 +163,7 @@ export default function SettingsScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { iconColorStrong, iconColor, brandText, accentColor, successColor, warningColor, infoColor, errorColor } = useThemeColor()
+  const db = useDb()
   const { data: user, refetch: refetchUser } = useUser()
   const updateUser = useUpdateUser()
 
@@ -421,16 +429,42 @@ export default function SettingsScreen() {
           title="Task Reminders"
           subtitle="Get notified when a task reminder is due"
           value={user?.settings?.notifications?.taskReminders ?? true}
-          onValueChange={(value) => {
+          onValueChange={async (value) => {
             updateUser.mutate({
               settings: {
                 ...user?.settings,
                 notifications: {
-                  ...user?.settings?.notifications,
                   taskReminders: value,
+                  sharedNotes: user?.settings?.notifications?.sharedNotes ?? true,
                 },
               },
             })
+
+            const noteRepo = getNoteRepository(db)
+
+            if (!value) {
+              // Turning OFF: cancel all scheduled notifications and clear IDs
+              await cancelAllReminders()
+              await noteRepo.clearAllNotificationIds()
+            } else {
+              // Turning ON: reschedule all future task reminders
+              const granted = await requestPermissions()
+              if (!granted) return
+
+              const tasks = await noteRepo.getTasksNeedingNotifications()
+              for (const task of tasks) {
+                if (!task.task.reminderAt) continue
+                const notificationId = await scheduleTaskReminder(
+                  task.id,
+                  task.content || '',
+                  new Date(task.task.reminderAt),
+                  task.threadName
+                )
+                if (notificationId) {
+                  await noteRepo.saveNotificationId(task.id, notificationId)
+                }
+              }
+            }
           }}
           trackColor={warningColor}
         />

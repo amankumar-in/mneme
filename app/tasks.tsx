@@ -4,6 +4,7 @@ import { YStack, XStack, Text, Button } from 'tamagui'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { ListTodo } from 'lucide-react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { SearchBar } from '../components/SearchBar'
 import { FilterChips } from '../components/FilterChips'
@@ -222,7 +223,7 @@ export default function TasksScreen() {
           )}
           ListEmptyComponent={
             <YStack flex={1} justifyContent="center" alignItems="center" padding="$8">
-              <Ionicons name="checkbox-outline" size={64} color={iconColor} />
+              <ListTodo size={64} color={iconColor} />
               <Text fontSize="$5" color="$colorSubtle" marginTop="$4" textAlign="center">
                 No tasks
               </Text>

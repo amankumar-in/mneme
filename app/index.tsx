@@ -4,6 +4,7 @@ import { YStack, XStack, Text, Separator, Button } from 'tamagui'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { ScanLine } from 'lucide-react-native'
 
 import { Header } from '../components/Header'
 import { SearchBar } from '../components/SearchBar'
@@ -32,7 +33,7 @@ const FILTER_OPTIONS = [
 export default function HomeScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { iconColor } = useThemeColor()
+  const { iconColor, iconColorStrong } = useThemeColor()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<ThreadFilter>('threads')
   const [selectedThreadIds, setSelectedThreadIds] = useState<Set<string>>(new Set())
@@ -393,7 +394,10 @@ export default function HomeScreen() {
     <YStack flex={1} backgroundColor="$background">
       <Header
         title="Mneme"
-        leftIcon={{ name: 'qr-code-outline', onPress: handleQRPress }}
+        leftIcon={{
+          icon: <ScanLine size={24} color={iconColorStrong} />,
+          onPress: handleQRPress,
+        }}
         rightIcon={{ name: 'settings-outline', onPress: handleSettingsPress }}
       />
 

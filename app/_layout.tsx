@@ -26,6 +26,7 @@ import { DatabaseProvider } from '@/contexts/DatabaseContext'
 import { ThemeProvider, useAppTheme } from '@/contexts/ThemeContext'
 import { useInitializeLocalUser } from '@/hooks/useUser'
 import { useAutoSync } from '@/hooks/useSyncService'
+import { useNotifications } from '@/hooks/useNotifications'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +44,9 @@ function AppContent() {
 
   // Auto-sync on app foreground (only syncs if authenticated)
   useAutoSync()
+
+  // Initialize local notifications for task reminders
+  useNotifications()
 
   useEffect(() => {
     // Initialize local user - NO SERVER CALLS

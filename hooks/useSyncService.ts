@@ -61,35 +61,45 @@ export function useSyncService(): SyncServiceHook {
  * NOTE: Sync is blocked by the sync service if user has no identity set
  */
 export function useAutoSync() {
-  const { pull } = useSyncService()
+  const { push, pull } = useSyncService()
   const appStateRef = useRef<AppStateStatus>(AppState.currentState)
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      // App came to foreground
+      // App came to foreground: push pending changes first, then pull
       if (
         appStateRef.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        // Sync service will check identity internally
-        pull().catch((error) => {
-          if (error?.message === 'AUTH_CLEARED') return
-          console.log('[AutoSync] Pull failed (offline?):', error.message)
-        })
+        push()
+          .catch((error) => {
+            if (error?.message === 'AUTH_CLEARED') return
+            console.log('[AutoSync] Push failed (offline?):', error.message)
+          })
+          .then(() => pull())
+          .catch((error) => {
+            if (error?.message === 'AUTH_CLEARED') return
+            console.log('[AutoSync] Pull failed (offline?):', error.message)
+          })
       }
 
       appStateRef.current = nextAppState
     })
 
-    // Initial pull on mount (sync service will check identity internally)
-    pull().catch((error) => {
-      // AUTH_CLEARED means token was invalid and cleared - this is handled silently
-      if (error?.message === 'AUTH_CLEARED') return
-      console.log('[AutoSync] Initial pull failed (offline?):', error.message)
-    })
+    // Initial sync on mount: push pending changes first, then pull
+    push()
+      .catch((error) => {
+        if (error?.message === 'AUTH_CLEARED') return
+        console.log('[AutoSync] Initial push failed (offline?):', error.message)
+      })
+      .then(() => pull())
+      .catch((error) => {
+        if (error?.message === 'AUTH_CLEARED') return
+        console.log('[AutoSync] Initial pull failed (offline?):', error.message)
+      })
 
     return () => {
       subscription.remove()
     }
-  }, [pull])
+  }, [push, pull])
 }

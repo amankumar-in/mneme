@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { XStack, YStack, Text, Button, Popover } from 'tamagui'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { ListTodo } from 'lucide-react-native'
 import { TextInput, Image } from 'react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import type { ThreadWithLastNote } from '../../types'
@@ -38,10 +39,8 @@ interface ThreadHeaderProps {
 
 const menuOptions = [
   { id: 'media', icon: 'images', label: 'Media Files' },
-  { id: 'wallpaper', icon: 'color-palette', label: 'Thread Wallpaper' },
   { id: 'shortcut', icon: 'add-circle', label: 'Add Shortcut' },
   { id: 'export', icon: 'download', label: 'Export Thread' },
-  { id: 'share', icon: 'share', label: 'Share' },
 ] as const
 
 export function ThreadHeader({
@@ -240,7 +239,7 @@ export function ThreadHeader({
           circular
           chromeless
           onPress={onTasks}
-          icon={<Ionicons name="checkbox-outline" size={22} color={iconColorStrong} />}
+          icon={<ListTodo size={22} color={iconColorStrong} />}
         />
         {taskCount > 0 && (
           <XStack

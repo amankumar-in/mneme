@@ -1,18 +1,18 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { YStack, Text } from 'tamagui'
-import { useRouter, useLocalSearchParams } from 'expo-router'
-import { Alert, Keyboard, ActivityIndicator, Platform } from 'react-native'
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ActivityIndicator, Alert, Keyboard, Platform } from 'react-native'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
+import { Text, YStack } from 'tamagui'
 
-import { ThreadHeader } from '../../../components/thread/ThreadHeader'
-import { NoteList, NoteListRef } from '../../../components/note/NoteList'
 import { NoteInput } from '../../../components/note/NoteInput'
+import { NoteList, NoteListRef } from '../../../components/note/NoteList'
 import { SelectionActionBar } from '../../../components/note/SelectionActionBar'
+import { ThreadHeader } from '../../../components/thread/ThreadHeader'
+import { useCompleteTask, useDeleteNote, useLockNote, useNotes, useSendNote, useSetNoteTask, useStarNote, useUpdateNote } from '../../../hooks/useNotes'
 import { useThread, useUpdateThread } from '../../../hooks/useThreads'
-import { useNotes, useSendNote, useUpdateNote, useDeleteNote, useLockNote, useStarNote, useSetNoteTask, useCompleteTask } from '../../../hooks/useNotes'
-import type { ThreadWithLastNote, NoteWithDetails, NoteType } from '../../../types'
+import type { NoteType, NoteWithDetails, ThreadWithLastNote } from '../../../types'
 
 export default function ThreadScreen() {
   const router = useRouter()
@@ -425,6 +425,12 @@ export default function ThreadScreen() {
             allTasks={selectedNotes.every(n => n.task?.isTask)}
             canEdit={selectedNoteIds.size === 1}
           />
+        ) : thread?.isSystemThread ? (
+          <YStack borderTopWidth={1} borderTopColor="$borderColor" backgroundColor="$background" height={56} justifyContent="center" alignItems="center">
+            <Text fontSize="$2" color="$colorSubtle" textAlign="center" paddingHorizontal="$4">
+              Locked notes from all your threads appear here.
+            </Text>
+          </YStack>
         ) : (
           <NoteInput
             onSend={handleSend}

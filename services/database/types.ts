@@ -45,6 +45,7 @@ export interface NoteRow {
   reminder_at: string | null
   is_completed: number
   completed_at: string | null
+  notification_id: string | null
   sync_status: string
   deleted_at: string | null
   created_at: string
@@ -234,6 +235,7 @@ export interface NoteWithDetails {
     reminderAt?: string
     isCompleted: boolean
     completedAt?: string
+    notificationId?: string
   }
   syncStatus: SyncStatus
   createdAt: string

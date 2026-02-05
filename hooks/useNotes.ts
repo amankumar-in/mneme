@@ -1,7 +1,11 @@
 import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { useDb } from '@/contexts/DatabaseContext'
-import { getNoteRepository, getThreadRepository } from '@/services/repositories'
+import { getNoteRepository, getThreadRepository, getUserRepository } from '@/services/repositories'
 import { useSyncService } from './useSyncService'
+import {
+  scheduleTaskReminder,
+  cancelReminder,
+} from '@/services/notifications/notification.service'
 import type { NoteWithDetails, PaginatedResult, NoteType } from '@/services/database/types'
 
 export function useNotes(threadId: string, params?: { limit?: number; isSystemThread?: boolean }) {
@@ -88,7 +92,14 @@ export function useDeleteNote(threadId: string) {
   const { schedulePush } = useSyncService()
 
   return useMutation({
-    mutationFn: (noteId: string) => noteRepo.delete(noteId),
+    mutationFn: async (noteId: string) => {
+      // Cancel any scheduled notification before deleting
+      const note = await noteRepo.getById(noteId)
+      if (note?.task.notificationId) {
+        await cancelReminder(note.task.notificationId)
+      }
+      await noteRepo.delete(noteId)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
@@ -135,11 +146,12 @@ export function useStarNote(threadId: string) {
 export function useSetNoteTask(threadId: string) {
   const db = useDb()
   const noteRepo = getNoteRepository(db)
+  const userRepo = getUserRepository(db)
   const queryClient = useQueryClient()
   const { schedulePush } = useSyncService()
 
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       noteId,
       isTask,
       reminderAt,
@@ -149,11 +161,47 @@ export function useSetNoteTask(threadId: string) {
       isTask: boolean
       reminderAt?: string
       isCompleted?: boolean
-    }) => noteRepo.setTask(noteId, { isTask, reminderAt, isCompleted }),
-    onSuccess: () => {
+    }) => {
+      // Cancel any existing notification for this note
+      const existingNote = await noteRepo.getById(noteId)
+      if (existingNote?.task.notificationId) {
+        await cancelReminder(existingNote.task.notificationId)
+        await noteRepo.clearNotificationId(noteId)
+      }
+
+      // Update the task in DB
+      return noteRepo.setTask(noteId, { isTask, reminderAt, isCompleted })
+    },
+    onSuccess: (updatedNote, { noteId, isTask, reminderAt, isCompleted }) => {
+      console.log('[Task] onSuccess:', { noteId, isTask, reminderAt, isCompleted })
       queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       schedulePush()
+
+      // Schedule notification async — don't block UI updates
+      console.log('[Task] Notification check:', { isTask, hasReminderAt: !!reminderAt, isCompleted })
+      if (isTask && reminderAt && !isCompleted) {
+        ;(async () => {
+          try {
+            const user = await userRepo.get()
+            console.log('[Task] User taskReminders:', user?.settings?.notifications?.taskReminders)
+            if (user?.settings?.notifications?.taskReminders === false) return
+
+            const notificationId = await scheduleTaskReminder(
+              noteId,
+              updatedNote?.content || '',
+              new Date(reminderAt),
+              updatedNote?.threadName
+            )
+            console.log('[Task] Notification result:', notificationId)
+            if (notificationId) {
+              await noteRepo.saveNotificationId(noteId, notificationId)
+            }
+          } catch (error) {
+            console.error('[Task] Notification scheduling error:', error)
+          }
+        })()
+      }
     },
   })
 }
@@ -165,7 +213,16 @@ export function useCompleteTask(threadId: string) {
   const { schedulePush } = useSyncService()
 
   return useMutation({
-    mutationFn: (noteId: string) => noteRepo.completeTask(noteId),
+    mutationFn: async (noteId: string) => {
+      // Cancel any scheduled notification
+      const note = await noteRepo.getById(noteId)
+      if (note?.task.notificationId) {
+        await cancelReminder(note.task.notificationId)
+        await noteRepo.clearNotificationId(noteId)
+      }
+
+      return noteRepo.completeTask(noteId)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })

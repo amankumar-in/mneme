@@ -1,6 +1,6 @@
 // SQLite schema definitions for offline-first architecture
 
-export const DATABASE_VERSION = 2
+export const DATABASE_VERSION = 3
 export const DATABASE_NAME = 'mneme.db'
 
 // Schema for version 1
@@ -150,5 +150,8 @@ export const MIGRATIONS: Record<number, string> = {
 
     INSERT OR IGNORE INTO threads (id, name, icon, is_pinned, is_system_thread, sync_status, created_at, updated_at)
     VALUES ('system-protected-notes', 'Protected Notes', '🔒', 0, 1, 'pending', datetime('now'), datetime('now'));
+  `,
+  3: `
+    ALTER TABLE notes ADD COLUMN notification_id TEXT;
   `,
 }

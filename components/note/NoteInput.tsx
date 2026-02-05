@@ -159,7 +159,7 @@ export function NoteInput({
           circular
           chromeless
           onPress={onToggleAttachments}
-          icon={<Ionicons name={showAttachments ? 'close' : 'add'} size={24} color={iconColor} />}
+          icon={<Ionicons name={showAttachments ? 'close' : 'attach-outline'} size={24} color={iconColor} />}
         />
 
         <XStack
