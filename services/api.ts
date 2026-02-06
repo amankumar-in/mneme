@@ -12,6 +12,15 @@ const getDefaultUrl = () => {
 }
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || getDefaultUrl()
+// Base server URL (without /api) for resolving relative paths like /api/avatar/...
+const SERVER_URL = API_URL.replace(/\/api$/, '')
+
+// Resolve avatar URI - server paths like /api/avatar/... need the full server URL
+export function resolveAvatarUri(avatar: string | null | undefined): string | null {
+  if (!avatar) return null
+  if (avatar.startsWith('/')) return `${SERVER_URL}${avatar}`
+  return avatar
+}
 
 let apiInstance: AxiosInstance | null = null
 
@@ -166,6 +175,22 @@ export async function verifyEmailCode(email: string, code: string, name?: string
 export async function isAuthenticated(): Promise<boolean> {
   const token = await getAuthToken()
   return !!token
+}
+
+// Avatar upload
+export async function uploadAvatar(fileUri: string): Promise<User> {
+  const api = await getApi()
+  const formData = new FormData()
+  const ext = fileUri.split('.').pop()?.toLowerCase() || 'jpg'
+  formData.append('avatar', {
+    uri: fileUri,
+    name: `avatar.${ext}`,
+    type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+  } as any)
+  const response = await api.post('/auth/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data.user
 }
 
 // Threads

@@ -16,7 +16,7 @@ import { Button, Separator, Text, XStack, YStack } from 'tamagui'
 import { useSyncService } from '../../hooks/useSyncService'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import { useDeleteServerAccount, useDeleteLocalData, useUpdateUser, useUser } from '../../hooks/useUser'
-import { deleteAccountInfo, deleteRemoteData, logout } from '../../services/api'
+import { deleteAccountInfo, deleteRemoteData, logout, resolveAvatarUri } from '../../services/api'
 import { clearAll, getAuthToken, getSyncEnabled, setSyncEnabled } from '../../services/storage'
 
 function getInitials(name: string): string {
@@ -417,7 +417,7 @@ export default function SettingsScreen() {
         >
           {user?.avatar ? (
             <Image
-              source={{ uri: user.avatar }}
+              source={{ uri: resolveAvatarUri(user.avatar) || user.avatar }}
               style={{ width: 60, height: 60, borderRadius: 30 }}
             />
           ) : (

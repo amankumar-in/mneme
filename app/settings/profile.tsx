@@ -21,6 +21,8 @@ import {
     sendPhoneCode as sendPhoneCodeApi,
     setPassword as setPasswordApi,
     signup,
+    resolveAvatarUri,
+    uploadAvatar,
     verifyEmailCode as verifyEmailCodeApi,
     verifyPhoneCode as verifyPhoneCodeApi,
 } from '../../services/api'
@@ -193,6 +195,19 @@ export default function ProfileScreen() {
 
   const handleBack = useCallback(() => router.back(), [router])
 
+  const saveAvatar = useCallback(async (uri: string) => {
+    // Always save the local file URI so it works offline
+    await updateUser.mutateAsync({ avatar: uri })
+    if (isAuthenticated) {
+      try {
+        await uploadAvatar(uri)
+      } catch (err) {
+        console.error('Avatar upload failed:', err)
+        // Local avatar still saved, just not uploaded
+      }
+    }
+  }, [isAuthenticated, updateUser])
+
   const handleChangeAvatar = useCallback(async () => {
     Alert.alert(
       'Change Photo',
@@ -205,8 +220,7 @@ export default function ProfileScreen() {
             if (!perm.granted) return Alert.alert('Permission needed', 'Camera access required')
             const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
             if (!result.canceled && result.assets[0]) {
-              await updateUser.mutateAsync({ avatar: result.assets[0].uri })
-              if (isAuthenticated) schedulePush()
+              await saveAvatar(result.assets[0].uri)
             }
           },
         },
@@ -217,8 +231,7 @@ export default function ProfileScreen() {
             if (!perm.granted) return Alert.alert('Permission needed', 'Photo library access required')
             const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
             if (!result.canceled && result.assets[0]) {
-              await updateUser.mutateAsync({ avatar: result.assets[0].uri })
-              if (isAuthenticated) schedulePush()
+              await saveAvatar(result.assets[0].uri)
             }
           },
         },
@@ -234,7 +247,7 @@ export default function ProfileScreen() {
       ],
       { cancelable: true }
     )
-  }, [updateUser, isAuthenticated, schedulePush])
+  }, [updateUser, isAuthenticated, schedulePush, saveAvatar])
 
   // ===== NAME =====
   const startEditName = () => {
@@ -516,7 +529,7 @@ export default function ProfileScreen() {
             <Pressable onPress={handleChangeAvatar}>
               <XStack position="relative">
                 {user?.avatar ? (
-                  <Image source={{ uri: user.avatar }} style={{ width: 90, height: 90, borderRadius: 45 }} />
+                  <Image source={{ uri: resolveAvatarUri(user.avatar) || user.avatar }} style={{ width: 90, height: 90, borderRadius: 45 }} />
                 ) : (
                   <XStack width={90} height={90} borderRadius={45} backgroundColor="$brandBackground" alignItems="center" justifyContent="center">
                     <Text color={brandText} fontSize="$7" fontWeight="600">
