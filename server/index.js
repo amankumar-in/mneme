@@ -5,16 +5,6 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Ensure user-data directories exist (idempotent: only creates if missing; does not clear contents).
-// Mount a persistent disk at server/user-data so avatars and exports survive deployments.
-const USER_DATA_DIR = path.join(__dirname, 'user-data');
-const AVATARS_DIR = path.join(USER_DATA_DIR, 'avatars');
-const EXPORTS_DIR = path.join(USER_DATA_DIR, 'exports');
-fs.mkdirSync(AVATARS_DIR, { recursive: true });
-fs.mkdirSync(EXPORTS_DIR, { recursive: true });
-
 // Routes
 import authRoutes from './routes/auth.js';
 import noteRoutes from './routes/notes.js';
@@ -27,6 +17,16 @@ import verifyRoutes from './routes/verify.js';
 
 // Middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Ensure user-data directories exist (idempotent: only creates if missing; does not clear contents).
+// Mount a persistent disk at server/user-data so avatars and exports survive deployments.
+const USER_DATA_DIR = path.join(__dirname, 'user-data');
+const AVATARS_DIR = path.join(USER_DATA_DIR, 'avatars');
+const EXPORTS_DIR = path.join(USER_DATA_DIR, 'exports');
+fs.mkdirSync(AVATARS_DIR, { recursive: true });
+fs.mkdirSync(EXPORTS_DIR, { recursive: true });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -249,6 +249,82 @@ app.get('/privacy', (req, res) => {
   <p>If you have any questions, concerns, or requests regarding this privacy policy or your data, please contact us at:</p>
   <p><strong>Email:</strong> <a href="mailto:laterbox@xcoreapps.com">laterbox@xcoreapps.com</a></p>
   <p><strong>Developer:</strong> XCore Apps</p>
+
+  <div class="footer">
+    <p>&copy; 2025 LaterBox by XCore Apps. All rights reserved.</p>
+  </div>
+</body>
+</html>`);
+});
+
+app.get('/delete-account', (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Delete Account - LaterBox</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px; line-height: 1.7; color: #1a1a1a; background: #fff; }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 20px 0 32px; border-bottom: 1px solid #e5e5e5; margin-bottom: 32px; }
+    .brand-icon { width: 44px; height: 44px; background: #83ADAB; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 20px; }
+    .brand-text { display: flex; flex-direction: column; }
+    .brand-name { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+    .brand-tagline { font-size: 13px; color: #888; }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    h2 { font-size: 20px; margin-top: 32px; color: #2a2a2a; }
+    .updated { color: #666; font-size: 14px; margin-bottom: 32px; }
+    ol { padding-left: 24px; }
+    ul { padding-left: 24px; list-style: disc; }
+    li { margin-bottom: 8px; }
+    .step { background: #f8f8f8; border-radius: 8px; padding: 16px; margin: 8px 0; }
+    .step-num { display: inline-block; width: 24px; height: 24px; background: #83ADAB; color: #fff; border-radius: 50%; text-align: center; line-height: 24px; font-size: 13px; font-weight: 700; margin-right: 8px; }
+    .warning { background: #fff3f3; border-left: 3px solid #e74c3c; padding: 12px 16px; margin: 16px 0; border-radius: 4px; }
+    .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #e5e5e5; text-align: center; color: #888; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <div class="brand-icon">L</div>
+    <div class="brand-text">
+      <span class="brand-name">LaterBox</span>
+      <span class="brand-tagline">by XCore Apps</span>
+    </div>
+  </div>
+
+  <h1>Delete Your Account</h1>
+  <p class="updated">LaterBox allows you to delete your account and all associated data directly from within the app.</p>
+
+  <h2>How to Delete Your Account</h2>
+
+  <div class="step"><span class="step-num">1</span> Open LaterBox on your device</div>
+  <div class="step"><span class="step-num">2</span> Go to <strong>Settings</strong> (gear icon)</div>
+  <div class="step"><span class="step-num">3</span> Scroll down to the <strong>Data Control</strong> section</div>
+  <div class="step"><span class="step-num">4</span> Tap <strong>Delete Everything</strong></div>
+  <div class="step"><span class="step-num">5</span> Confirm the deletion when prompted</div>
+
+  <h2>What Data Gets Deleted</h2>
+  <p>When you delete your account, the following data is <strong>permanently removed</strong> from our servers:</p>
+  <ul>
+    <li>Your account information (name, email, phone number, username)</li>
+    <li>All your notes and their content</li>
+    <li>All your threads</li>
+    <li>All your tasks and reminders</li>
+    <li>Your profile avatar</li>
+    <li>Any shared thread records</li>
+  </ul>
+
+  <div class="warning">
+    <strong>This action is irreversible.</strong> Once your account is deleted, your data cannot be recovered. There is no grace period or recovery window.
+  </div>
+
+  <h2>Data Retention</h2>
+  <p>After account deletion, <strong>no data is retained</strong> on our servers. Deletion is immediate and permanent. We do not keep backups of deleted accounts.</p>
+  <p>Any data stored locally on your device (notes, settings) will remain on your device until you uninstall the app.</p>
+
+  <h2>Need Help?</h2>
+  <p>If you are unable to delete your account through the app or need assistance, contact us at <a href="mailto:help@xcoreapps.com">help@xcoreapps.com</a> and we will process your request.</p>
 
   <div class="footer">
     <p>&copy; 2025 LaterBox by XCore Apps. All rights reserved.</p>
