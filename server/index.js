@@ -293,10 +293,49 @@ app.get('/delete-account', (req, res) => {
     </div>
   </div>
 
-  <h1>Delete Your Account</h1>
-  <p class="updated">LaterBox allows you to delete your account and all associated data directly from within the app.</p>
+  <h1>Data Deletion</h1>
+  <p class="updated">LaterBox provides multiple options to manage and delete your data directly from within the app.</p>
 
-  <h2>How to Delete Your Account</h2>
+  <h2>Option 1: Delete Remote Data Only</h2>
+  <p>Remove all your synced data from our servers while keeping your local data and account intact.</p>
+
+  <div class="step"><span class="step-num">1</span> Open LaterBox on your device</div>
+  <div class="step"><span class="step-num">2</span> Go to <strong>Settings</strong> (gear icon)</div>
+  <div class="step"><span class="step-num">3</span> Scroll down to the <strong>Data Control</strong> section</div>
+  <div class="step"><span class="step-num">4</span> Tap <strong>Delete Remote Data</strong></div>
+  <div class="step"><span class="step-num">5</span> Confirm the deletion when prompted</div>
+
+  <p><strong>What gets deleted:</strong></p>
+  <ul>
+    <li>All notes, threads, and tasks stored on our servers</li>
+  </ul>
+  <p><strong>What is kept:</strong></p>
+  <ul>
+    <li>Your account (you remain signed in)</li>
+    <li>All data stored locally on your device</li>
+  </ul>
+
+  <h2>Option 2: Delete Account Information</h2>
+  <p>Remove your personal profile information from our servers while keeping your notes and threads.</p>
+
+  <div class="step"><span class="step-num">1</span> Open LaterBox on your device</div>
+  <div class="step"><span class="step-num">2</span> Go to <strong>Settings</strong> (gear icon)</div>
+  <div class="step"><span class="step-num">3</span> Scroll down to the <strong>Data Control</strong> section</div>
+  <div class="step"><span class="step-num">4</span> Tap <strong>Delete Account Info</strong></div>
+  <div class="step"><span class="step-num">5</span> Confirm the deletion when prompted</div>
+
+  <p><strong>What gets deleted:</strong></p>
+  <ul>
+    <li>Your name, email, phone number, username, avatar, and password</li>
+  </ul>
+  <p><strong>What is kept:</strong></p>
+  <ul>
+    <li>Your notes, threads, and tasks on the server</li>
+    <li>All data stored locally on your device</li>
+  </ul>
+
+  <h2>Option 3: Delete Everything</h2>
+  <p>Permanently delete your account and all associated data from our servers.</p>
 
   <div class="step"><span class="step-num">1</span> Open LaterBox on your device</div>
   <div class="step"><span class="step-num">2</span> Go to <strong>Settings</strong> (gear icon)</div>
@@ -304,8 +343,7 @@ app.get('/delete-account', (req, res) => {
   <div class="step"><span class="step-num">4</span> Tap <strong>Delete Everything</strong></div>
   <div class="step"><span class="step-num">5</span> Confirm the deletion when prompted</div>
 
-  <h2>What Data Gets Deleted</h2>
-  <p>When you delete your account, the following data is <strong>permanently removed</strong> from our servers:</p>
+  <p><strong>What gets deleted:</strong></p>
   <ul>
     <li>Your account information (name, email, phone number, username)</li>
     <li>All your notes and their content</li>
@@ -320,11 +358,11 @@ app.get('/delete-account', (req, res) => {
   </div>
 
   <h2>Data Retention</h2>
-  <p>After account deletion, <strong>no data is retained</strong> on our servers. Deletion is immediate and permanent. We do not keep backups of deleted accounts.</p>
-  <p>Any data stored locally on your device (notes, settings) will remain on your device until you uninstall the app.</p>
+  <p>For all deletion options, the affected data is removed <strong>immediately and permanently</strong> from our servers. We do not keep backups of deleted data.</p>
+  <p>Any data stored locally on your device (notes, settings) will remain on your device until you uninstall the app or choose to clear local data from within the app.</p>
 
   <h2>Need Help?</h2>
-  <p>If you are unable to delete your account through the app or need assistance, contact us at <a href="mailto:help@xcoreapps.com">help@xcoreapps.com</a> and we will process your request.</p>
+  <p>If you are unable to delete your data through the app or need assistance, contact us at <a href="mailto:help@xcoreapps.com">help@xcoreapps.com</a> and we will process your request.</p>
 
   <div class="footer">
     <p>&copy; 2025 LaterBox by XCore Apps. All rights reserved.</p>
