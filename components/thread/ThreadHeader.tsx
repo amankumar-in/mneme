@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { XStack, YStack, Text, Button, Popover } from 'tamagui'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { ListTodo } from 'lucide-react-native'
 import { TextInput, Image } from 'react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import type { ThreadWithLastNote } from '../../types'
@@ -239,7 +238,7 @@ export function ThreadHeader({
           circular
           chromeless
           onPress={onTasks}
-          icon={<ListTodo size={22} color={iconColorStrong} />}
+          icon={<Ionicons name="alarm-outline" size={22} color={iconColorStrong} />}
         />
         {taskCount > 0 && (
           <XStack

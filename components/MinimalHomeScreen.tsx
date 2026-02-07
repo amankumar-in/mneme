@@ -285,6 +285,30 @@ export function MinimalHomeScreen({ threadId }: MinimalHomeScreenProps) {
     [reminderDate, selectedNotes, setNoteTaskMutation, handleClearSelection]
   )
 
+  const handleIOSDateChange = useCallback(
+    (_event: DateTimePickerEvent, date?: Date) => {
+      if (date) setReminderDate(date)
+    },
+    []
+  )
+
+  const handleIOSConfirm = useCallback(() => {
+    selectedNotes.forEach((n) => {
+      setNoteTaskMutation.mutate({
+        noteId: n.id,
+        isTask: true,
+        reminderAt: reminderDate.toISOString(),
+      })
+    })
+    handleClearSelection()
+    setShowDatePicker(false)
+  }, [reminderDate, selectedNotes, setNoteTaskMutation, handleClearSelection])
+
+  const handleIOSCancel = useCallback(() => {
+    setShowDatePicker(false)
+    setReminderDate(new Date())
+  }, [])
+
   const handleSelectionEdit = useCallback(() => {
     if (selectedNotes.length === 1) {
       setEditingNote(selectedNotes[0])
@@ -408,12 +432,43 @@ export function MinimalHomeScreen({ threadId }: MinimalHomeScreenProps) {
         )}
       </KeyboardAvoidingView>
 
-      {showDatePicker && (
+      {showDatePicker && Platform.OS === 'ios' && (
+        <YStack
+          position="absolute"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          backgroundColor="rgba(0,0,0,0.4)"
+          justifyContent="flex-end"
+          zIndex={1000}
+        >
+          <YStack backgroundColor="$background" borderTopLeftRadius={16} borderTopRightRadius={16} paddingBottom={insets.bottom}>
+            <XStack justifyContent="space-between" paddingHorizontal="$4" paddingVertical="$3">
+              <Button size="$3" chromeless onPress={handleIOSCancel}>
+                <Text color="$colorSubtle">Cancel</Text>
+              </Button>
+              <Button size="$3" chromeless onPress={handleIOSConfirm}>
+                <Text color="$blue10" fontWeight="600">Confirm</Text>
+              </Button>
+            </XStack>
+            <DateTimePicker
+              value={reminderDate}
+              mode="datetime"
+              display="spinner"
+              onChange={handleIOSDateChange}
+              minimumDate={new Date()}
+            />
+          </YStack>
+        </YStack>
+      )}
+
+      {showDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={reminderDate}
-          mode={Platform.OS === 'ios' ? 'datetime' : 'date'}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={Platform.OS === 'ios' ? handleTimeChange : handleDateChange}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
           minimumDate={new Date()}
         />
       )}

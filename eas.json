@@ -29,6 +29,11 @@
       "android": {
         "serviceAccountKeyPath": "./xcore-apps-b6907986942e.json",
         "track": "internal"
+      },
+      "ios": {
+        "appleId": "work.amankumar@gmail.com",
+        "ascAppId": "6758871606",
+        "appleTeamId": "8S76DB4279"
       }
     }
   }
