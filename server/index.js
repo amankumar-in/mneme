@@ -1,3 +1,4 @@
+import axios from 'axios';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
@@ -369,6 +370,131 @@ app.get('/delete-account', (req, res) => {
   </div>
 </body>
 </html>`);
+});
+
+// Support page
+app.get('/support', (req, res) => {
+  const success = req.query.sent === '1';
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support - LaterBox</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 24px; line-height: 1.7; color: #1a1a1a; background: #fff; }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 20px 0 32px; border-bottom: 1px solid #e5e5e5; margin-bottom: 32px; }
+    .brand-icon { width: 44px; height: 44px; background: #83ADAB; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 20px; }
+    .brand-text { display: flex; flex-direction: column; }
+    .brand-name { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+    .brand-tagline { font-size: 13px; color: #888; }
+    h1 { font-size: 28px; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 32px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; margin-top: 20px; font-size: 14px; }
+    input, textarea, select { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; font-family: inherit; background: #fafafa; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: #83ADAB; background: #fff; }
+    textarea { resize: vertical; min-height: 120px; }
+    button { margin-top: 24px; padding: 12px 32px; background: #83ADAB; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; }
+    button:hover { background: #6f9997; }
+    .success { background: #f0f7f6; border-left: 3px solid #83ADAB; padding: 16px; margin-bottom: 24px; border-radius: 4px; }
+    .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid #e5e5e5; text-align: center; color: #888; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <div class="brand-icon">L</div>
+    <div class="brand-text">
+      <span class="brand-name">LaterBox</span>
+      <span class="brand-tagline">by XCore Apps</span>
+    </div>
+  </div>
+
+  <h1>Support</h1>
+  <p class="subtitle">Have a question, found a bug, or need help? Let us know and we'll get back to you.</p>
+
+  ${success ? '<div class="success"><strong>Message sent!</strong> We\'ll get back to you as soon as possible.</div>' : ''}
+
+  <form method="POST" action="/support">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required placeholder="Your name">
+
+    <label for="email">Email</label>
+    <input type="email" id="email" name="email" required placeholder="you@example.com">
+
+    <label for="topic">Topic</label>
+    <select id="topic" name="topic" required>
+      <option value="">Select a topic</option>
+      <option value="Bug Report">Bug Report</option>
+      <option value="Feature Request">Feature Request</option>
+      <option value="Account Issue">Account Issue</option>
+      <option value="General Question">General Question</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <label for="message">Message</label>
+    <textarea id="message" name="message" required placeholder="Describe your issue or question..."></textarea>
+
+    <button type="submit">Send Message</button>
+  </form>
+
+  <div class="footer">
+    <p>&copy; 2025 LaterBox by XCore Apps. All rights reserved.</p>
+  </div>
+</body>
+</html>`);
+});
+
+app.post('/support', async (req, res) => {
+  const { name, email, topic, message } = req.body;
+
+  if (!name || !email || !topic || !message) {
+    return res.status(400).send('All fields are required.');
+  }
+
+  try {
+    const ZEPTOMAIL_API_KEY = process.env.ZEPTOMAIL_API_KEY;
+    if (!ZEPTOMAIL_API_KEY) {
+      throw new Error('Email service not configured');
+    }
+
+    await axios.post(
+      'https://api.zeptomail.com/v1.1/email',
+      {
+        from: {
+          address: process.env.ZEPTOMAIL_FROM_EMAIL || 'noreply@laterbox.app',
+          name: 'LaterBox Support',
+        },
+        to: [{ email_address: { address: 'aman@coinsforcollege.org' } }],
+        reply_to: [{ address: email, name }],
+        subject: `[LaterBox Support] ${topic}`,
+        htmlbody: `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #333; margin-bottom: 20px;">New Support Request</h2>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <tr><td style="padding: 8px 12px; font-weight: bold; color: #555; width: 80px;">From</td><td style="padding: 8px 12px;">${name}</td></tr>
+              <tr><td style="padding: 8px 12px; font-weight: bold; color: #555;">Email</td><td style="padding: 8px 12px;"><a href="mailto:${email}">${email}</a></td></tr>
+              <tr><td style="padding: 8px 12px; font-weight: bold; color: #555;">Topic</td><td style="padding: 8px 12px;">${topic}</td></tr>
+            </table>
+            <div style="background: #f5f5f5; padding: 16px; border-radius: 8px;">
+              <p style="color: #333; white-space: pre-wrap;">${message}</p>
+            </div>
+          </div>
+        `,
+      },
+      {
+        headers: {
+          'Authorization': `Zoho-enczapikey ${ZEPTOMAIL_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    res.redirect('/support?sent=1');
+  } catch (err) {
+    console.error('Support email error:', err.message);
+    res.status(500).send('Failed to send message. Please try again or email us at aman@coinsforcollege.org');
+  }
 });
 
 // API Routes
