@@ -9,6 +9,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Spinner, Text, XStack, YStack } from 'tamagui'
 
 import { useQueryClient } from '@tanstack/react-query'
+import { ScreenBackground } from '../../components/ScreenBackground'
 import { useSyncService } from '../../hooks/useSyncService'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import { useIsAuthenticated, useUpdateUser, useUser } from '../../hooks/useUser'
@@ -498,13 +499,12 @@ export default function ProfileScreen() {
   })
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       {/* Header */}
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$2"
         borderBottomWidth={1}
@@ -962,6 +962,6 @@ export default function ProfileScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
-    </YStack>
+    </ScreenBackground>
   )
 }

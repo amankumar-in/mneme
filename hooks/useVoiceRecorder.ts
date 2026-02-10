@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AppState } from 'react-native'
 import { Audio } from 'expo-av'
+import * as Haptics from 'expo-haptics'
 import { saveAttachment } from '../services/fileStorage'
 import type { AttachmentResult } from './useAttachmentHandler'
+
+const startBeep = require('../assets/sounds/record_start.mp3')
+const stopBeep = require('../assets/sounds/record_stop.mp3')
 
 const RECORDING_OPTIONS: Audio.RecordingOptions = {
   isMeteringEnabled: true,
@@ -33,6 +37,21 @@ const RECORDING_UI_BARS = 40
 
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function playFeedback(source: number): Promise<void> {
+  try {
+    const { sound } = await Audio.Sound.createAsync(source)
+    await sound.playAsync()
+    // Unload after playback finishes
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if ('didJustFinish' in status && status.didJustFinish) {
+        sound.unloadAsync()
+      }
+    })
+  } catch {
+    // Audio feedback is non-critical — silently ignore
+  }
 }
 
 async function activateAudioSession(retries = 2): Promise<void> {
@@ -89,6 +108,8 @@ export function useVoiceRecorder() {
         return false
       }
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      await playFeedback(startBeep)
       await activateAudioSession()
 
       setDuration(0)
@@ -138,6 +159,7 @@ export function useVoiceRecorder() {
     if (!recording) return null
 
     try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       clearTimer()
       const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
 
@@ -147,6 +169,7 @@ export function useVoiceRecorder() {
 
       await recording.stopAndUnloadAsync()
       await Audio.setAudioModeAsync({ allowsRecordingIOS: false })
+      playFeedback(stopBeep)
 
       const uri = recording.getURI()
       recordingRef.current = null

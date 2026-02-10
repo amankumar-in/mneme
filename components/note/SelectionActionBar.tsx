@@ -12,9 +12,11 @@ interface SelectionActionBarProps {
   onTask: () => void
   onEdit: () => void
   onStar: () => void
+  onPin: () => void
   allLocked: boolean
   allStarred: boolean
   allTasks: boolean
+  allPinned: boolean
   canEdit: boolean
 }
 
@@ -38,9 +40,11 @@ export function SelectionActionBar({
   onTask,
   onEdit,
   onStar,
+  onPin,
   allLocked,
   allStarred,
   allTasks,
+  allPinned,
   canEdit,
 }: SelectionActionBarProps) {
   const { iconColorStrong } = useThemeColor()
@@ -94,6 +98,14 @@ export function SelectionActionBar({
           chromeless
           onPress={onStar}
           icon={<Ionicons name={allStarred ? 'star' : 'star-outline'} size={20} color="#F59E0B" />}
+        />
+        <Separator />
+        <Button
+          size="$3"
+          circular
+          chromeless
+          onPress={onPin}
+          icon={<Ionicons name={allPinned ? 'pin' : 'pin-outline'} size={20} color="#F97316" />}
         />
         <Separator />
         <Button

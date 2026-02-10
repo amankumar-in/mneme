@@ -6,8 +6,8 @@ import type { ThreadWithLastNote } from '../types'
 
 interface ThreadListItemProps {
   thread: ThreadWithLastNote
-  onPress: () => void
-  onLongPress: () => void
+  onPress?: () => void
+  onLongPress?: () => void
   isSelected?: boolean
 }
 
@@ -72,7 +72,7 @@ export function ThreadListItem({ thread, onPress, onLongPress, isSelected }: Thr
       paddingVertical="$3"
       gap="$3"
       alignItems="center"
-      backgroundColor={isSelected ? '$yellow4' : '$background'}
+      backgroundColor={isSelected ? '$yellow4' : 'transparent'}
       pressStyle={{ backgroundColor: '$backgroundHover' }}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -132,8 +132,11 @@ export function ThreadListItem({ thread, onPress, onLongPress, isSelected }: Thr
 
         <XStack alignItems="center" gap="$2">
           <Text fontSize="$3" color="$colorSubtle" numberOfLines={1} flex={1} ellipsizeMode="tail">
-            {getNotePreview(thread)}
+            {thread.isLocked ? 'Locked Thread' : getNotePreview(thread)}
           </Text>
+          {thread.isLocked && (
+            <Ionicons name="lock-closed" size={14} color={warningColor} />
+          )}
           {thread.isPinned && (
             <Ionicons name="bookmark" size={14} color={warningColor} />
           )}

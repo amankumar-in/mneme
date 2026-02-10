@@ -674,6 +674,9 @@ export function NoteBubble({ note, onLongPress, onPress, onTaskToggle, onImageVi
           </YStack>
 
           <XStack justifyContent="flex-end" alignItems="center" gap="$1" marginTop="$1">
+            {note.isPinned && (
+              <Ionicons name="pin" size={12} color="#F59E0B" />
+            )}
             {note.isLocked && (
               <Ionicons name="lock-closed" size={12} color={contentColor} />
             )}

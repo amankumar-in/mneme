@@ -3,6 +3,7 @@ import { TextInput } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useCallback, useRef, useEffect } from 'react'
 import { useThemeColor } from '../hooks/useThemeColor'
+import { useWallpaper } from '../contexts/WallpaperContext'
 
 interface SearchBarProps {
   value: string
@@ -17,7 +18,8 @@ export function SearchBar({
   placeholder = 'Search',
   autoFocus = false,
 }: SearchBarProps) {
-  const { iconColor, placeholderColor, color } = useThemeColor()
+  const { iconColor, placeholderColor, color, backgroundStrong } = useThemeColor()
+  const { homeWallpaper } = useWallpaper()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleChangeText = useCallback(
@@ -48,7 +50,7 @@ export function SearchBar({
     <XStack
       marginHorizontal="$4"
       marginVertical="$2"
-      backgroundColor="$backgroundStrong"
+      backgroundColor={homeWallpaper ? backgroundStrong + '80' : '$backgroundStrong'}
       borderRadius="$4"
       alignItems="center"
       paddingHorizontal="$3"

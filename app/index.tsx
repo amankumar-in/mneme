@@ -1,25 +1,33 @@
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
+import * as LocalAuthentication from 'expo-local-authentication'
 import { useRouter } from 'expo-router'
 import { ScanLine } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, BackHandler, FlatList, RefreshControl } from 'react-native'
+import { ActivityIndicator, Alert, BackHandler, FlatList, ImageBackground, RefreshControl, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Button, Separator, Text, XStack, YStack } from 'tamagui'
+import { Button, Text, XStack, YStack } from 'tamagui'
 
 import { MinimalHomeScreen } from '../components/MinimalHomeScreen'
+import { UndoToast } from '../components/UndoToast'
 import { useMinimalMode } from '../contexts/MinimalModeContext'
+import { useWallpaper } from '../contexts/WallpaperContext'
+import { useAppTheme } from '../contexts/ThemeContext'
+import { SwipeableRowProvider, useSwipeableRowController } from '../contexts/SwipeableRowContext'
+import { WALLPAPERS, resolveOverlayHex } from '../constants/wallpapers'
 import { FAB } from '../components/FAB'
 import { FilterChips } from '../components/FilterChips'
 import { Header } from '../components/Header'
 import { SearchBar } from '../components/SearchBar'
 import { ThreadActionBar } from '../components/thread/ThreadActionBar'
 import { ThreadGridItem } from '../components/ThreadGridItem'
+import { SwipeableRow } from '../components/SwipeableRow'
 import { ThreadListItem } from '../components/ThreadListItem'
 import { useExportThread } from '../hooks/useExportThread'
 import { useShortcuts } from '../hooks/useShortcuts'
 import { useSyncService } from '../hooks/useSyncService'
 import { useThemeColor } from '../hooks/useThemeColor'
+import { useRestoreThread } from '../hooks/useTrash'
 import {
     useCreateThread,
     useDeleteThread,
@@ -48,22 +56,30 @@ export default function HomeScreen() {
 function ThreadListHome() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { iconColor, iconColorStrong } = useThemeColor()
+  const { iconColor, iconColorStrong, warningColor, errorColor } = useThemeColor()
   const { threadViewStyle } = useThreadViewStyle()
+  const swipeController = useSwipeableRowController()
+  const { homeWallpaper, homeOverlayColor, homeOverlayOpacity } = useWallpaper()
+  const { resolvedTheme } = useAppTheme()
+  const homeOverlayHex = resolveOverlayHex(homeOverlayColor, resolvedTheme === 'dark')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState<ThreadFilter>('threads')
   const [selectedThreadIds, setSelectedThreadIds] = useState<Set<string>>(new Set())
 
   const isSelectionMode = selectedThreadIds.size > 0
 
+  // Back button closes open swipe row first, then exits selection mode
   useEffect(() => {
-    if (!isSelectionMode) return
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      setSelectedThreadIds(new Set())
-      return true
+      if (swipeController.closeAllIfOpen()) return true
+      if (isSelectionMode) {
+        setSelectedThreadIds(new Set())
+        return true
+      }
+      return false
     })
     return () => handler.remove()
-  }, [isSelectionMode])
+  }, [isSelectionMode, swipeController])
 
   // API hooks
   const {
@@ -83,7 +99,13 @@ function ThreadListHome() {
   const { addShortcut } = useShortcuts()
   const { data: user } = useUser()
   const { pull } = useSyncService()
+  const restoreThread = useRestoreThread()
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [undoState, setUndoState] = useState<{
+    visible: boolean
+    threadId: string | null
+    threadName: string
+  }>({ visible: false, threadId: null, threadName: '' })
 
   const hasIdentity = !!(user?.username || user?.email || user?.phone)
   const threads = data?.data ?? []
@@ -129,12 +151,23 @@ function ThreadListHome() {
   }, [hasIdentity, pull, refetch])
 
   const handleThreadPress = useCallback(
-    (thread: ThreadWithLastNote) => {
+    async (thread: ThreadWithLastNote) => {
       if (isSelectionMode) {
         toggleThreadSelection(thread.id)
-      } else {
-        router.push(`/thread/${thread.id}`)
+        return
       }
+      if (thread.isLocked) {
+        try {
+          const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: `Unlock "${thread.name}"`,
+            fallbackLabel: 'Cancel',
+          })
+          if (!result.success) return
+        } catch {
+          return
+        }
+      }
+      router.push(`/thread/${thread.id}`)
     },
     [router, isSelectionMode, toggleThreadSelection]
   )
@@ -226,6 +259,23 @@ function ThreadListHome() {
   const handleSettingsPress = useCallback(() => {
     router.push('/settings')
   }, [router])
+
+  const handleDeleteWithUndo = useCallback((thread: ThreadWithLastNote) => {
+    deleteThread.mutate(thread.id)
+    setUndoState({ visible: true, threadId: thread.id, threadName: thread.name })
+  }, [deleteThread])
+
+  const handleUndo = useCallback(() => {
+    if (undoState.threadId) {
+      restoreThread.mutate(undoState.threadId)
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+    }
+    setUndoState({ visible: false, threadId: null, threadName: '' })
+  }, [undoState.threadId, restoreThread])
+
+  const handleDismissUndo = useCallback(() => {
+    setUndoState({ visible: false, threadId: null, threadName: '' })
+  }, [])
 
   // Render content based on state
   const renderContent = () => {
@@ -378,27 +428,59 @@ function ThreadListHome() {
             }
           />
         ) : (
-          <FlatList
-            key="list"
-            data={threads}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <ThreadListItem
-                thread={item}
-                onPress={() => handleThreadPress(item)}
-                onLongPress={() => handleThreadLongPress(item)}
-                isSelected={selectedThreadIds.has(item.id)}
-              />
-            )}
-            ItemSeparatorComponent={() => <Separator marginLeft={76} />}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-            refreshControl={
-              <RefreshControl
-                refreshing={isLoading || isRefreshing}
-                onRefresh={handleRefresh}
-              />
-            }
-          />
+          <SwipeableRowProvider controller={swipeController}>
+            <FlatList
+              key="list"
+              data={threads}
+              keyExtractor={(item) => item.id}
+              onTouchStart={() => swipeController.closeAll()}
+              onScroll={() => swipeController.closeAll()}
+              scrollEventThrottle={16}
+              renderItem={({ item }) => (
+                <SwipeableRow
+                  rowId={item.id}
+                  enabled={!isSelectionMode && !item.isSystemThread}
+                  onPress={() => handleThreadPress(item)}
+                  onLongPress={() => handleThreadLongPress(item)}
+                  onSwipeRight={() => {
+                    updateThread.mutate({
+                      id: item.id,
+                      data: { isPinned: !item.isPinned },
+                    })
+                  }}
+                  onSwipeLeft={() => handleDeleteWithUndo(item)}
+                  onFullSwipeRight={() => {
+                    updateThread.mutate({
+                      id: item.id,
+                      data: { isPinned: !item.isPinned },
+                    })
+                  }}
+                  onFullSwipeLeft={() => handleDeleteWithUndo(item)}
+                  leftIcon={item.isPinned ? 'bookmark-outline' : 'bookmark'}
+                  leftLabel={item.isPinned ? 'Unpin' : 'Pin'}
+                  leftColor={warningColor}
+                  rightIcon="trash"
+                  rightLabel="Delete"
+                  rightColor={errorColor}
+                >
+                  <ThreadListItem
+                    thread={item}
+                    isSelected={selectedThreadIds.has(item.id)}
+                  />
+                </SwipeableRow>
+              )}
+              ItemSeparatorComponent={() => (
+                <View style={{ height: StyleSheet.hairlineWidth, marginLeft: 76, backgroundColor: 'rgba(128,128,128,0.2)' }} />
+              )}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isLoading || isRefreshing}
+                  onRefresh={handleRefresh}
+                />
+              }
+            />
+          </SwipeableRowProvider>
         )}
 
         {isSelectionMode ? (
@@ -437,12 +519,35 @@ function ThreadListHome() {
             </XStack>
           </XStack>
         )}
+
+        <UndoToast
+          visible={undoState.visible}
+          message={`"${undoState.threadName}" moved to trash`}
+          onUndo={handleUndo}
+          onDismiss={handleDismissUndo}
+        />
       </>
     )
   }
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <YStack flex={1} backgroundColor={homeWallpaper ? 'transparent' : '$background'}>
+      {homeWallpaper && (
+        <ImageBackground
+          source={WALLPAPERS[homeWallpaper]}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        >
+          {homeOverlayHex && (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: homeOverlayHex, opacity: homeOverlayOpacity / 100 },
+              ]}
+            />
+          )}
+        </ImageBackground>
+      )}
       <Header
         title="LaterBox"
         rightIcon={{ name: 'settings-outline', onPress: handleSettingsPress }}

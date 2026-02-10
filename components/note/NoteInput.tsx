@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { XStack, YStack, Button, Text } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
-import { Keyboard, TextInput } from 'react-native'
+import { Keyboard, StyleSheet, TextInput } from 'react-native'
 import { Image } from 'expo-image'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import { resolveAttachmentUri } from '../../services/fileStorage'
@@ -54,7 +54,7 @@ export function NoteInput({
   pendingAttachment,
   onClearAttachment,
 }: NoteInputProps) {
-  const { iconColor, brandText, placeholderColor, color } = useThemeColor()
+  const { iconColor, brandText, placeholderColor, color, background, backgroundStrong } = useThemeColor()
   const [text, setText] = useState('')
   const inputRef = useRef<TextInput>(null)
 
@@ -97,7 +97,7 @@ export function NoteInput({
 
   const attachmentPanel = showAttachments && !isVoiceRecording && (
     <XStack
-      backgroundColor="$background"
+      backgroundColor={background + 'CC'}
       paddingHorizontal="$4"
       paddingVertical="$3"
       flexWrap="wrap"
@@ -157,15 +157,15 @@ export function NoteInput({
 
   return (
     <YStack
-      borderTopWidth={1}
-      borderTopColor="$borderColor"
-      backgroundColor="$background"
+      borderTopWidth={StyleSheet.hairlineWidth}
+      borderTopColor="rgba(128,128,128,0.2)"
+      backgroundColor={background + 'CC'}
     >
       {attachmentPanel}
 
       {!isVoiceRecording && pendingAttachment && (
         <XStack
-          backgroundColor="$backgroundStrong"
+          backgroundColor={backgroundStrong + 'CC'}
           paddingLeft="$3"
           paddingRight="$2"
           paddingVertical="$2"
@@ -201,7 +201,7 @@ export function NoteInput({
 
       {!isVoiceRecording && editingNote && (
         <XStack
-          backgroundColor="$backgroundStrong"
+          backgroundColor={backgroundStrong + 'CC'}
           paddingLeft="$4"
           paddingRight="$2"
           paddingVertical="$2"
@@ -238,7 +238,7 @@ export function NoteInput({
 
           <XStack
             flex={1}
-            backgroundColor="$backgroundStrong"
+            backgroundColor={backgroundStrong + 'AA'}
             borderRadius="$4"
             height={44}
             alignItems="center"
@@ -301,7 +301,7 @@ export function NoteInput({
 
           <XStack
             flex={1}
-            backgroundColor="$backgroundStrong"
+            backgroundColor={backgroundStrong + 'AA'}
             borderRadius="$4"
             minHeight={44}
             maxHeight={120}

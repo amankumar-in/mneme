@@ -59,11 +59,16 @@ import { NoteViewProvider } from '@/contexts/NoteViewContext'
 import { ThreadViewProvider } from '@/contexts/ThreadViewContext'
 import { MinimalModeProvider } from '@/contexts/MinimalModeContext'
 import { LinkPreviewProvider } from '@/contexts/LinkPreviewContext'
+import { WallpaperProvider } from '@/contexts/WallpaperContext'
 import { useShareIntent } from 'expo-share-intent'
 import { useInitializeLocalUser } from '@/hooks/useUser'
 import { useAutoSync } from '@/hooks/useSyncService'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useLinkPreviewBackfill } from '@/hooks/useLinkPreviewBackfill'
+import { usePurgeOldTrash } from '@/hooks/useTrash'
+import { AppLockProvider } from '@/contexts/AppLockContext'
+import { EncryptionProvider } from '@/contexts/EncryptionContext'
+import { LockScreen } from '@/components/LockScreen'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -87,6 +92,12 @@ function AppContent() {
 
   // Backfill link previews for notes created while offline
   useLinkPreviewBackfill()
+
+  // Auto-purge trash items older than 30 days
+  const purgeTrash = usePurgeOldTrash()
+  useEffect(() => {
+    purgeTrash.mutate(30)
+  }, [])
 
   useEffect(() => {
     // Initialize local user - NO SERVER CALLS
@@ -121,7 +132,12 @@ function AppContent() {
     return () => subscription?.remove()
   }, [router])
 
-  return <Stack screenOptions={{ headerShown: false }} />
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false }} />
+      <LockScreen />
+    </>
+  )
 }
 
 function ThemedRoot() {
@@ -195,11 +211,17 @@ export default function RootLayout() {
                 <NoteViewProvider>
                   <ThreadViewProvider>
                     <LinkPreviewProvider>
-                      <DatabaseProvider>
-                        <MinimalModeProvider>
-                          <ThemedRoot />
-                        </MinimalModeProvider>
-                      </DatabaseProvider>
+                      <WallpaperProvider>
+                        <DatabaseProvider>
+                          <EncryptionProvider>
+                            <AppLockProvider>
+                              <MinimalModeProvider>
+                                <ThemedRoot />
+                              </MinimalModeProvider>
+                            </AppLockProvider>
+                          </EncryptionProvider>
+                        </DatabaseProvider>
+                      </WallpaperProvider>
                     </LinkPreviewProvider>
                   </ThreadViewProvider>
                 </NoteViewProvider>

@@ -1,6 +1,6 @@
 // SQLite schema definitions for offline-first architecture
 
-export const DATABASE_VERSION = 5
+export const DATABASE_VERSION = 6
 export const DATABASE_NAME = 'laterbox.db'
 
 // Schema for version 1
@@ -16,6 +16,7 @@ export const SCHEMA_V1 = `
     icon TEXT,
     is_pinned INTEGER NOT NULL DEFAULT 0,
     is_system_thread INTEGER NOT NULL DEFAULT 0,
+    is_locked INTEGER NOT NULL DEFAULT 0,
     wallpaper TEXT,
     last_note_content TEXT,
     last_note_type TEXT,
@@ -56,6 +57,7 @@ export const SCHEMA_V1 = `
     is_locked INTEGER NOT NULL DEFAULT 0,
     is_starred INTEGER NOT NULL DEFAULT 0,
     is_edited INTEGER NOT NULL DEFAULT 0,
+    is_pinned INTEGER NOT NULL DEFAULT 0,
     -- Task fields
     is_task INTEGER NOT NULL DEFAULT 0,
     reminder_at TEXT,
@@ -170,5 +172,9 @@ export const MIGRATIONS: Record<number, string> = {
   `,
   5: `
     ALTER TABLE notes ADD COLUMN attachment_waveform TEXT;
+  `,
+  6: `
+    ALTER TABLE threads ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE notes ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;
   `,
 }

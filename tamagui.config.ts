@@ -185,7 +185,7 @@ const themes = {
     accentColor: '#839E9D',
     accentColorMuted: '#AFCFCE',
     // Paper view
-    paperBackground: '#FAF9F6',
+    paperBackground: 'rgba(250, 249, 246, 0.75)',
     paperText: '#2C2C2C',
     paperBorder: '#E8E6E1',
     successColor: '#22c55e',
@@ -222,7 +222,7 @@ const themes = {
     accentColor: '#74D4CE',
     accentColorMuted: '#839E9D',
     // Paper view
-    paperBackground: '#262624',
+    paperBackground: 'rgba(38, 38, 36, 0.75)',
     paperText: '#E8E6E0',
     paperBorder: '#3A3A38',
     successColor: '#4ade80',

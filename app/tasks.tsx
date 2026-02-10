@@ -5,6 +5,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useQueryClient } from '@tanstack/react-query'
+import { ScreenBackground } from '../components/ScreenBackground'
 import { SearchBar } from '../components/SearchBar'
 import { FilterChips } from '../components/FilterChips'
 import { useThemeColor } from '../hooks/useThemeColor'
@@ -168,12 +169,11 @@ export default function TasksScreen() {
   const title = threadId && threadName ? `${threadName} Tasks` : 'Tasks'
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$2"
       >
@@ -242,6 +242,6 @@ export default function TasksScreen() {
           onRefresh={refetch}
         />
       )}
-    </YStack>
+    </ScreenBackground>
   )
 }

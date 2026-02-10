@@ -25,6 +25,7 @@ import {
   useDeleteNote,
   useLockNote,
   useNotes,
+  usePinNote,
   useSendNote,
   useSetNoteTask,
   useStarNote,
@@ -79,6 +80,7 @@ export function MinimalHomeScreen({ threadId }: MinimalHomeScreenProps) {
   const deleteNoteMutation = useDeleteNote(threadId)
   const lockNoteMutation = useLockNote(threadId)
   const starNoteMutation = useStarNote(threadId)
+  const pinNoteMutation = usePinNote(threadId)
   const setNoteTaskMutation = useSetNoteTask(threadId)
   const completeTaskMutation = useCompleteTask(threadId)
 
@@ -324,6 +326,15 @@ export function MinimalHomeScreen({ threadId }: MinimalHomeScreenProps) {
     handleClearSelection()
   }, [selectedNotes, starNoteMutation, handleClearSelection])
 
+  const handleSelectionPin = useCallback(() => {
+    const shouldPin = !selectedNotes.every((n) => n.isPinned)
+    selectedNotes.forEach((n) => {
+      pinNoteMutation.mutate({ noteId: n.id, isPinned: shouldPin })
+    })
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    handleClearSelection()
+  }, [selectedNotes, pinNoteMutation, handleClearSelection])
+
   const handleSettingsPress = useCallback(() => {
     router.push('/settings')
   }, [router])
@@ -418,8 +429,10 @@ export function MinimalHomeScreen({ threadId }: MinimalHomeScreenProps) {
             onTask={handleSelectionTask}
             onEdit={handleSelectionEdit}
             onStar={handleSelectionStar}
+            onPin={handleSelectionPin}
             allLocked={selectedNotes.every((n) => n.isLocked)}
             allStarred={selectedNotes.every((n) => n.isStarred)}
+            allPinned={selectedNotes.every((n) => n.isPinned)}
             allTasks={selectedNotes.every((n) => n.task?.isTask)}
             canEdit={selectedNoteIds.size === 1}
           />

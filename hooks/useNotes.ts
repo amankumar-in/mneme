@@ -176,6 +176,7 @@ export function useDeleteNote(threadId: string) {
       queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
       queryClient.invalidateQueries({ queryKey: ['thread-media', threadId] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
+      queryClient.invalidateQueries({ queryKey: ['trash'] })
       schedulePush()
     },
   })
@@ -196,6 +197,22 @@ export function useLockNote(threadId: string) {
       // Protected Notes aggregates all locked notes — invalidate its cache too
       queryClient.invalidateQueries({ queryKey: ['notes', 'system-protected-notes'] })
       queryClient.invalidateQueries({ queryKey: ['threads'] })
+      schedulePush()
+    },
+  })
+}
+
+export function usePinNote(threadId: string) {
+  const db = useDb()
+  const noteRepo = getNoteRepository(db)
+  const queryClient = useQueryClient()
+  const { schedulePush } = useSyncService()
+
+  return useMutation({
+    mutationFn: ({ noteId, isPinned }: { noteId: string; isPinned: boolean }) =>
+      noteRepo.setPinned(noteId, isPinned),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes', threadId] })
       schedulePush()
     },
   })

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert, Image, ScrollView, Switch } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Separator, Text, XStack, YStack } from 'tamagui'
+import { ScreenBackground } from '../../components/ScreenBackground'
 import { useSyncService } from '../../hooks/useSyncService'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import { useDeleteServerAccount, useDeleteLocalData, useUpdateUser, useUser } from '../../hooks/useUser'
@@ -383,16 +384,13 @@ export default function SettingsScreen() {
   }, [deleteServer, performLocalDeletion])
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$2"
-        borderBottomWidth={1}
-        borderBottomColor="$borderColor"
       >
         <Button
           size="$3"
@@ -512,6 +510,22 @@ export default function SettingsScreen() {
           customIcon={<SunMoon size={20} color={accentColor} />}
         />
 
+        <SectionHeader title="Security" />
+        <SettingsItem
+          icon="lock-closed-outline"
+          iconColor={accentColor}
+          title="App Lock"
+          subtitle="Biometric and PIN protection"
+          onPress={() => router.push('/settings/app-lock')}
+        />
+        <SettingsItem
+          icon="trash-outline"
+          iconColor={warningColor}
+          title="Recently Deleted"
+          subtitle="Restore or permanently delete items"
+          onPress={() => router.push('/settings/trash')}
+        />
+
         <SectionHeader title="Data Control" />
         <SettingsToggleItem
           icon={hasIdentity && dataSyncEnabled ? 'cloud-done-outline' : 'cloud-offline-outline'}
@@ -552,6 +566,19 @@ export default function SettingsScreen() {
             })
           }}
           trackColor={accentColor}
+        />
+        <SettingsItem
+          icon="shield-checkmark-outline"
+          iconColor={successColor}
+          title="End-to-End Encryption"
+          subtitle="Data encrypted before sync"
+          onPress={() => {
+            Alert.alert(
+              'End-to-End Encryption',
+              'When enabled, your notes and thread names are encrypted on your device before syncing. Only you can decrypt them with your password.\n\nThis feature activates automatically when you have an account with a password and sync is enabled.',
+              [{ text: 'OK' }]
+            )
+          }}
         />
         <SettingsItem
           icon="server-outline"
@@ -603,6 +630,6 @@ subtitle="Remove identity data from cloud and this device"          onPress={han
 
         <YStack height={insets.bottom + 20} />
       </ScrollView>
-    </YStack>
+    </ScreenBackground>
   )
 }

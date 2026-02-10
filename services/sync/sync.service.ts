@@ -111,12 +111,25 @@ const getDefaultUrl = () => {
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || getDefaultUrl()
 
+export interface EncryptionFunctions {
+  encryptField: (plaintext: string) => string | null
+  decryptField: (ciphertext: string) => string | null
+}
+
 export class SyncService {
   private api: AxiosInstance | null = null
   private pushTimeout: ReturnType<typeof setTimeout> | null = null
   private pushDebounceMs = 5000 // 5 second debounce for push
+  private encryption: EncryptionFunctions | null = null
 
   constructor(private db: SQLiteDatabase) {}
+
+  /**
+   * Set encryption functions for E2E encrypted sync
+   */
+  setEncryption(encryption: EncryptionFunctions | null): void {
+    this.encryption = encryption
+  }
 
   /**
    * Reset cached API instance (call after logging out)
@@ -456,18 +469,24 @@ export class SyncService {
   }
 
   private mapThreadToServer(thread: ThreadRow) {
+    const name = this.encryption?.encryptField(thread.name) ?? thread.name
     return {
-      name: thread.name,
+      name,
       icon: thread.icon,
       isPinned: thread.is_pinned === 1,
       isSystemThread: thread.is_system_thread === 1,
+      isLocked: thread.is_locked === 1,
       wallpaper: thread.wallpaper,
+      _encrypted: !!this.encryption,
     }
   }
 
   private mapNoteToServer(note: NoteRow) {
+    const content = note.content && this.encryption
+      ? this.encryption.encryptField(note.content) ?? note.content
+      : note.content
     return {
-      content: note.content,
+      content,
       type: note.type,
       attachment: note.attachment_url
         ? {
@@ -492,12 +511,14 @@ export class SyncService {
       isLocked: note.is_locked === 1,
       isStarred: note.is_starred === 1,
       isEdited: note.is_edited === 1,
+      isPinned: note.is_pinned === 1,
       task: {
         isTask: note.is_task === 1,
         reminderAt: note.reminder_at,
         isCompleted: note.is_completed === 1,
         completedAt: note.completed_at,
       },
+      _encrypted: !!this.encryption,
     }
   }
 }

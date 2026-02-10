@@ -16,10 +16,10 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   // Fresh database - create initial schema
   if (currentVersion === 0) {
     await db.execAsync(SCHEMA_V1)
-    // V1 schema already includes columns from migrations 2–5
-    // (is_system_thread, notification_id, link_preview_*, attachment_waveform),
+    // V1 schema already includes columns from migrations 2–6
+    // (is_system_thread, notification_id, link_preview_*, attachment_waveform, thread is_locked, note is_pinned),
     // so skip to current version to avoid duplicate ALTER TABLE errors.
-    currentVersion = 5
+    currentVersion = 6
   }
 
   // Run any pending migrations
@@ -57,6 +57,19 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   }
   if (!columnNames.has('attachment_waveform')) {
     await db.execAsync('ALTER TABLE notes ADD COLUMN attachment_waveform TEXT')
+  }
+  if (!columnNames.has('is_pinned')) {
+    await db.execAsync('ALTER TABLE notes ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0')
+  }
+
+  // Check threads table columns
+  const threadColumns = await db.getAllAsync<{ name: string }>(
+    'PRAGMA table_info(threads)'
+  )
+  const threadColumnNames = new Set(threadColumns.map(col => col.name))
+
+  if (!threadColumnNames.has('is_locked')) {
+    await db.execAsync('ALTER TABLE threads ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0')
   }
 
   // Reset stale sync flag — if the app just launched, nothing is syncing

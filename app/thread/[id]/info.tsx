@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { ScrollView, Alert, Image, TextInput, Pressable } from 'react-native'
+import { ScrollView, Alert, Image, TextInput, Pressable, Switch } from 'react-native'
+import * as Haptics from 'expo-haptics'
 import { YStack, XStack, Text, Button } from 'tamagui'
 import { Image as ExpoImage } from 'expo-image'
 import { useRouter, useLocalSearchParams } from 'expo-router'
@@ -11,6 +12,7 @@ import { useThread, useUpdateThread } from '../../../hooks/useThreads'
 import { useThreadMedia } from '../../../hooks/useNotes'
 import { useExportThread } from '../../../hooks/useExportThread'
 import { useShortcuts } from '../../../hooks/useShortcuts'
+import { ScreenBackground } from '../../../components/ScreenBackground'
 import { useThemeColor } from '../../../hooks/useThemeColor'
 import { resolveAttachmentUri, attachmentExists } from '../../../services/fileStorage'
 import type { NoteType, NoteWithDetails } from '../../../services/database/types'
@@ -123,22 +125,23 @@ export default function ThreadInfoScreen() {
 
   if (isLoading || !thread) {
     return (
-      <YStack flex={1} backgroundColor="$background" justifyContent="center" alignItems="center">
-        <Text color="$colorSubtle">Loading...</Text>
-      </YStack>
+      <ScreenBackground>
+        <YStack flex={1} justifyContent="center" alignItems="center">
+          <Text color="$colorSubtle">Loading...</Text>
+        </YStack>
+      </ScreenBackground>
     )
   }
 
   const mediaItems = mediaResult?.data ?? []
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       {/* Header */}
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$3"
       >
@@ -285,6 +288,44 @@ export default function ThreadInfoScreen() {
           </YStack>
         )}
 
+        {/* Thread Lock Toggle */}
+        {!thread.isSystemThread && (
+          <XStack
+            paddingHorizontal="$4"
+            paddingVertical="$3"
+            gap="$3"
+            alignItems="center"
+          >
+            <XStack
+              width={36}
+              height={36}
+              borderRadius="$2"
+              backgroundColor="$backgroundStrong"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Ionicons name="lock-closed-outline" size={20} color={accentColor} />
+            </XStack>
+            <YStack flex={1}>
+              <Text fontSize="$4" color="$color">
+                Lock Thread
+              </Text>
+              <Text fontSize="$2" color="$colorSubtle">
+                Require authentication to open
+              </Text>
+            </YStack>
+            <Switch
+              value={thread.isLocked}
+              onValueChange={(value) => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                updateThread.mutate({ id: id || '', data: { isLocked: value } })
+              }}
+              trackColor={{ false: '#767577', true: accentColor }}
+              thumbColor="white"
+            />
+          </XStack>
+        )}
+
         {/* Actions */}
         <YStack>
           <MenuItem
@@ -316,7 +357,7 @@ export default function ThreadInfoScreen() {
         </YStack>
         </Pressable>
       </ScrollView>
-    </YStack>
+    </ScreenBackground>
   )
 }
 

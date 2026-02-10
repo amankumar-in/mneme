@@ -11,6 +11,7 @@ export interface ThreadRow {
   icon: string | null
   is_pinned: number
   is_system_thread: number
+  is_locked: number
   wallpaper: string | null
   last_note_content: string | null
   last_note_type: string | null
@@ -41,6 +42,7 @@ export interface NoteRow {
   is_locked: number
   is_starred: number
   is_edited: number
+  is_pinned: number
   is_task: number
   reminder_at: string | null
   is_completed: number
@@ -93,6 +95,7 @@ export interface LocalThread extends SyncableEntity {
   icon: string | null
   isPinned: number // SQLite doesn't have boolean, use 0/1
   isSystemThread: number
+  isLocked: number
   wallpaper: string | null
   lastNoteContent: string | null
   lastNoteType: NoteType | null
@@ -163,6 +166,7 @@ export interface UpdateThreadInput {
   name?: string
   icon?: string | null
   isPinned?: boolean
+  isLocked?: boolean
   wallpaper?: string | null
 }
 
@@ -212,6 +216,7 @@ export interface ThreadWithLastNote {
   icon: string | null
   isPinned: boolean
   isSystemThread: boolean
+  isLocked: boolean
   wallpaper: string | null
   lastNote: {
     content: string
@@ -249,6 +254,7 @@ export interface NoteWithDetails {
   isLocked: boolean
   isStarred: boolean
   isEdited: boolean
+  isPinned: boolean
   task: {
     isTask: boolean
     reminderAt?: string

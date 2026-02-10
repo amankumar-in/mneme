@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { ScrollView, View, Pressable, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native'
-import { YStack, XStack, Text, Button, Separator } from 'tamagui'
+import { YStack, XStack, Text, Button } from 'tamagui'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { Leaf } from 'lucide-react-native'
+import { ScreenBackground } from '../../components/ScreenBackground'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import { useAppTheme } from '../../contexts/ThemeContext'
 import { useNoteFontScale } from '../../contexts/FontScaleContext'
@@ -742,7 +743,7 @@ const OPTIONS: { value: ThemeOption; label: string; variant: 'auto' | 'dark' | '
 export default function CustomizeScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { iconColorStrong, accentColor } = useThemeColor()
+  const { iconColorStrong, accentColor, iconColor } = useThemeColor()
   const { theme, setTheme } = useAppTheme()
   const { data: user } = useUser()
   const updateUser = useUpdateUser()
@@ -765,12 +766,11 @@ export default function CustomizeScreen() {
   )
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$2"
         borderBottomWidth={1}
@@ -788,7 +788,7 @@ export default function CustomizeScreen() {
         </Text>
       </XStack>
 
-      <ScrollView>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         <YStack padding="$4" gap="$4">
           <Text fontSize="$3" color="$colorSubtle">
             Choose how the app looks. Auto follows your system light/dark setting.
@@ -829,30 +829,52 @@ export default function CustomizeScreen() {
 
         </YStack>
 
-        <Separator />
+        <Pressable
+          onPress={() => router.push('/settings/wallpaper')}
+          style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+        >
+          <XStack
+            paddingHorizontal="$4"
+            paddingVertical="$3"
+            gap="$3"
+            alignItems="center"
+          >
+            <XStack
+              width={36}
+              height={36}
+              borderRadius="$2"
+              backgroundColor="$backgroundStrong"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Ionicons name="image-outline" size={20} color={accentColor} />
+            </XStack>
+
+            <YStack flex={1} gap="$0.5">
+              <Text fontSize="$4" color="$color">
+                Wallpaper
+              </Text>
+              <Text fontSize="$2" color="$colorSubtle">
+                Set background images
+              </Text>
+            </YStack>
+
+            <Ionicons name="chevron-forward" size={20} color={iconColor} />
+          </XStack>
+        </Pressable>
 
         <FontScaleSelector />
 
-        <Separator />
-
         <FontFamilySelector />
-
-        <Separator />
 
         <NoteViewSelector />
 
-        <Separator />
-
         <ThreadViewSelector />
-
-        <Separator />
 
         <MinimalModeSelector />
 
-        <Separator />
-
         <LinkPreviewSelector />
       </ScrollView>
-    </YStack>
+    </ScreenBackground>
   )
 }

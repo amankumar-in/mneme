@@ -30,7 +30,6 @@ export function Header({ title, leftIcon, rightIcon }: HeaderProps) {
       paddingTop={insets.top + 8}
       paddingHorizontal="$4"
       paddingBottom="$2"
-      backgroundColor="$background"
       alignItems="center"
       justifyContent="space-between"
     >

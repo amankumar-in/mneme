@@ -129,6 +129,10 @@ export class ThreadRepository {
       updates.push('is_pinned = ?')
       values.push(fromBoolean(input.isPinned))
     }
+    if (input.isLocked !== undefined) {
+      updates.push('is_locked = ?')
+      values.push(fromBoolean(input.isLocked))
+    }
     if (input.wallpaper !== undefined) {
       updates.push('wallpaper = ?')
       values.push(input.wallpaper)
@@ -197,6 +201,62 @@ export class ThreadRepository {
     )
 
     return { success: true, lockedNotesCount }
+  }
+
+  /**
+   * Get deleted threads (trash)
+   */
+  async getDeleted(): Promise<ThreadWithLastNote[]> {
+    const rows = await this.db.getAllAsync<ThreadRow>(
+      `SELECT * FROM threads WHERE deleted_at IS NOT NULL
+       ORDER BY deleted_at DESC`
+    )
+    return rows.map((row) => this.mapToThread(row))
+  }
+
+  /**
+   * Restore a deleted thread
+   */
+  async restore(id: string): Promise<void> {
+    const now = getTimestamp()
+    await this.db.runAsync(
+      `UPDATE threads SET deleted_at = NULL, sync_status = 'pending', updated_at = ?
+       WHERE id = ?`,
+      [now, id]
+    )
+    // Also restore notes that were deleted with the thread (same deleted_at)
+    await this.db.runAsync(
+      `UPDATE notes SET deleted_at = NULL, sync_status = 'pending', updated_at = ?
+       WHERE thread_id = ? AND deleted_at IS NOT NULL`,
+      [now, id]
+    )
+  }
+
+  /**
+   * Permanently delete a thread (hard delete)
+   */
+  async permanentlyDelete(id: string): Promise<void> {
+    await this.db.runAsync(`DELETE FROM notes WHERE thread_id = ?`, [id])
+    await this.db.runAsync(`DELETE FROM threads WHERE id = ?`, [id])
+  }
+
+  /**
+   * Purge threads deleted more than given days ago
+   */
+  async purgeOlderThan(days: number): Promise<number> {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+    // First delete notes belonging to expired threads
+    await this.db.runAsync(
+      `DELETE FROM notes WHERE thread_id IN (
+        SELECT id FROM threads WHERE deleted_at IS NOT NULL AND deleted_at < ?
+      )`,
+      [cutoff]
+    )
+    const result = await this.db.runAsync(
+      `DELETE FROM threads WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
+      [cutoff]
+    )
+    return result.changes
   }
 
   /**
@@ -443,6 +503,7 @@ export class ThreadRepository {
       icon: row.icon,
       isPinned: toBoolean(row.is_pinned),
       isSystemThread: toBoolean(row.is_system_thread),
+      isLocked: toBoolean(row.is_locked),
       wallpaper: row.wallpaper,
       lastNote:
         row.last_note_content || row.last_note_type

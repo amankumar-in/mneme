@@ -10,6 +10,7 @@ import FileViewer from 'react-native-file-viewer'
 
 import { useThread } from '../../../hooks/useThreads'
 import { useThreadMedia } from '../../../hooks/useNotes'
+import { ScreenBackground } from '../../../components/ScreenBackground'
 import { useThemeColor } from '../../../hooks/useThemeColor'
 import { ImageViewerModal } from '../../../components/note/ImageViewerModal'
 import { VideoPlayerModal } from '../../../components/note/VideoPlayerModal'
@@ -134,13 +135,12 @@ export default function MediaScreen() {
   const headerTitle = thread ? `Media from ${thread.name}` : 'Media'
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       {/* Header */}
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$3"
       >
@@ -205,7 +205,7 @@ export default function MediaScreen() {
       {/* Modals */}
       <ImageViewerModal uri={viewerImage} onClose={() => setViewerImage(null)} />
       <VideoPlayerModal uri={viewerVideo} onClose={() => setViewerVideo(null)} />
-    </YStack>
+    </ScreenBackground>
   )
 }
 
@@ -230,7 +230,7 @@ function TabPage({
   }, [mediaResult?.data])
 
   const renderSectionHeader = useCallback(({ section }: { section: MediaSection }) => (
-    <YStack paddingHorizontal={GRID_PADDING} paddingTop="$3" paddingBottom="$2" backgroundColor="$background">
+    <YStack paddingHorizontal={GRID_PADDING} paddingTop="$3" paddingBottom="$2">
       <Text fontSize="$3" fontWeight="600" color="$colorSubtle">{section.title}</Text>
     </YStack>
   ), [])

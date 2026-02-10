@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { Linking, ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Text, XStack, YStack } from 'tamagui'
+import { ScreenBackground } from '../../components/ScreenBackground'
 import { useThemeColor } from '../../hooks/useThemeColor'
 
 interface FAQItem {
@@ -395,12 +396,11 @@ export default function HelpScreen() {
   }, [])
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$2"
         borderBottomWidth={1}
@@ -463,6 +463,6 @@ export default function HelpScreen() {
 
         <YStack height={insets.bottom + 20} />
       </ScrollView>
-    </YStack>
+    </ScreenBackground>
   )
 }

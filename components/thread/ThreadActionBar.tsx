@@ -2,6 +2,7 @@ import { XStack, Text, Button, YStack } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useThemeColor } from '../../hooks/useThemeColor'
+import { useWallpaper } from '../../contexts/WallpaperContext'
 
 interface ThreadActionBarProps {
   selectedCount: number
@@ -35,12 +36,13 @@ export function ThreadActionBar({
   allPinned,
   hideDelete,
 }: ThreadActionBarProps) {
-  const { iconColorStrong, warningColor, accentColor, errorColor } = useThemeColor()
+  const { iconColorStrong, warningColor, accentColor, errorColor, backgroundStrong } = useThemeColor()
+  const { homeWallpaper } = useWallpaper()
   const insets = useSafeAreaInsets()
 
   return (
     <XStack
-      backgroundColor="$backgroundStrong"
+      backgroundColor={homeWallpaper ? backgroundStrong + 'CC' : '$backgroundStrong'}
       paddingHorizontal="$4"
       paddingTop="$3"
       paddingBottom={insets.bottom + 12}

@@ -15,6 +15,17 @@ const THREAD_VIEW_STYLE_KEY = '@laterbox:threadViewStyle'
 const MINIMAL_MODE_KEY = '@laterbox:minimalMode'
 const MINIMAL_MODE_THREAD_ID_KEY = '@laterbox:minimalModeThreadId'
 const LINK_PREVIEW_MODE_KEY = '@laterbox:linkPreviewMode'
+const HOME_WALLPAPER_KEY = '@laterbox:homeWallpaper'
+const HOME_WALLPAPER_OVERLAY_KEY = '@laterbox:homeWallpaperOverlay'
+const HOME_WALLPAPER_OPACITY_KEY = '@laterbox:homeWallpaperOpacity'
+const THREAD_WALLPAPER_KEY = '@laterbox:threadWallpaper'
+const THREAD_WALLPAPER_OVERLAY_KEY = '@laterbox:threadWallpaperOverlay'
+const THREAD_WALLPAPER_OPACITY_KEY = '@laterbox:threadWallpaperOpacity'
+const APP_LOCK_ENABLED_KEY = '@laterbox:appLockEnabled'
+const APP_LOCK_PIN_HASH_KEY = '@laterbox:appLockPinHash'
+const APP_LOCK_TIMEOUT_KEY = '@laterbox:appLockTimeout'
+const ENCRYPTION_SALT_KEY = '@laterbox:encryptionSalt'
+const ENCRYPTION_ENABLED_KEY = '@laterbox:encryptionEnabled'
 
 export type AppTheme = 'light' | 'dark' | 'system'
 
@@ -129,6 +140,151 @@ export async function setLinkPreviewMode(mode: LinkPreviewMode): Promise<void> {
   await AsyncStorage.setItem(LINK_PREVIEW_MODE_KEY, mode)
 }
 
+export type WallpaperImage = null | number // 1..26
+export type WallpaperOverlay = null | string // color key e.g. 'red', 'blue', 'neutral'
+export type WallpaperOpacity = number // 30-90, default 50
+
+export async function getHomeWallpaper(): Promise<WallpaperImage> {
+  const stored = await AsyncStorage.getItem(HOME_WALLPAPER_KEY)
+  if (stored) {
+    const parsed = parseInt(stored, 10)
+    if (parsed >= 1 && parsed <= 16) return parsed
+  }
+  return null
+}
+
+export async function setHomeWallpaper(value: WallpaperImage): Promise<void> {
+  if (value === null) {
+    await AsyncStorage.removeItem(HOME_WALLPAPER_KEY)
+  } else {
+    await AsyncStorage.setItem(HOME_WALLPAPER_KEY, String(value))
+  }
+}
+
+export async function getHomeWallpaperOverlay(): Promise<WallpaperOverlay> {
+  return (await AsyncStorage.getItem(HOME_WALLPAPER_OVERLAY_KEY)) ?? 'neutral'
+}
+
+export async function setHomeWallpaperOverlay(value: WallpaperOverlay): Promise<void> {
+  if (value === null) {
+    await AsyncStorage.removeItem(HOME_WALLPAPER_OVERLAY_KEY)
+  } else {
+    await AsyncStorage.setItem(HOME_WALLPAPER_OVERLAY_KEY, value)
+  }
+}
+
+export async function getHomeWallpaperOpacity(): Promise<WallpaperOpacity> {
+  const stored = await AsyncStorage.getItem(HOME_WALLPAPER_OPACITY_KEY)
+  if (stored) {
+    const parsed = parseInt(stored, 10)
+    if (parsed >= 30 && parsed <= 90) return parsed
+  }
+  return 70
+}
+
+export async function setHomeWallpaperOpacity(value: WallpaperOpacity): Promise<void> {
+  await AsyncStorage.setItem(HOME_WALLPAPER_OPACITY_KEY, String(value))
+}
+
+export async function getThreadWallpaper(): Promise<WallpaperImage> {
+  const stored = await AsyncStorage.getItem(THREAD_WALLPAPER_KEY)
+  if (stored) {
+    const parsed = parseInt(stored, 10)
+    if (parsed >= 1 && parsed <= 16) return parsed
+  }
+  return null
+}
+
+export async function setThreadWallpaper(value: WallpaperImage): Promise<void> {
+  if (value === null) {
+    await AsyncStorage.removeItem(THREAD_WALLPAPER_KEY)
+  } else {
+    await AsyncStorage.setItem(THREAD_WALLPAPER_KEY, String(value))
+  }
+}
+
+export async function getThreadWallpaperOverlay(): Promise<WallpaperOverlay> {
+  return (await AsyncStorage.getItem(THREAD_WALLPAPER_OVERLAY_KEY)) ?? 'neutral'
+}
+
+export async function setThreadWallpaperOverlay(value: WallpaperOverlay): Promise<void> {
+  if (value === null) {
+    await AsyncStorage.removeItem(THREAD_WALLPAPER_OVERLAY_KEY)
+  } else {
+    await AsyncStorage.setItem(THREAD_WALLPAPER_OVERLAY_KEY, value)
+  }
+}
+
+export async function getThreadWallpaperOpacity(): Promise<WallpaperOpacity> {
+  const stored = await AsyncStorage.getItem(THREAD_WALLPAPER_OPACITY_KEY)
+  if (stored) {
+    const parsed = parseInt(stored, 10)
+    if (parsed >= 30 && parsed <= 90) return parsed
+  }
+  return 70
+}
+
+export async function setThreadWallpaperOpacity(value: WallpaperOpacity): Promise<void> {
+  await AsyncStorage.setItem(THREAD_WALLPAPER_OPACITY_KEY, String(value))
+}
+
+// App Lock
+export async function getAppLockEnabled(): Promise<boolean> {
+  const stored = await AsyncStorage.getItem(APP_LOCK_ENABLED_KEY)
+  return stored === 'true'
+}
+
+export async function setAppLockEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(APP_LOCK_ENABLED_KEY, enabled ? 'true' : 'false')
+}
+
+export async function getAppLockPinHash(): Promise<string | null> {
+  return AsyncStorage.getItem(APP_LOCK_PIN_HASH_KEY)
+}
+
+export async function setAppLockPinHash(hash: string | null): Promise<void> {
+  if (hash) {
+    await AsyncStorage.setItem(APP_LOCK_PIN_HASH_KEY, hash)
+  } else {
+    await AsyncStorage.removeItem(APP_LOCK_PIN_HASH_KEY)
+  }
+}
+
+export async function getAppLockTimeout(): Promise<number> {
+  const stored = await AsyncStorage.getItem(APP_LOCK_TIMEOUT_KEY)
+  if (stored) {
+    const parsed = parseInt(stored, 10)
+    if (!isNaN(parsed) && parsed >= 0) return parsed
+  }
+  return 0 // immediate
+}
+
+export async function setAppLockTimeout(seconds: number): Promise<void> {
+  await AsyncStorage.setItem(APP_LOCK_TIMEOUT_KEY, String(seconds))
+}
+
+// Encryption
+export async function getEncryptionSalt(): Promise<string | null> {
+  return AsyncStorage.getItem(ENCRYPTION_SALT_KEY)
+}
+
+export async function setEncryptionSalt(salt: string | null): Promise<void> {
+  if (salt) {
+    await AsyncStorage.setItem(ENCRYPTION_SALT_KEY, salt)
+  } else {
+    await AsyncStorage.removeItem(ENCRYPTION_SALT_KEY)
+  }
+}
+
+export async function getEncryptionEnabled(): Promise<boolean> {
+  const stored = await AsyncStorage.getItem(ENCRYPTION_ENABLED_KEY)
+  return stored === 'true'
+}
+
+export async function setEncryptionEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(ENCRYPTION_ENABLED_KEY, enabled ? 'true' : 'false')
+}
+
 function generateId(): string {
   const timestamp = Date.now().toString(36)
   const randomPart = Math.random().toString(36).substring(2, 15)
@@ -178,7 +334,7 @@ export async function clearAuthToken(): Promise<void> {
 }
 
 export async function clearAll(): Promise<void> {
-  await AsyncStorage.multiRemove([DEVICE_ID_KEY, USER_KEY, AUTH_TOKEN_KEY, THEME_KEY, SYNC_ENABLED_KEY, NOTE_FONT_SCALE_KEY, NOTE_VIEW_STYLE_KEY, APP_FONT_KEY, THREAD_VIEW_STYLE_KEY, MINIMAL_MODE_KEY, MINIMAL_MODE_THREAD_ID_KEY, LINK_PREVIEW_MODE_KEY])
+  await AsyncStorage.multiRemove([DEVICE_ID_KEY, USER_KEY, AUTH_TOKEN_KEY, THEME_KEY, SYNC_ENABLED_KEY, NOTE_FONT_SCALE_KEY, NOTE_VIEW_STYLE_KEY, APP_FONT_KEY, THREAD_VIEW_STYLE_KEY, MINIMAL_MODE_KEY, MINIMAL_MODE_THREAD_ID_KEY, LINK_PREVIEW_MODE_KEY, HOME_WALLPAPER_KEY, HOME_WALLPAPER_OVERLAY_KEY, HOME_WALLPAPER_OPACITY_KEY, THREAD_WALLPAPER_KEY, THREAD_WALLPAPER_OVERLAY_KEY, THREAD_WALLPAPER_OPACITY_KEY, APP_LOCK_ENABLED_KEY, APP_LOCK_PIN_HASH_KEY, APP_LOCK_TIMEOUT_KEY, ENCRYPTION_SALT_KEY, ENCRYPTION_ENABLED_KEY])
 }
 
 /**

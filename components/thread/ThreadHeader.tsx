@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { TextInput, Image } from 'react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
+import { useWallpaper } from '../../contexts/WallpaperContext'
 import type { ThreadWithLastNote } from '../../types'
 
 function getInitials(name: string): string {
@@ -63,7 +64,8 @@ export function ThreadHeader({
   searchResultCount = 0,
 }: ThreadHeaderProps) {
   const insets = useSafeAreaInsets()
-  const { iconColorStrong, brandText, iconColor, colorSubtle } = useThemeColor()
+  const { iconColorStrong, brandText, iconColor, colorSubtle, backgroundStrong } = useThemeColor()
+  const { threadWallpaper } = useWallpaper()
   const [menuOpen, setMenuOpen] = useState(false)
   const inputRef = useRef<TextInput>(null)
   const searchInputRef = useRef<TextInput>(null)
@@ -95,7 +97,6 @@ export function ThreadHeader({
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$2"
       >
@@ -109,7 +110,7 @@ export function ThreadHeader({
 
         <XStack
           flex={1}
-          backgroundColor="$backgroundStrong"
+          backgroundColor={threadWallpaper ? backgroundStrong + '80' : '$backgroundStrong'}
           borderRadius="$3"
           paddingHorizontal="$3"
           alignItems="center"
@@ -164,7 +165,6 @@ export function ThreadHeader({
       paddingTop={insets.top + 8}
       paddingHorizontal="$4"
       paddingBottom="$2"
-      backgroundColor="$background"
       alignItems="center"
       gap="$2"
     >
@@ -214,8 +214,10 @@ export function ThreadHeader({
             value={thread.name}
             onChangeText={onNameChange}
             onSubmitEditing={onNameSubmit}
+            onBlur={onNameSubmit}
             selectTextOnFocus
             returnKeyType="done"
+            maxLength={32}
           />
         ) : (
           <Text fontSize="$5" fontWeight="600" numberOfLines={1} flex={1} color="$color">
@@ -224,82 +226,94 @@ export function ThreadHeader({
         )}
       </XStack>
 
-      <Button
-        size="$3"
-        circular
-        chromeless
-        onPress={onSearch}
-        icon={<Ionicons name="search" size={22} color={iconColorStrong} />}
-      />
-
-      <XStack position="relative">
+      {isEditingName ? (
         <Button
           size="$3"
           circular
           chromeless
-          onPress={onTasks}
-          icon={<Ionicons name="alarm-outline" size={22} color={iconColorStrong} />}
+          onPress={onNameSubmit}
+          icon={<Ionicons name="checkmark" size={24} color={iconColorStrong} />}
         />
-        {taskCount > 0 && (
-          <XStack
-            position="absolute"
-            top={6}
-            right={6}
-            backgroundColor="$errorColor"
-            borderRadius={7}
-            minWidth={14}
-            height={14}
-            alignItems="center"
-            justifyContent="center"
-            onPress={onTasks}
-          >
-            <Text color={brandText} fontSize={9} fontWeight="700">
-              {taskCount > 99 ? '99+' : taskCount}
-            </Text>
-          </XStack>
-        )}
-      </XStack>
-
-      <Popover open={menuOpen} onOpenChange={setMenuOpen} placement="bottom-end">
-        <Popover.Trigger asChild>
+      ) : (
+        <>
           <Button
             size="$3"
             circular
             chromeless
-            icon={<Ionicons name="ellipsis-vertical" size={22} color={iconColorStrong} />}
+            onPress={onSearch}
+            icon={<Ionicons name="search" size={22} color={iconColorStrong} />}
           />
-        </Popover.Trigger>
-        <Popover.Content
-          backgroundColor="$background"
-          borderWidth={1}
-          borderColor="$borderColor"
-          borderRadius="$3"
-          padding="$1"
-          elevation={4}
-          enterStyle={{ opacity: 0, y: -10 }}
-          exitStyle={{ opacity: 0, y: -10 }}
-          animation="quick"
-          right={0}
-        >
-          <YStack>
-            {menuOptions.map((option) => (
+
+          <XStack position="relative">
+            <Button
+              size="$3"
+              circular
+              chromeless
+              onPress={onTasks}
+              icon={<Ionicons name="alarm-outline" size={22} color={iconColorStrong} />}
+            />
+            {taskCount > 0 && (
               <XStack
-                key={option.id}
-                paddingHorizontal="$3"
-                paddingVertical="$2.5"
-                gap="$3"
+                position="absolute"
+                top={6}
+                right={6}
+                backgroundColor="$errorColor"
+                borderRadius={7}
+                minWidth={14}
+                height={14}
                 alignItems="center"
-                pressStyle={{ backgroundColor: '$backgroundStrong' }}
-                borderRadius="$2"
-                onPress={() => handleMenuSelect(option.id)}
+                justifyContent="center"
+                onPress={onTasks}
               >
-                <Ionicons name={option.icon as any} size={20} color={iconColor} />
-                <Text fontSize="$3" color="$color">{option.label}</Text>
+                <Text color={brandText} fontSize={9} fontWeight="700">
+                  {taskCount > 99 ? '99+' : taskCount}
+                </Text>
               </XStack>
-            ))}
-          </YStack>
-        </Popover.Content>
-      </Popover>
+            )}
+          </XStack>
+
+          <Popover open={menuOpen} onOpenChange={setMenuOpen} placement="bottom-end">
+            <Popover.Trigger asChild>
+              <Button
+                size="$3"
+                circular
+                chromeless
+                icon={<Ionicons name="ellipsis-vertical" size={22} color={iconColorStrong} />}
+              />
+            </Popover.Trigger>
+            <Popover.Content
+              backgroundColor="$background"
+              borderWidth={1}
+              borderColor="$borderColor"
+              borderRadius="$3"
+              padding="$1"
+              elevation={4}
+              enterStyle={{ opacity: 0, y: -10 }}
+              exitStyle={{ opacity: 0, y: -10 }}
+              animation="quick"
+              right={0}
+            >
+              <YStack>
+                {menuOptions.map((option) => (
+                  <XStack
+                    key={option.id}
+                    paddingHorizontal="$3"
+                    paddingVertical="$2.5"
+                    gap="$3"
+                    alignItems="center"
+                    pressStyle={{ backgroundColor: '$backgroundStrong' }}
+                    borderRadius="$2"
+                    onPress={() => handleMenuSelect(option.id)}
+                  >
+                    <Ionicons name={option.icon as any} size={20} color={iconColor} />
+                    <Text fontSize="$3" color="$color">{option.label}</Text>
+                  </XStack>
+                ))}
+              </YStack>
+            </Popover.Content>
+          </Popover>
+        </>
+      )}
     </XStack>
   )
 }

@@ -82,7 +82,7 @@ export function useUpdateThread() {
       data,
     }: {
       id: string
-      data: Partial<{ name: string; icon: string | null; isPinned: boolean; wallpaper: string | null }>
+      data: Partial<{ name: string; icon: string | null; isPinned: boolean; isLocked: boolean; wallpaper: string | null }>
     }) => threadRepo.update(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['threads'] })
@@ -102,6 +102,7 @@ export function useDeleteThread() {
     mutationFn: (id: string) => threadRepo.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['threads'] })
+      queryClient.invalidateQueries({ queryKey: ['trash'] })
       schedulePush()
     },
   })

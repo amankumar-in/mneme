@@ -2,6 +2,7 @@ import { XStack, Text } from 'tamagui'
 
 interface DateSeparatorProps {
   date: Date
+  label?: string
 }
 
 function formatDateSeparator(date: Date): string {
@@ -38,7 +39,7 @@ function formatDateSeparator(date: Date): string {
   })
 }
 
-export function DateSeparator({ date }: DateSeparatorProps) {
+export function DateSeparator({ date, label }: DateSeparatorProps) {
   return (
     <XStack justifyContent="center" marginVertical="$3">
       <XStack
@@ -48,7 +49,7 @@ export function DateSeparator({ date }: DateSeparatorProps) {
         borderRadius="$10"
       >
         <Text fontSize="$2" color="$gray11">
-          {formatDateSeparator(date)}
+          {label || formatDateSeparator(date)}
         </Text>
       </XStack>
     </XStack>

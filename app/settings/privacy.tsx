@@ -3,6 +3,7 @@ import { YStack, XStack, Text, Button } from 'tamagui'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import { ScreenBackground } from '../../components/ScreenBackground'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import { useUser, useUpdateUser } from '../../hooks/useUser'
 
@@ -86,12 +87,11 @@ export default function PrivacyScreen() {
   }, [router])
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         gap="$2"
         borderBottomWidth={1}
@@ -164,6 +164,6 @@ export default function PrivacyScreen() {
           </XStack>
         </YStack>
       </YStack>
-    </YStack>
+    </ScreenBackground>
   )
 }

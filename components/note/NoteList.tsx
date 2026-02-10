@@ -33,7 +33,7 @@ export interface NoteListRef {
 
 type ListItem =
   | { type: 'note'; data: NoteWithDetails }
-  | { type: 'date'; date: Date; id: string }
+  | { type: 'date'; date: Date; id: string; label?: string }
 
 function isSameDay(date1: Date, date2: Date): boolean {
   return (
@@ -46,8 +46,12 @@ function isSameDay(date1: Date, date2: Date): boolean {
 function processNotes(notes: NoteWithDetails[]): ListItem[] {
   const items: ListItem[] = []
 
-  // Sort newest first (for inverted list)
-  const sortedNotes = [...notes].sort(
+  // Separate pinned and unpinned notes
+  const pinnedNotes = notes.filter(n => n.isPinned)
+  const unpinnedNotes = notes.filter(n => !n.isPinned)
+
+  // Sort unpinned newest first (for inverted list)
+  const sortedNotes = [...unpinnedNotes].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
 
@@ -69,6 +73,18 @@ function processNotes(notes: NoteWithDetails[]): ListItem[] {
         id: `date-${noteDate.toDateString()}`,
       })
     }
+  }
+
+  // Add pinned notes at the end (they appear at top in inverted list)
+  if (pinnedNotes.length > 0) {
+    // Sort pinned notes newest first
+    const sortedPinned = [...pinnedNotes].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    items.push({ type: 'date', date: new Date(), id: 'date-pinned', label: 'Pinned' })
+    sortedPinned.forEach(note => {
+      items.push({ type: 'note', data: note })
+    })
   }
 
   return items
@@ -127,7 +143,7 @@ export const NoteList = forwardRef<NoteListRef, NoteListProps>(({
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => {
       if (item.type === 'date') {
-        return <DateSeparator date={item.date} />
+        return <DateSeparator date={item.date} label={item.label} />
       }
       return (
         <NoteBubble

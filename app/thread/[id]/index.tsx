@@ -1,7 +1,7 @@
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, BackHandler, Keyboard, Platform } from 'react-native'
+import { ActivityIndicator, Alert, BackHandler, ImageBackground, Keyboard, Platform, StyleSheet, View as RNView } from 'react-native'
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Text, XStack, YStack } from 'tamagui'
@@ -14,11 +14,14 @@ import { ThreadHeader } from '../../../components/thread/ThreadHeader'
 import { VideoPlayerModal } from '../../../components/note/VideoPlayerModal'
 import { useAudioPlayer } from '../../../hooks/useAudioPlayer'
 import { useVoiceRecorder } from '../../../hooks/useVoiceRecorder'
-import { useCompleteTask, useDeleteNote, useLockNote, useNotes, useSendNote, useSetNoteTask, useStarNote, useUpdateNote } from '../../../hooks/useNotes'
+import { useCompleteTask, useDeleteNote, useLockNote, useNotes, usePinNote, useSendNote, useSetNoteTask, useStarNote, useUpdateNote } from '../../../hooks/useNotes'
 import { useThread, useUpdateThread } from '../../../hooks/useThreads'
 import { useExportThread } from '../../../hooks/useExportThread'
 import { useShortcuts } from '../../../hooks/useShortcuts'
 import { useAttachmentHandler, type AttachmentResult } from '../../../hooks/useAttachmentHandler'
+import { useWallpaper } from '../../../contexts/WallpaperContext'
+import { useAppTheme } from '../../../contexts/ThemeContext'
+import { WALLPAPERS, resolveOverlayHex } from '../../../constants/wallpapers'
 import * as Clipboard from 'expo-clipboard'
 import * as Haptics from 'expo-haptics'
 import { setContactPickerCallback } from '../../../services/contactPickerStore'
@@ -73,10 +76,14 @@ export default function ThreadScreen() {
   const deleteNoteMutation = useDeleteNote(threadId)
   const lockNoteMutation = useLockNote(threadId)
   const starNoteMutation = useStarNote(threadId)
+  const pinNoteMutation = usePinNote(threadId)
   const setNoteTaskMutation = useSetNoteTask(threadId)
   const completeTaskMutation = useCompleteTask(threadId)
   const { exportThread, isExporting } = useExportThread()
   const { addShortcut } = useShortcuts()
+  const { threadWallpaper, threadOverlayColor, threadOverlayOpacity } = useWallpaper()
+  const { resolvedTheme } = useAppTheme()
+  const threadOverlayHex = resolveOverlayHex(threadOverlayColor, resolvedTheme === 'dark')
 
   const notes = notesData?.pages.flatMap(page => page.notes) ?? []
   const isLoading = notesLoading
@@ -121,9 +128,19 @@ export default function ThreadScreen() {
     return flashNoteId
   }, [searchResults, searchResultIndex, flashNoteId])
 
+  const handleNameSubmit = useCallback(() => {
+    if (editedName.trim() && editedName !== thread?.name) {
+      updateThread.mutate({ id: id || '', data: { name: editedName.trim() } })
+    }
+    setIsEditingName(false)
+  }, [editedName, thread?.name, updateThread, id])
+
   const handleBack = useCallback(() => {
+    if (isEditingName) {
+      handleNameSubmit()
+    }
     router.back()
-  }, [router])
+  }, [router, isEditingName, handleNameSubmit])
 
   const handleThreadPress = useCallback(() => {
     router.push(`/thread/${id}/info`)
@@ -212,15 +229,8 @@ export default function ThreadScreen() {
   }, [hasNextPage, fetchNextPage])
 
   const handleNameChange = useCallback((name: string) => {
-    setEditedName(name)
+    setEditedName(name.slice(0, 32))
   }, [])
-
-  const handleNameSubmit = useCallback(() => {
-    if (editedName.trim() && editedName !== thread?.name) {
-      updateThread.mutate({ id: id || '', data: { name: editedName.trim() } })
-    }
-    setIsEditingName(false)
-  }, [editedName, thread?.name, updateThread, id])
 
   const handleSend = useCallback(
     (note: { content?: string; type: NoteType }) => {
@@ -291,6 +301,24 @@ export default function ThreadScreen() {
     })
     return () => handler.remove()
   }, [isSelectionMode])
+
+  useEffect(() => {
+    if (!showAttachments) return
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      setShowAttachments(false)
+      return true
+    })
+    return () => handler.remove()
+  }, [showAttachments])
+
+  useEffect(() => {
+    if (!isEditingName) return
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleNameSubmit()
+      return true
+    })
+    return () => handler.remove()
+  }, [isEditingName, handleNameSubmit])
 
   const handleNoteLongPress = useCallback((note: NoteWithDetails) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
@@ -476,6 +504,18 @@ export default function ThreadScreen() {
     handleClearSelection()
   }, [selectedNotes, starNoteMutation, handleClearSelection])
 
+  const handleSelectionPin = useCallback(() => {
+    const shouldPin = !selectedNotes.every(n => n.isPinned)
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    selectedNotes.forEach(n => {
+      pinNoteMutation.mutate({
+        noteId: n.id,
+        isPinned: shouldPin,
+      })
+    })
+    handleClearSelection()
+  }, [selectedNotes, pinNoteMutation, handleClearSelection])
+
   const handleTaskToggle = useCallback((note: NoteWithDetails) => {
     if (!note.task.isCompleted) {
       completeTaskMutation.mutate(note.id)
@@ -582,6 +622,7 @@ export default function ThreadScreen() {
     icon: null,
     isPinned: false,
     isSystemThread: false,
+    isLocked: false,
     wallpaper: null,
     lastNote: null,
     syncStatus: 'pending',
@@ -599,7 +640,23 @@ export default function ThreadScreen() {
   }
 
   return (
-    <YStack flex={1} backgroundColor="$background" paddingBottom={insets.bottom}>
+    <YStack flex={1} backgroundColor={threadWallpaper ? 'transparent' : '$background'} paddingBottom={insets.bottom}>
+      {threadWallpaper && (
+        <ImageBackground
+          source={WALLPAPERS[threadWallpaper]}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        >
+          {threadOverlayHex && (
+            <RNView
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: threadOverlayHex, opacity: threadOverlayOpacity / 100 },
+              ]}
+            />
+          )}
+        </ImageBackground>
+      )}
       <ThreadHeader
         thread={{ ...displayThread, name: isEditingName ? editedName : displayThread.name }}
         onBack={isSearching ? handleSearchClose : handleBack}
@@ -653,9 +710,11 @@ export default function ThreadScreen() {
             onTask={handleSelectionTask}
             onEdit={handleSelectionEdit}
             onStar={handleSelectionStar}
+            onPin={handleSelectionPin}
             allLocked={selectedNotes.every(n => n.isLocked)}
             allStarred={selectedNotes.every(n => n.isStarred)}
             allTasks={selectedNotes.every(n => n.task?.isTask)}
+            allPinned={selectedNotes.every(n => n.isPinned)}
             canEdit={selectedNoteIds.size === 1}
           />
         ) : thread?.isSystemThread ? (

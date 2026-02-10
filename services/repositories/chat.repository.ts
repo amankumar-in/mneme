@@ -361,6 +361,8 @@ export class ThreadRepository {
       name: row.name,
       icon: row.icon,
       isPinned: toBoolean(row.is_pinned),
+      isSystemThread: toBoolean(row.is_system_thread),
+      isLocked: toBoolean(row.is_locked),
       wallpaper: row.wallpaper,
       lastNote:
         row.last_note_content || row.last_note_type

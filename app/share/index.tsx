@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useShareIntent } from 'expo-share-intent'
+import { ScreenBackground } from '../../components/ScreenBackground'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import { SharePreview } from '../../components/share/SharePreview'
 import { ThreadPicker } from '../../components/share/ThreadPicker'
@@ -50,13 +51,12 @@ export default function ShareScreen() {
   }, [selectedThreadId, hasShareIntent, shareIntent, caption, processShareIntent, resetShareIntent, router])
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <ScreenBackground>
       {/* Header */}
       <XStack
         paddingTop={insets.top + 8}
         paddingHorizontal="$4"
         paddingBottom="$2"
-        backgroundColor="$background"
         alignItems="center"
         justifyContent="space-between"
         borderBottomWidth={1}
@@ -132,7 +132,6 @@ export default function ShareScreen() {
         paddingBottom={insets.bottom + 8}
         borderTopWidth={1}
         borderTopColor="$borderColor"
-        backgroundColor="$background"
       >
         <Button
           size="$5"
@@ -147,6 +146,6 @@ export default function ShareScreen() {
           </Text>
         </Button>
       </YStack>
-    </YStack>
+    </ScreenBackground>
   )
 }

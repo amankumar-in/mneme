@@ -239,6 +239,21 @@ export class NoteRepository {
   }
 
   /**
+   * Toggle note pin status
+   */
+  async setPinned(id: string, isPinned: boolean): Promise<NoteWithDetails | null> {
+    const now = getTimestamp()
+
+    await this.db.runAsync(
+      `UPDATE notes SET is_pinned = ?, sync_status = 'pending', updated_at = ?
+       WHERE id = ?`,
+      [fromBoolean(isPinned), now, id]
+    )
+
+    return this.getById(id)
+  }
+
+  /**
    * Toggle note star status
    */
   async setStarred(id: string, isStarred: boolean): Promise<NoteWithDetails | null> {
@@ -726,6 +741,51 @@ export class NoteRepository {
   }
 
   /**
+   * Get deleted notes (trash)
+   */
+  async getDeleted(): Promise<NoteWithDetails[]> {
+    const rows = await this.db.getAllAsync<NoteRow>(
+      `SELECT n.*, t.name as thread_name
+       FROM notes n
+       LEFT JOIN threads t ON n.thread_id = t.id
+       WHERE n.deleted_at IS NOT NULL
+       ORDER BY n.deleted_at DESC`
+    )
+    return rows.map((row) => this.mapToNote(row))
+  }
+
+  /**
+   * Restore a deleted note
+   */
+  async restore(id: string): Promise<void> {
+    const now = getTimestamp()
+    await this.db.runAsync(
+      `UPDATE notes SET deleted_at = NULL, sync_status = 'pending', updated_at = ?
+       WHERE id = ?`,
+      [now, id]
+    )
+  }
+
+  /**
+   * Permanently delete a note (hard delete)
+   */
+  async permanentlyDelete(id: string): Promise<void> {
+    await this.db.runAsync(`DELETE FROM notes WHERE id = ?`, [id])
+  }
+
+  /**
+   * Purge notes deleted more than given days ago
+   */
+  async purgeOlderThan(days: number): Promise<number> {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+    const result = await this.db.runAsync(
+      `DELETE FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
+      [cutoff]
+    )
+    return result.changes
+  }
+
+  /**
    * Get text notes that contain URLs but have no link preview data yet.
    * Used for backfilling previews when the app comes online.
    */
@@ -847,6 +907,7 @@ export class NoteRepository {
       isLocked: toBoolean(row.is_locked),
       isStarred: toBoolean(row.is_starred),
       isEdited: toBoolean(row.is_edited),
+      isPinned: toBoolean(row.is_pinned),
       task: {
         isTask: toBoolean(row.is_task),
         reminderAt: row.reminder_at ?? undefined,
