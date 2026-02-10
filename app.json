@@ -12,6 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.xcore.laterbox",
       "buildNumber": "1",
+      "deploymentTarget": "16.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
