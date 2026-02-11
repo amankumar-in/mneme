@@ -7,6 +7,7 @@ import type { Board } from '../../types'
 
 interface BoardHeaderProps {
   board: Board
+  zoom: number
   onBack: () => void
   onBoardPress: () => void
   onShare: () => void
@@ -20,9 +21,11 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-export function BoardHeader({ board, onBack, onBoardPress, onShare }: BoardHeaderProps) {
+export function BoardHeader({ board, zoom, onBack, onBoardPress, onShare }: BoardHeaderProps) {
   const insets = useSafeAreaInsets()
   const { iconColorStrong, brandText } = useThemeColor()
+
+  const zoomPercent = Math.round(zoom * 100)
 
   return (
     <XStack
@@ -76,13 +79,16 @@ export function BoardHeader({ board, onBack, onBoardPress, onShare }: BoardHeade
         </Text>
       </XStack>
 
-      <Button
-        size="$3"
-        circular
-        chromeless
-        onPress={onShare}
-        icon={<Ionicons name="share-outline" size={22} color={iconColorStrong} />}
-      />
+      <XStack gap="$2" alignItems="center">
+        <Text color="$colorSubtle" fontSize="$2">{zoomPercent}%</Text>
+        <Button
+          size="$3"
+          circular
+          chromeless
+          onPress={onShare}
+          icon={<Ionicons name="share-outline" size={22} color={iconColorStrong} />}
+        />
+      </XStack>
     </XStack>
   )
 }

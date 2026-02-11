@@ -1,6 +1,6 @@
 // SQLite schema definitions for offline-first architecture
 
-export const DATABASE_VERSION = 8
+export const DATABASE_VERSION = 9
 export const DATABASE_NAME = 'laterbox.db'
 
 // Schema for version 1
@@ -189,6 +189,7 @@ export const SCHEMA_V1 = `
     stroke_width REAL,
     fill_color TEXT,
     font_size REAL,
+    font_weight TEXT,
     sync_status TEXT NOT NULL DEFAULT 'pending',
     deleted_at TEXT,
     created_at TEXT NOT NULL,
@@ -432,5 +433,8 @@ export const MIGRATIONS: Record<number, string> = {
     );
     CREATE INDEX IF NOT EXISTS idx_board_connections_board_id ON board_connections(board_id);
     CREATE INDEX IF NOT EXISTS idx_board_connections_deleted_at ON board_connections(deleted_at);
+  `,
+  9: `
+    ALTER TABLE board_items ADD COLUMN font_weight TEXT;
   `,
 }

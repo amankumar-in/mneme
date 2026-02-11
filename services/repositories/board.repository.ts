@@ -128,8 +128,8 @@ export class BoardRepository {
     const zIndex = (maxZ?.max_z ?? 0) + 1
 
     await this.db.runAsync(
-      `INSERT INTO board_items (id, board_id, type, x, y, width, height, rotation, z_index, content, image_uri, audio_uri, audio_duration, stroke_color, stroke_width, fill_color, font_size, sync_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      `INSERT INTO board_items (id, board_id, type, x, y, width, height, rotation, z_index, content, image_uri, audio_uri, audio_duration, stroke_color, stroke_width, fill_color, font_size, font_weight, sync_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
       [
         id, input.boardId, input.type, input.x, input.y,
         input.width ?? 0, input.height ?? 0, zIndex,
@@ -137,6 +137,7 @@ export class BoardRepository {
         input.audioUri ?? null, input.audioDuration ?? null,
         input.strokeColor ?? null, input.strokeWidth ?? null,
         input.fillColor ?? null, input.fontSize ?? null,
+        input.fontWeight ?? null,
         now, now,
       ]
     )
@@ -176,6 +177,7 @@ export class BoardRepository {
     if (input.strokeWidth !== undefined) { updates.push('stroke_width = ?'); values.push(input.strokeWidth) }
     if (input.fillColor !== undefined) { updates.push('fill_color = ?'); values.push(input.fillColor) }
     if (input.fontSize !== undefined) { updates.push('font_size = ?'); values.push(input.fontSize) }
+    if (input.fontWeight !== undefined) { updates.push('font_weight = ?'); values.push(input.fontWeight) }
 
     if (updates.length === 0) return this.getItemById(id)
 
@@ -362,6 +364,7 @@ export class BoardRepository {
       strokeWidth: row.stroke_width,
       fillColor: row.fill_color,
       fontSize: row.font_size,
+      fontWeight: row.font_weight,
       syncStatus: row.sync_status as SyncStatus,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

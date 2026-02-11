@@ -11,7 +11,7 @@ interface ConnectionsLayerProps {
   translateY: number
   scale: number
   selectedConnectionId: string | null
-  onConnectionPress?: (id: string) => void
+  localOverride?: { id: string; x: number; y: number; width: number; height: number } | null
 }
 
 function getEdgeMidpoint(
@@ -19,12 +19,17 @@ function getEdgeMidpoint(
   side: string,
   translateX: number,
   translateY: number,
-  scale: number
+  scale: number,
+  override?: { x: number; y: number; width: number; height: number } | null
 ): { x: number; y: number } {
-  const x = item.x * scale + translateX
-  const y = item.y * scale + translateY
-  const w = item.width * scale
-  const h = item.height * scale
+  const ix = override ? override.x : item.x
+  const iy = override ? override.y : item.y
+  const iw = override ? override.width : item.width
+  const ih = override ? override.height : item.height
+  const x = ix * scale + translateX
+  const y = iy * scale + translateY
+  const w = iw * scale
+  const h = ih * scale
 
   switch (side) {
     case 'top': return { x: x + w / 2, y }
@@ -44,6 +49,7 @@ export function ConnectionsLayer({
   translateY,
   scale,
   selectedConnectionId,
+  localOverride,
 }: ConnectionsLayerProps) {
   const itemMap = useMemo(() => {
     const map = new Map<string, BoardItem>()
@@ -57,8 +63,11 @@ export function ConnectionsLayer({
       const toItem = itemMap.get(conn.toItemId)
       if (!fromItem || !toItem) return null
 
-      const from = getEdgeMidpoint(fromItem, conn.fromSide, translateX, translateY, scale)
-      const to = getEdgeMidpoint(toItem, conn.toSide, translateX, translateY, scale)
+      const fromOv = localOverride?.id === fromItem.id ? localOverride : null
+      const toOv = localOverride?.id === toItem.id ? localOverride : null
+
+      const from = getEdgeMidpoint(fromItem, conn.fromSide, translateX, translateY, scale, fromOv)
+      const to = getEdgeMidpoint(toItem, conn.toSide, translateX, translateY, scale, toOv)
 
       const isSelected = selectedConnectionId === conn.id
 
@@ -107,7 +116,7 @@ export function ConnectionsLayer({
 
       return { conn, path, arrowPath, isSelected }
     }).filter(Boolean) as { conn: BoardConnection; path: any; arrowPath: any; isSelected: boolean }[]
-  }, [connections, itemMap, translateX, translateY, scale, selectedConnectionId])
+  }, [connections, itemMap, translateX, translateY, scale, selectedConnectionId, localOverride])
 
   return (
     <Canvas

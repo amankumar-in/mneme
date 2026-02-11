@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Canvas, Path, Skia } from '@shopify/react-native-skia'
 import type { BoardStroke } from '../../types'
+import { resolveStrokeColor } from './DrawingToolbar'
 
 interface StrokeLayerProps {
   strokes: BoardStroke[]
@@ -12,6 +13,8 @@ interface StrokeLayerProps {
   translateX: number
   translateY: number
   scale: number
+  isDark: boolean
+  selectedStrokeId?: string | null
 }
 
 export function StrokeLayer({
@@ -24,11 +27,13 @@ export function StrokeLayer({
   translateX,
   translateY,
   scale,
+  isDark,
+  selectedStrokeId,
 }: StrokeLayerProps) {
   const strokeElements = useMemo(() => {
-    return strokes.map((stroke) => {
+    return strokes.flatMap((stroke) => {
       const path = Skia.Path.MakeFromSVGString(stroke.pathData)
-      if (!path) return null
+      if (!path) return []
 
       // Apply offset transform for moved strokes
       const matrix = Skia.Matrix()
@@ -39,11 +44,30 @@ export function StrokeLayer({
       matrix.scale(scale, scale)
       path.transform(matrix)
 
-      return (
+      const isSelected = stroke.id === selectedStrokeId
+      const elements = []
+
+      // Selection highlight — render a thicker semi-transparent path behind the stroke
+      if (isSelected) {
+        elements.push(
+          <Path
+            key={`${stroke.id}-sel`}
+            path={path}
+            color="#3b82f6"
+            style="stroke"
+            strokeWidth={(stroke.width + 8) * scale}
+            strokeCap="round"
+            strokeJoin="round"
+            opacity={0.35}
+          />
+        )
+      }
+
+      elements.push(
         <Path
           key={stroke.id}
           path={path}
-          color={stroke.color}
+          color={resolveStrokeColor(stroke.color, isDark)}
           style="stroke"
           strokeWidth={stroke.width * scale}
           strokeCap="round"
@@ -51,8 +75,10 @@ export function StrokeLayer({
           opacity={stroke.opacity}
         />
       )
+
+      return elements
     })
-  }, [strokes, translateX, translateY, scale])
+  }, [strokes, translateX, translateY, scale, isDark, selectedStrokeId])
 
   const activePath = useMemo(() => {
     if (!currentPath) return null

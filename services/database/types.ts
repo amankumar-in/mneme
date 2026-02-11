@@ -352,6 +352,7 @@ export interface BoardItemRow {
   stroke_width: number | null
   fill_color: string | null
   font_size: number | null
+  font_weight: string | null
   sync_status: string
   deleted_at: string | null
   created_at: string
@@ -421,6 +422,7 @@ export interface BoardItem {
   strokeWidth: number | null
   fillColor: string | null
   fontSize: number | null
+  fontWeight: string | null
   syncStatus: SyncStatus
   createdAt: string
   updatedAt: string
@@ -482,6 +484,7 @@ export interface CreateBoardItemInput {
   strokeWidth?: number | null
   fillColor?: string | null
   fontSize?: number | null
+  fontWeight?: string | null
 }
 
 export interface UpdateBoardItemInput {
@@ -496,6 +499,7 @@ export interface UpdateBoardItemInput {
   strokeWidth?: number | null
   fillColor?: string | null
   fontSize?: number | null
+  fontWeight?: string | null
 }
 
 export interface CreateBoardStrokeInput {

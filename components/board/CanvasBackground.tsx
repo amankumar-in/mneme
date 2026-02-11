@@ -26,8 +26,8 @@ export function CanvasBackground({
 }: CanvasBackgroundProps) {
   const { borderColor, colorSubtle } = useThemeColor()
 
-  // Use a subtle color for patterns
-  const patternColor = borderColor + '40' // ~25% opacity
+  // Use a subtle color for patterns - slightly increased visibility
+  const patternColor = borderColor + '80' // ~50% opacity
 
   const elements = useMemo(() => {
     if (patternType === 'plain') return null

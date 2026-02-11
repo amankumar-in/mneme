@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { XStack, YStack } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
 import { useThemeColor } from '../../hooks/useThemeColor'
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated'
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'
 
 interface FlyMenuProps {
   visible: boolean
@@ -31,63 +31,70 @@ export function FlyMenu({ visible, x, y, onImage, onRectangle, onAudio, onDismis
   if (!visible) return null
 
   return (
-    <Animated.View
-      style={[
-        {
-          position: 'absolute',
-          left: x - 75,
-          top: y - 50,
-          zIndex: 1000,
-        },
-        animatedStyle,
-      ]}
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1000,
+      }}
     >
-      <XStack
-        backgroundColor="$backgroundStrong"
-        borderRadius="$4"
-        padding="$2"
-        gap="$1"
-        elevation={8}
-        borderWidth={1}
-        borderColor="$borderColor"
+      {/* The menu pill */}
+      <Animated.View
+        style={[
+          {
+            position: 'absolute',
+            left: x - 55,
+            top: y - 42,
+          },
+          animatedStyle,
+        ]}
       >
-        <Pressable onPress={onImage}>
-          <YStack
-            width={44}
-            height={44}
-            borderRadius="$2"
-            alignItems="center"
-            justifyContent="center"
-            pressStyle={{ backgroundColor: '$backgroundHover' }}
-          >
-            <Ionicons name="image-outline" size={22} color={iconColorStrong} />
-          </YStack>
-        </Pressable>
-        <Pressable onPress={onRectangle}>
-          <YStack
-            width={44}
-            height={44}
-            borderRadius="$2"
-            alignItems="center"
-            justifyContent="center"
-            pressStyle={{ backgroundColor: '$backgroundHover' }}
-          >
-            <Ionicons name="square-outline" size={22} color={iconColorStrong} />
-          </YStack>
-        </Pressable>
-        <Pressable onPress={onAudio}>
-          <YStack
-            width={44}
-            height={44}
-            borderRadius="$2"
-            alignItems="center"
-            justifyContent="center"
-            pressStyle={{ backgroundColor: '$backgroundHover' }}
-          >
-            <Ionicons name="mic-outline" size={22} color={iconColorStrong} />
-          </YStack>
-        </Pressable>
-      </XStack>
-    </Animated.View>
+        <XStack
+          backgroundColor="$backgroundStrong"
+          borderRadius={10}
+          paddingHorizontal={4}
+          paddingVertical={2}
+          gap={0}
+          elevation={8}
+          borderWidth={1}
+          borderColor="$borderColor"
+        >
+          <Pressable onPress={onImage}>
+            <YStack
+              width={34}
+              height={30}
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Ionicons name="image-outline" size={22} color={iconColorStrong} />
+            </YStack>
+          </Pressable>
+          <Pressable onPress={onRectangle}>
+            <YStack
+              width={34}
+              height={30}
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Ionicons name="square-outline" size={22} color={iconColorStrong} />
+            </YStack>
+          </Pressable>
+          <Pressable onPress={onAudio}>
+            <YStack
+              width={34}
+              height={30}
+              alignItems="center"
+              justifyContent="center"
+            >
+              <Ionicons name="mic-outline" size={22} color={iconColorStrong} />
+            </YStack>
+          </Pressable>
+        </XStack>
+      </Animated.View>
+    </View>
   )
 }
