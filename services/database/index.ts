@@ -16,10 +16,10 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   // Fresh database - create initial schema
   if (currentVersion === 0) {
     await db.execAsync(SCHEMA_V1)
-    // V1 schema already includes columns from migrations 2–6
-    // (is_system_thread, notification_id, link_preview_*, attachment_waveform, thread is_locked, note is_pinned),
+    // V1 schema already includes columns from migrations 2–8
+    // (is_system_thread, notification_id, link_preview_*, attachment_waveform, thread is_locked, note is_pinned, boards),
     // so skip to current version to avoid duplicate ALTER TABLE errors.
-    currentVersion = 6
+    currentVersion = 8
   }
 
   // Run any pending migrations
@@ -70,6 +70,24 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
 
   if (!threadColumnNames.has('is_locked')) {
     await db.execAsync('ALTER TABLE threads ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0')
+  }
+
+  // Check board_strokes table columns (old migration 7 may have created it without these)
+  const boardStrokeTables = await db.getAllAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='board_strokes'"
+  )
+  if (boardStrokeTables.length > 0) {
+    const bsColumns = await db.getAllAsync<{ name: string }>(
+      'PRAGMA table_info(board_strokes)'
+    )
+    const bsColumnNames = new Set(bsColumns.map(col => col.name))
+
+    if (!bsColumnNames.has('x_offset')) {
+      await db.execAsync('ALTER TABLE board_strokes ADD COLUMN x_offset REAL NOT NULL DEFAULT 0')
+    }
+    if (!bsColumnNames.has('y_offset')) {
+      await db.execAsync('ALTER TABLE board_strokes ADD COLUMN y_offset REAL NOT NULL DEFAULT 0')
+    }
   }
 
   // Reset stale sync flag — if the app just launched, nothing is syncing

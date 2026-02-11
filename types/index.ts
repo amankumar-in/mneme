@@ -7,6 +7,19 @@ export type {
   UserProfile,
   SyncStatus,
   TaskFilter,
+  // Board types
+  Board,
+  BoardItem,
+  BoardStroke,
+  BoardConnection,
+  BoardPatternType,
+  BoardItemType,
+  CreateBoardInput,
+  UpdateBoardInput,
+  CreateBoardItemInput,
+  UpdateBoardItemInput,
+  CreateBoardStrokeInput,
+  CreateBoardConnectionInput,
 } from '@/services/database/types'
 
 // Legacy server types (used by sync service and API compatibility)
@@ -91,4 +104,4 @@ export type Thread = ServerThread
 export type Note = ServerNote
 export type User = ServerUser
 
-export type ThreadFilter = 'threads' | 'tasks'
+export type ThreadFilter = 'threads' | 'tasks' | 'boards'

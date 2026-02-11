@@ -312,3 +312,209 @@ export interface NoteCursor {
 
 // Task filter types
 export type TaskFilter = 'pending' | 'completed' | 'overdue' | 'all'
+
+// ── Board Types ──────────────────────────────────────────────
+
+export type BoardPatternType = 'plain' | 'rules' | 'grid' | 'dots'
+export type BoardItemType = 'text' | 'image' | 'shape' | 'audio'
+
+// Database row types (snake_case)
+export interface BoardRow {
+  id: string
+  server_id: string | null
+  name: string
+  icon: string | null
+  pattern_type: string
+  viewport_x: number
+  viewport_y: number
+  viewport_zoom: number
+  sync_status: string
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface BoardItemRow {
+  id: string
+  board_id: string
+  type: string
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  z_index: number
+  content: string | null
+  image_uri: string | null
+  audio_uri: string | null
+  audio_duration: number | null
+  stroke_color: string | null
+  stroke_width: number | null
+  fill_color: string | null
+  font_size: number | null
+  sync_status: string
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface BoardStrokeRow {
+  id: string
+  board_id: string
+  path_data: string
+  color: string
+  width: number
+  opacity: number
+  z_index: number
+  x_offset: number
+  y_offset: number
+  sync_status: string
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface BoardConnectionRow {
+  id: string
+  board_id: string
+  from_item_id: string
+  to_item_id: string
+  from_side: string
+  to_side: string
+  color: string
+  stroke_width: number
+  sync_status: string
+  deleted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+// App types (camelCase)
+export interface Board {
+  id: string
+  serverId: string | null
+  name: string
+  icon: string | null
+  patternType: BoardPatternType
+  viewport: { x: number; y: number; zoom: number }
+  syncStatus: SyncStatus
+  deletedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BoardItem {
+  id: string
+  boardId: string
+  type: BoardItemType
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+  zIndex: number
+  content: string | null
+  imageUri: string | null
+  audioUri: string | null
+  audioDuration: number | null
+  strokeColor: string | null
+  strokeWidth: number | null
+  fillColor: string | null
+  fontSize: number | null
+  syncStatus: SyncStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BoardStroke {
+  id: string
+  boardId: string
+  pathData: string
+  color: string
+  width: number
+  opacity: number
+  zIndex: number
+  xOffset: number
+  yOffset: number
+  syncStatus: SyncStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BoardConnection {
+  id: string
+  boardId: string
+  fromItemId: string
+  toItemId: string
+  fromSide: string
+  toSide: string
+  color: string
+  strokeWidth: number
+  syncStatus: SyncStatus
+  createdAt: string
+  updatedAt: string
+}
+
+// Input types
+export interface CreateBoardInput {
+  name: string
+  icon?: string | null
+}
+
+export interface UpdateBoardInput {
+  name?: string
+  icon?: string | null
+  patternType?: BoardPatternType
+}
+
+export interface CreateBoardItemInput {
+  boardId: string
+  type: BoardItemType
+  x: number
+  y: number
+  width?: number
+  height?: number
+  content?: string | null
+  imageUri?: string | null
+  audioUri?: string | null
+  audioDuration?: number | null
+  strokeColor?: string | null
+  strokeWidth?: number | null
+  fillColor?: string | null
+  fontSize?: number | null
+}
+
+export interface UpdateBoardItemInput {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  rotation?: number
+  zIndex?: number
+  content?: string | null
+  strokeColor?: string | null
+  strokeWidth?: number | null
+  fillColor?: string | null
+  fontSize?: number | null
+}
+
+export interface CreateBoardStrokeInput {
+  boardId: string
+  pathData: string
+  color: string
+  width: number
+  opacity?: number
+  zIndex?: number
+  xOffset?: number
+  yOffset?: number
+}
+
+export interface CreateBoardConnectionInput {
+  boardId: string
+  fromItemId: string
+  toItemId: string
+  fromSide: string
+  toSide: string
+  color?: string
+  strokeWidth?: number
+}

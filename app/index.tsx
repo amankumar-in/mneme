@@ -36,11 +36,13 @@ import {
 } from '../hooks/useThreads'
 import { useUser } from '../hooks/useUser'
 import { useThreadViewStyle } from '../contexts/ThreadViewContext'
-import type { ThreadFilter, ThreadWithLastNote } from '../types'
+import { useBoards, useCreateBoard, useDeleteBoard } from '../hooks/useBoards'
+import type { Board, ThreadFilter, ThreadWithLastNote } from '../types'
 
 const FILTER_OPTIONS = [
   { key: 'threads', label: 'Threads' },
   { key: 'tasks', label: 'Tasks' },
+  { key: 'boards', label: 'Boards' },
 ]
 
 export default function HomeScreen() {
@@ -100,6 +102,11 @@ function ThreadListHome() {
   const { data: user } = useUser()
   const { pull } = useSyncService()
   const restoreThread = useRestoreThread()
+
+  // Board hooks
+  const { data: boards = [], isLoading: boardsLoading } = useBoards(searchQuery || undefined)
+  const createBoard = useCreateBoard()
+  const deleteBoardMutation = useDeleteBoard()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [undoState, setUndoState] = useState<{
     visible: boolean
@@ -252,6 +259,34 @@ function ThreadListHome() {
     }
   }, [createThread, router])
 
+  const handleCreateBoard = useCallback(async () => {
+    try {
+      const board = await createBoard.mutateAsync({ name: 'New Board' })
+      router.push(`/board/${board.id}`)
+    } catch {
+      Alert.alert('Error', 'Could not create the board.')
+    }
+  }, [createBoard, router])
+
+  const handleBoardPress = useCallback((board: Board) => {
+    router.push(`/board/${board.id}`)
+  }, [router])
+
+  const handleBoardLongPress = useCallback((board: Board) => {
+    Alert.alert(
+      board.name,
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteBoardMutation.mutate(board.id),
+        },
+      ]
+    )
+  }, [deleteBoardMutation])
+
   const handleQRPress = useCallback(() => {
     router.push('/qr-scan')
   }, [router])
@@ -380,6 +415,89 @@ function ThreadListHome() {
             </Text>
           </YStack>
           <FAB icon="add" onPress={handleCreateThread} />
+        </>
+      )
+    }
+
+    // Boards tab
+    if (selectedFilter === 'boards') {
+      return (
+        <>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search boards..."
+          />
+          <FilterChips
+            options={FILTER_OPTIONS}
+            selected={selectedFilter}
+            onSelect={(key) => {
+              if (key === 'tasks') {
+                router.push('/tasks')
+              } else {
+                setSelectedFilter(key as ThreadFilter)
+              }
+            }}
+          />
+          {boardsLoading ? (
+            <YStack flex={1} justifyContent="center" alignItems="center">
+              <ActivityIndicator size="large" color={iconColor} />
+            </YStack>
+          ) : boards.length === 0 ? (
+            <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
+              <Ionicons name="easel-outline" size={64} color={iconColor} />
+              <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
+                No boards yet
+              </Text>
+              <Text color="$colorSubtle" textAlign="center" marginTop="$2">
+                Tap + to create your first board
+              </Text>
+            </YStack>
+          ) : (
+            <FlatList
+              data={boards}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <XStack
+                  paddingHorizontal="$4"
+                  paddingVertical="$3"
+                  gap="$3"
+                  alignItems="center"
+                  pressStyle={{ backgroundColor: '$backgroundHover' }}
+                  onPress={() => handleBoardPress(item)}
+                  onLongPress={() => handleBoardLongPress(item)}
+                >
+                  <XStack
+                    width={48}
+                    height={48}
+                    borderRadius={12}
+                    backgroundColor="$brandBackground"
+                    alignItems="center"
+                    justifyContent="center"
+                  >
+                    {item.icon ? (
+                      <Text fontSize={24}>{item.icon}</Text>
+                    ) : (
+                      <Ionicons name="easel-outline" size={24} color={iconColorStrong} />
+                    )}
+                  </XStack>
+                  <YStack flex={1}>
+                    <Text fontSize="$4" fontWeight="500" color="$color" numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text fontSize="$2" color="$colorSubtle">
+                      {new Date(item.updatedAt).toLocaleDateString()}
+                    </Text>
+                  </YStack>
+                </XStack>
+              )}
+              ItemSeparatorComponent={() => (
+                <View style={{ height: StyleSheet.hairlineWidth, marginLeft: 76, backgroundColor: 'rgba(128,128,128,0.2)' }} />
+              )}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+            />
+          )}
+          <FAB icon="add" onPress={handleCreateBoard} disabled={createBoard.isPending} />
         </>
       )
     }

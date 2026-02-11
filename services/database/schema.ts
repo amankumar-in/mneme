@@ -1,6 +1,6 @@
 // SQLite schema definitions for offline-first architecture
 
-export const DATABASE_VERSION = 6
+export const DATABASE_VERSION = 8
 export const DATABASE_NAME = 'laterbox.db'
 
 // Schema for version 1
@@ -151,6 +151,93 @@ export const SCHEMA_V1 = `
   -- Create Protected Notes system thread
   INSERT OR IGNORE INTO threads (id, name, icon, is_pinned, is_system_thread, sync_status, created_at, updated_at)
   VALUES ('system-protected-notes', 'Protected Notes', '🔒', 0, 1, 'pending', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+  -- Boards table
+  CREATE TABLE IF NOT EXISTS boards (
+    id TEXT PRIMARY KEY NOT NULL,
+    server_id TEXT UNIQUE,
+    name TEXT NOT NULL,
+    icon TEXT,
+    pattern_type TEXT NOT NULL DEFAULT 'plain',
+    viewport_x REAL NOT NULL DEFAULT 0,
+    viewport_y REAL NOT NULL DEFAULT 0,
+    viewport_zoom REAL NOT NULL DEFAULT 1,
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+    deleted_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_boards_deleted_at ON boards(deleted_at);
+  CREATE INDEX IF NOT EXISTS idx_boards_updated_at ON boards(updated_at);
+
+  -- Board items table
+  CREATE TABLE IF NOT EXISTS board_items (
+    id TEXT PRIMARY KEY NOT NULL,
+    board_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    x REAL NOT NULL DEFAULT 0,
+    y REAL NOT NULL DEFAULT 0,
+    width REAL NOT NULL DEFAULT 0,
+    height REAL NOT NULL DEFAULT 0,
+    rotation REAL NOT NULL DEFAULT 0,
+    z_index INTEGER NOT NULL DEFAULT 0,
+    content TEXT,
+    image_uri TEXT,
+    audio_uri TEXT,
+    audio_duration INTEGER,
+    stroke_color TEXT,
+    stroke_width REAL,
+    fill_color TEXT,
+    font_size REAL,
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+    deleted_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_board_items_board_id ON board_items(board_id);
+  CREATE INDEX IF NOT EXISTS idx_board_items_deleted_at ON board_items(deleted_at);
+
+  -- Board strokes table
+  CREATE TABLE IF NOT EXISTS board_strokes (
+    id TEXT PRIMARY KEY NOT NULL,
+    board_id TEXT NOT NULL,
+    path_data TEXT NOT NULL,
+    color TEXT NOT NULL DEFAULT '#000000',
+    width REAL NOT NULL DEFAULT 2,
+    opacity REAL NOT NULL DEFAULT 1,
+    z_index INTEGER NOT NULL DEFAULT 0,
+    x_offset REAL NOT NULL DEFAULT 0,
+    y_offset REAL NOT NULL DEFAULT 0,
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+    deleted_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_board_strokes_board_id ON board_strokes(board_id);
+  CREATE INDEX IF NOT EXISTS idx_board_strokes_deleted_at ON board_strokes(deleted_at);
+
+  -- Board connections table
+  CREATE TABLE IF NOT EXISTS board_connections (
+    id TEXT PRIMARY KEY NOT NULL,
+    board_id TEXT NOT NULL,
+    from_item_id TEXT NOT NULL,
+    to_item_id TEXT NOT NULL,
+    from_side TEXT NOT NULL DEFAULT 'right',
+    to_side TEXT NOT NULL DEFAULT 'left',
+    color TEXT NOT NULL DEFAULT '#888888',
+    stroke_width REAL NOT NULL DEFAULT 2,
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+    deleted_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
+    FOREIGN KEY (from_item_id) REFERENCES board_items(id) ON DELETE CASCADE,
+    FOREIGN KEY (to_item_id) REFERENCES board_items(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_board_connections_board_id ON board_connections(board_id);
+  CREATE INDEX IF NOT EXISTS idx_board_connections_deleted_at ON board_connections(deleted_at);
 `
 
 // Migrations for future versions
@@ -176,5 +263,174 @@ export const MIGRATIONS: Record<number, string> = {
   6: `
     ALTER TABLE threads ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE notes ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;
+  `,
+  7: `
+    CREATE TABLE IF NOT EXISTS boards (
+      id TEXT PRIMARY KEY NOT NULL,
+      server_id TEXT UNIQUE,
+      name TEXT NOT NULL,
+      icon TEXT,
+      pattern_type TEXT NOT NULL DEFAULT 'plain',
+      viewport_x REAL NOT NULL DEFAULT 0,
+      viewport_y REAL NOT NULL DEFAULT 0,
+      viewport_zoom REAL NOT NULL DEFAULT 1,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_boards_deleted_at ON boards(deleted_at);
+    CREATE INDEX IF NOT EXISTS idx_boards_updated_at ON boards(updated_at);
+
+    CREATE TABLE IF NOT EXISTS board_items (
+      id TEXT PRIMARY KEY NOT NULL,
+      board_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      x REAL NOT NULL DEFAULT 0,
+      y REAL NOT NULL DEFAULT 0,
+      width REAL NOT NULL DEFAULT 0,
+      height REAL NOT NULL DEFAULT 0,
+      rotation REAL NOT NULL DEFAULT 0,
+      z_index INTEGER NOT NULL DEFAULT 0,
+      content TEXT,
+      image_uri TEXT,
+      audio_uri TEXT,
+      audio_duration INTEGER,
+      stroke_color TEXT,
+      stroke_width REAL,
+      fill_color TEXT,
+      font_size REAL,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_board_items_board_id ON board_items(board_id);
+    CREATE INDEX IF NOT EXISTS idx_board_items_deleted_at ON board_items(deleted_at);
+
+    CREATE TABLE IF NOT EXISTS board_strokes (
+      id TEXT PRIMARY KEY NOT NULL,
+      board_id TEXT NOT NULL,
+      path_data TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#000000',
+      width REAL NOT NULL DEFAULT 2,
+      opacity REAL NOT NULL DEFAULT 1,
+      z_index INTEGER NOT NULL DEFAULT 0,
+      x_offset REAL NOT NULL DEFAULT 0,
+      y_offset REAL NOT NULL DEFAULT 0,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_board_strokes_board_id ON board_strokes(board_id);
+    CREATE INDEX IF NOT EXISTS idx_board_strokes_deleted_at ON board_strokes(deleted_at);
+
+    CREATE TABLE IF NOT EXISTS board_connections (
+      id TEXT PRIMARY KEY NOT NULL,
+      board_id TEXT NOT NULL,
+      from_item_id TEXT NOT NULL,
+      to_item_id TEXT NOT NULL,
+      from_side TEXT NOT NULL DEFAULT 'right',
+      to_side TEXT NOT NULL DEFAULT 'left',
+      color TEXT NOT NULL DEFAULT '#888888',
+      stroke_width REAL NOT NULL DEFAULT 2,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
+      FOREIGN KEY (from_item_id) REFERENCES board_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (to_item_id) REFERENCES board_items(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_board_connections_board_id ON board_connections(board_id);
+    CREATE INDEX IF NOT EXISTS idx_board_connections_deleted_at ON board_connections(deleted_at);
+  `,
+  8: `
+    -- Re-run board table creation for devices where old migration 7 ran without these tables
+    CREATE TABLE IF NOT EXISTS boards (
+      id TEXT PRIMARY KEY NOT NULL,
+      server_id TEXT UNIQUE,
+      name TEXT NOT NULL,
+      icon TEXT,
+      pattern_type TEXT NOT NULL DEFAULT 'plain',
+      viewport_x REAL NOT NULL DEFAULT 0,
+      viewport_y REAL NOT NULL DEFAULT 0,
+      viewport_zoom REAL NOT NULL DEFAULT 1,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_boards_deleted_at ON boards(deleted_at);
+    CREATE INDEX IF NOT EXISTS idx_boards_updated_at ON boards(updated_at);
+
+    CREATE TABLE IF NOT EXISTS board_items (
+      id TEXT PRIMARY KEY NOT NULL,
+      board_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      x REAL NOT NULL DEFAULT 0,
+      y REAL NOT NULL DEFAULT 0,
+      width REAL NOT NULL DEFAULT 0,
+      height REAL NOT NULL DEFAULT 0,
+      rotation REAL NOT NULL DEFAULT 0,
+      z_index INTEGER NOT NULL DEFAULT 0,
+      content TEXT,
+      image_uri TEXT,
+      audio_uri TEXT,
+      audio_duration INTEGER,
+      stroke_color TEXT,
+      stroke_width REAL,
+      fill_color TEXT,
+      font_size REAL,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_board_items_board_id ON board_items(board_id);
+    CREATE INDEX IF NOT EXISTS idx_board_items_deleted_at ON board_items(deleted_at);
+
+    CREATE TABLE IF NOT EXISTS board_strokes (
+      id TEXT PRIMARY KEY NOT NULL,
+      board_id TEXT NOT NULL,
+      path_data TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#000000',
+      width REAL NOT NULL DEFAULT 2,
+      opacity REAL NOT NULL DEFAULT 1,
+      z_index INTEGER NOT NULL DEFAULT 0,
+      x_offset REAL NOT NULL DEFAULT 0,
+      y_offset REAL NOT NULL DEFAULT 0,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_board_strokes_board_id ON board_strokes(board_id);
+    CREATE INDEX IF NOT EXISTS idx_board_strokes_deleted_at ON board_strokes(deleted_at);
+
+    CREATE TABLE IF NOT EXISTS board_connections (
+      id TEXT PRIMARY KEY NOT NULL,
+      board_id TEXT NOT NULL,
+      from_item_id TEXT NOT NULL,
+      to_item_id TEXT NOT NULL,
+      from_side TEXT NOT NULL DEFAULT 'right',
+      to_side TEXT NOT NULL DEFAULT 'left',
+      color TEXT NOT NULL DEFAULT '#888888',
+      stroke_width REAL NOT NULL DEFAULT 2,
+      sync_status TEXT NOT NULL DEFAULT 'pending',
+      deleted_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (board_id) REFERENCES boards(id) ON DELETE CASCADE,
+      FOREIGN KEY (from_item_id) REFERENCES board_items(id) ON DELETE CASCADE,
+      FOREIGN KEY (to_item_id) REFERENCES board_items(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_board_connections_board_id ON board_connections(board_id);
+    CREATE INDEX IF NOT EXISTS idx_board_connections_deleted_at ON board_connections(deleted_at);
   `,
 }
