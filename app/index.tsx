@@ -41,8 +41,8 @@ import type { Board, ThreadFilter, ThreadWithLastNote } from '../types'
 
 const FILTER_OPTIONS = [
   { key: 'threads', label: 'Threads' },
-  { key: 'tasks', label: 'Tasks' },
   { key: 'boards', label: 'Boards' },
+  { key: 'tasks', label: 'Tasks' },
 ]
 
 export default function HomeScreen() {

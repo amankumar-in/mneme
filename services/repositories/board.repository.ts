@@ -128,8 +128,8 @@ export class BoardRepository {
     const zIndex = (maxZ?.max_z ?? 0) + 1
 
     await this.db.runAsync(
-      `INSERT INTO board_items (id, board_id, type, x, y, width, height, rotation, z_index, content, image_uri, audio_uri, audio_duration, stroke_color, stroke_width, fill_color, font_size, font_weight, sync_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      `INSERT INTO board_items (id, board_id, type, x, y, width, height, rotation, z_index, content, image_uri, audio_uri, audio_duration, stroke_color, stroke_width, fill_color, font_size, font_weight, group_id, sync_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
       [
         id, input.boardId, input.type, input.x, input.y,
         input.width ?? 0, input.height ?? 0, zIndex,
@@ -137,7 +137,7 @@ export class BoardRepository {
         input.audioUri ?? null, input.audioDuration ?? null,
         input.strokeColor ?? null, input.strokeWidth ?? null,
         input.fillColor ?? null, input.fontSize ?? null,
-        input.fontWeight ?? null,
+        input.fontWeight ?? null, input.groupId ?? null,
         now, now,
       ]
     )
@@ -178,6 +178,7 @@ export class BoardRepository {
     if (input.fillColor !== undefined) { updates.push('fill_color = ?'); values.push(input.fillColor) }
     if (input.fontSize !== undefined) { updates.push('font_size = ?'); values.push(input.fontSize) }
     if (input.fontWeight !== undefined) { updates.push('font_weight = ?'); values.push(input.fontWeight) }
+    if (input.groupId !== undefined) { updates.push('group_id = ?'); values.push(input.groupId) }
 
     if (updates.length === 0) return this.getItemById(id)
 
@@ -218,9 +219,9 @@ export class BoardRepository {
     const zIndex = input.zIndex ?? (maxZ?.max_z ?? 0) + 1
 
     await this.db.runAsync(
-      `INSERT INTO board_strokes (id, board_id, path_data, color, width, opacity, z_index, x_offset, y_offset, sync_status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-      [id, input.boardId, input.pathData, input.color, input.width, input.opacity ?? 1, zIndex, input.xOffset ?? 0, input.yOffset ?? 0, now, now]
+      `INSERT INTO board_strokes (id, board_id, path_data, color, width, opacity, z_index, x_offset, y_offset, group_id, sync_status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      [id, input.boardId, input.pathData, input.color, input.width, input.opacity ?? 1, zIndex, input.xOffset ?? 0, input.yOffset ?? 0, input.groupId ?? null, now, now]
     )
 
     return this.getStrokeById(id) as Promise<BoardStroke>
@@ -328,6 +329,64 @@ export class BoardRepository {
     )
   }
 
+  // ── Batch Operations ──────────────────────────────────────
+
+  async setGroupForItems(itemIds: string[], groupId: string | null): Promise<void> {
+    if (itemIds.length === 0) return
+    const now = getTimestamp()
+    const placeholders = itemIds.map(() => '?').join(', ')
+    await this.db.runAsync(
+      `UPDATE board_items SET group_id = ?, sync_status = 'pending', updated_at = ? WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
+      [groupId, now, ...itemIds]
+    )
+  }
+
+  async setGroupForStrokes(strokeIds: string[], groupId: string | null): Promise<void> {
+    if (strokeIds.length === 0) return
+    const now = getTimestamp()
+    const placeholders = strokeIds.map(() => '?').join(', ')
+    await this.db.runAsync(
+      `UPDATE board_strokes SET group_id = ?, sync_status = 'pending', updated_at = ? WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
+      [groupId, now, ...strokeIds]
+    )
+  }
+
+  async deleteItems(ids: string[]): Promise<void> {
+    if (ids.length === 0) return
+    const now = getTimestamp()
+    const placeholders = ids.map(() => '?').join(', ')
+    // Also delete connections involving these items
+    await this.db.runAsync(
+      `UPDATE board_connections SET deleted_at = ?, updated_at = ? WHERE (from_item_id IN (${placeholders}) OR to_item_id IN (${placeholders})) AND deleted_at IS NULL`,
+      [now, now, ...ids, ...ids]
+    )
+    await this.db.runAsync(
+      `UPDATE board_items SET deleted_at = ?, sync_status = 'pending', updated_at = ? WHERE id IN (${placeholders})`,
+      [now, now, ...ids]
+    )
+  }
+
+  async deleteStrokes(ids: string[]): Promise<void> {
+    if (ids.length === 0) return
+    const now = getTimestamp()
+    const placeholders = ids.map(() => '?').join(', ')
+    await this.db.runAsync(
+      `UPDATE board_strokes SET deleted_at = ?, sync_status = 'pending', updated_at = ? WHERE id IN (${placeholders})`,
+      [now, now, ...ids]
+    )
+  }
+
+  async updateItemPositions(updates: { id: string; x: number; y: number; width: number; height: number }[]): Promise<void> {
+    if (updates.length === 0) return
+    const now = getTimestamp()
+    for (const u of updates) {
+      await this.db.runAsync(
+        `UPDATE board_items SET x = ?, y = ?, width = ?, height = ?, sync_status = 'pending', updated_at = ? WHERE id = ?`,
+        [u.x, u.y, u.width, u.height, now, u.id]
+      )
+    }
+  }
+
   // ── Mappers ──────────────────────────────────────────────
 
   private mapToBoard(row: BoardRow): Board {
@@ -365,6 +424,7 @@ export class BoardRepository {
       fillColor: row.fill_color,
       fontSize: row.font_size,
       fontWeight: row.font_weight,
+      groupId: row.group_id,
       syncStatus: row.sync_status as SyncStatus,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -382,6 +442,7 @@ export class BoardRepository {
       zIndex: row.z_index,
       xOffset: row.x_offset,
       yOffset: row.y_offset,
+      groupId: row.group_id,
       syncStatus: row.sync_status as SyncStatus,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

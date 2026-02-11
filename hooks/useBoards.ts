@@ -269,6 +269,82 @@ export function useDeleteBoardConnection(boardId: string) {
   })
 }
 
+// ── Batch Operations ──────────────────────────────────────
+
+export function useGroupItems(boardId: string) {
+  const db = useDb()
+  const repo = getBoardRepository(db)
+  const queryClient = useQueryClient()
+  const { schedulePush } = useSyncService()
+
+  return useMutation({
+    mutationFn: async ({ itemIds, strokeIds, groupId }: { itemIds: string[]; strokeIds: string[]; groupId: string }) => {
+      await repo.setGroupForItems(itemIds, groupId)
+      await repo.setGroupForStrokes(strokeIds, groupId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board-items', boardId] })
+      queryClient.invalidateQueries({ queryKey: ['board-strokes', boardId] })
+      schedulePush()
+    },
+  })
+}
+
+export function useUngroupItems(boardId: string) {
+  const db = useDb()
+  const repo = getBoardRepository(db)
+  const queryClient = useQueryClient()
+  const { schedulePush } = useSyncService()
+
+  return useMutation({
+    mutationFn: async ({ itemIds, strokeIds }: { itemIds: string[]; strokeIds: string[] }) => {
+      await repo.setGroupForItems(itemIds, null)
+      await repo.setGroupForStrokes(strokeIds, null)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board-items', boardId] })
+      queryClient.invalidateQueries({ queryKey: ['board-strokes', boardId] })
+      schedulePush()
+    },
+  })
+}
+
+export function useBatchDelete(boardId: string) {
+  const db = useDb()
+  const repo = getBoardRepository(db)
+  const queryClient = useQueryClient()
+  const { schedulePush } = useSyncService()
+
+  return useMutation({
+    mutationFn: async ({ itemIds, strokeIds }: { itemIds: string[]; strokeIds: string[] }) => {
+      await repo.deleteItems(itemIds)
+      await repo.deleteStrokes(strokeIds)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board-items', boardId] })
+      queryClient.invalidateQueries({ queryKey: ['board-strokes', boardId] })
+      queryClient.invalidateQueries({ queryKey: ['board-connections', boardId] })
+      schedulePush()
+    },
+  })
+}
+
+export function useBatchUpdatePositions(boardId: string) {
+  const db = useDb()
+  const repo = getBoardRepository(db)
+  const queryClient = useQueryClient()
+  const { schedulePush } = useSyncService()
+
+  return useMutation({
+    mutationFn: (updates: { id: string; x: number; y: number; width: number; height: number }[]) =>
+      repo.updateItemPositions(updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['board-items', boardId] })
+      schedulePush()
+    },
+  })
+}
+
 // ── Viewport (debounced, no sync) ──────────────────────────
 
 export function useSaveViewport(boardId: string) {

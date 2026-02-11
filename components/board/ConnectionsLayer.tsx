@@ -10,8 +10,8 @@ interface ConnectionsLayerProps {
   translateX: number
   translateY: number
   scale: number
-  selectedConnectionId: string | null
-  localOverride?: { id: string; x: number; y: number; width: number; height: number } | null
+  selectedConnectionIds: Set<string>
+  localOverrides?: Map<string, { x: number; y: number; width: number; height: number }>
 }
 
 function getEdgeMidpoint(
@@ -48,8 +48,8 @@ export function ConnectionsLayer({
   translateX,
   translateY,
   scale,
-  selectedConnectionId,
-  localOverride,
+  selectedConnectionIds,
+  localOverrides,
 }: ConnectionsLayerProps) {
   const itemMap = useMemo(() => {
     const map = new Map<string, BoardItem>()
@@ -63,13 +63,13 @@ export function ConnectionsLayer({
       const toItem = itemMap.get(conn.toItemId)
       if (!fromItem || !toItem) return null
 
-      const fromOv = localOverride?.id === fromItem.id ? localOverride : null
-      const toOv = localOverride?.id === toItem.id ? localOverride : null
+      const fromOv = localOverrides?.get(fromItem.id) ?? null
+      const toOv = localOverrides?.get(toItem.id) ?? null
 
       const from = getEdgeMidpoint(fromItem, conn.fromSide, translateX, translateY, scale, fromOv)
       const to = getEdgeMidpoint(toItem, conn.toSide, translateX, translateY, scale, toOv)
 
-      const isSelected = selectedConnectionId === conn.id
+      const isSelected = selectedConnectionIds.has(conn.id)
 
       // Determine if we need a curve: if endpoints are too close or same axis
       const dx = to.x - from.x
@@ -116,7 +116,7 @@ export function ConnectionsLayer({
 
       return { conn, path, arrowPath, isSelected }
     }).filter(Boolean) as { conn: BoardConnection; path: any; arrowPath: any; isSelected: boolean }[]
-  }, [connections, itemMap, translateX, translateY, scale, selectedConnectionId, localOverride])
+  }, [connections, itemMap, translateX, translateY, scale, selectedConnectionIds, localOverrides])
 
   return (
     <Canvas

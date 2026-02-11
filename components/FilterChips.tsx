@@ -25,10 +25,10 @@ export function FilterChips({ options, selected, onSelect }: FilterChipsProps) {
               key={option.key}
               size="$3"
               borderRadius="$10"
-              backgroundColor={isSelected ? '$backgroundTinted' : backgroundStrong + '55'}
+              backgroundColor={isSelected ? '$brandBackground' : backgroundStrong + '55'}
               borderWidth={1}
-              borderColor={isSelected ? '$borderColorTinted' : 'rgba(128,128,128,0.15)'}
-              color={isSelected ? '$accentColor' : '$colorSubtle'}
+              borderColor={isSelected ? '$brandBackground' : 'rgba(128,128,128,0.15)'}
+              color={isSelected ? '$brandText' : '$colorSubtle'}
               pressStyle={{
                 backgroundColor: backgroundStrong + '88',
               }}

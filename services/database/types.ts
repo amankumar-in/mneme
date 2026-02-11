@@ -353,6 +353,7 @@ export interface BoardItemRow {
   fill_color: string | null
   font_size: number | null
   font_weight: string | null
+  group_id: string | null
   sync_status: string
   deleted_at: string | null
   created_at: string
@@ -369,6 +370,7 @@ export interface BoardStrokeRow {
   z_index: number
   x_offset: number
   y_offset: number
+  group_id: string | null
   sync_status: string
   deleted_at: string | null
   created_at: string
@@ -423,6 +425,7 @@ export interface BoardItem {
   fillColor: string | null
   fontSize: number | null
   fontWeight: string | null
+  groupId: string | null
   syncStatus: SyncStatus
   createdAt: string
   updatedAt: string
@@ -438,6 +441,7 @@ export interface BoardStroke {
   zIndex: number
   xOffset: number
   yOffset: number
+  groupId: string | null
   syncStatus: SyncStatus
   createdAt: string
   updatedAt: string
@@ -485,6 +489,7 @@ export interface CreateBoardItemInput {
   fillColor?: string | null
   fontSize?: number | null
   fontWeight?: string | null
+  groupId?: string | null
 }
 
 export interface UpdateBoardItemInput {
@@ -500,6 +505,7 @@ export interface UpdateBoardItemInput {
   fillColor?: string | null
   fontSize?: number | null
   fontWeight?: string | null
+  groupId?: string | null
 }
 
 export interface CreateBoardStrokeInput {
@@ -511,6 +517,7 @@ export interface CreateBoardStrokeInput {
   zIndex?: number
   xOffset?: number
   yOffset?: number
+  groupId?: string | null
 }
 
 export interface CreateBoardConnectionInput {

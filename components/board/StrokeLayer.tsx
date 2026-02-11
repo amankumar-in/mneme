@@ -14,7 +14,7 @@ interface StrokeLayerProps {
   translateY: number
   scale: number
   isDark: boolean
-  selectedStrokeId?: string | null
+  selectedStrokeIds?: Set<string>
 }
 
 export function StrokeLayer({
@@ -28,7 +28,7 @@ export function StrokeLayer({
   translateY,
   scale,
   isDark,
-  selectedStrokeId,
+  selectedStrokeIds,
 }: StrokeLayerProps) {
   const strokeElements = useMemo(() => {
     return strokes.flatMap((stroke) => {
@@ -44,7 +44,7 @@ export function StrokeLayer({
       matrix.scale(scale, scale)
       path.transform(matrix)
 
-      const isSelected = stroke.id === selectedStrokeId
+      const isSelected = selectedStrokeIds?.has(stroke.id) ?? false
       const elements = []
 
       // Selection highlight — render a thicker semi-transparent path behind the stroke
@@ -78,7 +78,7 @@ export function StrokeLayer({
 
       return elements
     })
-  }, [strokes, translateX, translateY, scale, isDark, selectedStrokeId])
+  }, [strokes, translateX, translateY, scale, isDark, selectedStrokeIds])
 
   const activePath = useMemo(() => {
     if (!currentPath) return null

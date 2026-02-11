@@ -1,64 +1,67 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Alert,
-  AppState,
-  BackHandler,
-  Dimensions,
-  Keyboard,
-  LayoutChangeEvent,
-  Pressable,
-  Share,
-  TextInput,
-  View,
+    Alert,
+    AppState,
+    BackHandler,
+    Keyboard,
+    LayoutChangeEvent,
+    Pressable,
+    Share,
+    TextInput,
+    View
 } from 'react-native'
 // KeyboardAvoidingView removed — infinite canvas handles keyboard avoidance
 // by shifting translateY directly
-import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { YStack, Text, XStack } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
+import { Skia } from '@shopify/react-native-skia'
+import * as Haptics from 'expo-haptics'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
+    Gesture,
+    GestureDetector
 } from 'react-native-gesture-handler'
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  runOnJS,
+    runOnJS,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
 } from 'react-native-reanimated'
-import * as Haptics from 'expo-haptics'
-import { Skia } from '@shopify/react-native-skia'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Text, XStack, YStack } from 'tamagui'
 
+import { Image as ExpoImage } from 'expo-image'
 import { BoardHeader } from '../../../components/board/BoardHeader'
+import { CanvasBackground } from '../../../components/board/CanvasBackground'
+import { ConnectionsLayer } from '../../../components/board/ConnectionsLayer'
 import { DrawingToolbar, getDefaultDrawColor, resolveStrokeColor } from '../../../components/board/DrawingToolbar'
 import { FlyMenu } from '../../../components/board/FlyMenu'
-import { CanvasBackground } from '../../../components/board/CanvasBackground'
 import { StrokeLayer } from '../../../components/board/StrokeLayer'
-import { ConnectionsLayer } from '../../../components/board/ConnectionsLayer'
-import {
-  useBoard,
-  useBoardItems,
-  useBoardStrokes,
-  useBoardConnections,
-  useCreateBoardItem,
-  useUpdateBoardItem,
-  useDeleteBoardItem,
-  useCreateBoardStroke,
-  useUpdateBoardStroke,
-  useDeleteBoardStroke,
-  useCreateBoardConnection,
-  useDeleteBoardConnection,
-  useSaveViewport,
-} from '../../../hooks/useBoards'
-import { useAttachmentHandler } from '../../../hooks/useAttachmentHandler'
-import { useVoiceRecorder } from '../../../hooks/useVoiceRecorder'
-import { useAudioPlayer } from '../../../hooks/useAudioPlayer'
 import { useAppTheme } from '../../../contexts/ThemeContext'
+import { useAttachmentHandler } from '../../../hooks/useAttachmentHandler'
+import { useAudioPlayer } from '../../../hooks/useAudioPlayer'
+import {
+    useBatchDelete,
+    useBatchUpdatePositions,
+    useBoard,
+    useBoardConnections,
+    useBoardItems,
+    useBoardStrokes,
+    useCreateBoardConnection,
+    useCreateBoardItem,
+    useCreateBoardStroke,
+    useDeleteBoardConnection,
+    useDeleteBoardItem,
+    useDeleteBoardStroke,
+    useGroupItems,
+    useSaveViewport,
+    useUngroupItems,
+    useUpdateBoardItem,
+    useUpdateBoardStroke,
+} from '../../../hooks/useBoards'
 import { useThemeColor } from '../../../hooks/useThemeColor'
+import { useVoiceRecorder } from '../../../hooks/useVoiceRecorder'
+import { generateUUID } from '../../../services/database'
 import { resolveAttachmentUri } from '../../../services/fileStorage'
-import { Image as ExpoImage } from 'expo-image'
 import type { BoardItem, BoardStroke } from '../../../types'
 
 const LONG_PRESS_DURATION = 400
@@ -93,6 +96,10 @@ export default function BoardScreen() {
   const createConnection = useCreateBoardConnection(id || '')
   const deleteConnection = useDeleteBoardConnection(id || '')
   const { saveViewport } = useSaveViewport(id || '')
+  const groupItems = useGroupItems(id || '')
+  const ungroupItems = useUngroupItems(id || '')
+  const batchDelete = useBatchDelete(id || '')
+  const batchUpdatePositions = useBatchUpdatePositions(id || '')
 
   // Attachment & audio
   const { showImageSourcePicker } = useAttachmentHandler()
@@ -117,11 +124,32 @@ export default function BoardScreen() {
   const [drawWidth, setDrawWidth] = useState(2)
   const [currentPathString, setCurrentPathString] = useState<string | null>(null)
   const pathRef = useRef<any>(null)
-  const [undoStack, setUndoStack] = useState<string[]>([]) // stroke IDs
-  const [redoStack, setRedoStack] = useState<string[]>([])
+  // Undo stack — tracks all reversible actions
+  type UndoAction =
+    | { type: 'create-stroke'; strokeId: string }
+    | { type: 'create-item'; itemId: string }
+    | { type: 'create-connection'; connectionId: string }
+    | { type: 'delete'; items: BoardItem[]; strokes: BoardStroke[]; connections: BoardConnection[] }
+    | { type: 'move'; itemMoves: { id: string; x: number; y: number; width: number; height: number }[]; strokeMoves: { id: string; xOffset: number; yOffset: number }[] }
+    | { type: 'resize'; itemId: string; x: number; y: number; width: number; height: number }
+    | { type: 'update-item'; itemId: string; field: string; oldValue: any }
+    | { type: 'group'; itemIds: string[]; strokeIds: string[]; prevGroupIds: Record<string, string | null> }
+    | { type: 'ungroup'; itemIds: string[]; strokeIds: string[]; prevGroupIds: Record<string, string | null> }
+    | { type: 'batch-create'; itemIds: string[]; strokeIds: string[] }
+  const MAX_UNDO = 50
+  const [undoStack, setUndoStack] = useState<UndoAction[]>([])
+  const pushUndo = useCallback((action: UndoAction) => {
+    setUndoStack((prev) => [...prev.slice(-MAX_UNDO + 1), action])
+  }, [])
 
   // Pending strokes — drawn but not yet in query data
   const [pendingStrokes, setPendingStrokes] = useState<BoardStroke[]>([])
+
+  // Merge query strokes + pending strokes for flicker-free rendering
+  const allStrokes = useMemo(() => {
+    if (pendingStrokes.length === 0) return strokes
+    return [...strokes, ...pendingStrokes]
+  }, [strokes, pendingStrokes])
 
   // Fly menu state
   const [flyMenu, setFlyMenu] = useState<{ visible: boolean; x: number; y: number }>({
@@ -136,20 +164,121 @@ export default function BoardScreen() {
   const [editingTextValue, setEditingTextValue] = useState('')
   const textInputRefs = useRef<Map<string, TextInput>>(new Map())
 
-  // Selection state
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-  const [selectedStrokeId, setSelectedStrokeId] = useState<string | null>(null)
-  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null)
+  // Selection state — Set-based for multi-select
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set())
+  const [selectedStrokeIds, setSelectedStrokeIds] = useState<Set<string>>(new Set())
+  const [selectedConnectionIds, setSelectedConnectionIds] = useState<Set<string>>(new Set())
 
-  // Manipulation state — move, resize, or connection drag
+  const hasSelection = selectedItemIds.size > 0 || selectedStrokeIds.size > 0 || selectedConnectionIds.size > 0
+  const selectionCount = selectedItemIds.size + selectedStrokeIds.size + selectedConnectionIds.size
+
+  const clearSelection = useCallback(() => {
+    setSelectedItemIds(new Set())
+    setSelectedStrokeIds(new Set())
+    setSelectedConnectionIds(new Set())
+    setIsMarqueeMode(false)
+  }, [])
+
+  const selectItem = useCallback((itemId: string, additive = false) => {
+    if (additive) {
+      setSelectedItemIds((prev) => new Set(prev).add(itemId))
+    } else {
+      setSelectedItemIds(new Set([itemId]))
+      setSelectedStrokeIds(new Set())
+      setSelectedConnectionIds(new Set())
+    }
+  }, [])
+
+  const selectStroke = useCallback((strokeId: string, additive = false) => {
+    if (additive) {
+      setSelectedStrokeIds((prev) => new Set(prev).add(strokeId))
+    } else {
+      setSelectedStrokeIds(new Set([strokeId]))
+      setSelectedItemIds(new Set())
+      setSelectedConnectionIds(new Set())
+    }
+  }, [])
+
+  const toggleItemSelection = useCallback((itemId: string) => {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(itemId)) next.delete(itemId)
+      else next.add(itemId)
+      return next
+    })
+  }, [])
+
+  const toggleStrokeSelection = useCallback((strokeId: string) => {
+    setSelectedStrokeIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(strokeId)) next.delete(strokeId)
+      else next.add(strokeId)
+      return next
+    })
+  }, [])
+
+  const selectGroup = useCallback((groupId: string) => {
+    const groupItemIds = items.filter((i) => i.groupId === groupId).map((i) => i.id)
+    const groupStrokeIds = allStrokes.filter((s) => s.groupId === groupId).map((s) => s.id)
+    setSelectedItemIds(new Set(groupItemIds))
+    setSelectedStrokeIds(new Set(groupStrokeIds))
+    setSelectedConnectionIds(new Set())
+  }, [items, allStrokes])
+
+  const toggleGroup = useCallback((groupId: string, additive: boolean) => {
+    const groupItemIds = items.filter((i) => i.groupId === groupId).map((i) => i.id)
+    const groupStrokeIds = allStrokes.filter((s) => s.groupId === groupId).map((s) => s.id)
+    if (additive) {
+      // Check if all members already selected → deselect them, else select them
+      const allSelected = groupItemIds.every((id) => selectedItemIds.has(id)) &&
+                          groupStrokeIds.every((id) => selectedStrokeIds.has(id))
+      if (allSelected) {
+        setSelectedItemIds((prev) => {
+          const next = new Set(prev)
+          groupItemIds.forEach((id) => next.delete(id))
+          return next
+        })
+        setSelectedStrokeIds((prev) => {
+          const next = new Set(prev)
+          groupStrokeIds.forEach((id) => next.delete(id))
+          return next
+        })
+      } else {
+        setSelectedItemIds((prev) => {
+          const next = new Set(prev)
+          groupItemIds.forEach((id) => next.add(id))
+          return next
+        })
+        setSelectedStrokeIds((prev) => {
+          const next = new Set(prev)
+          groupStrokeIds.forEach((id) => next.add(id))
+          return next
+        })
+      }
+    } else {
+      selectGroup(groupId)
+    }
+  }, [items, allStrokes, selectedItemIds, selectedStrokeIds, selectGroup])
+
+  // Marquee state
+  const [isMarqueeMode, setIsMarqueeMode] = useState(false)
+  const [marqueeRect, setMarqueeRect] = useState<{ startX: number; startY: number; currentX: number; currentY: number } | null>(null)
+
+  // Clipboard state
+  const [clipboard, setClipboard] = useState<{ items: BoardItem[]; strokes: BoardStroke[] } | null>(null)
+  const pasteOffsetRef = useRef(0)
+
+  // Manipulation state — move, resize, connection drag, or marquee
   // Uses ref + state: ref for immediate reads inside gesture callbacks (avoids stale closures),
   // state for triggering re-renders.
   type ManipulationState = {
-    type: 'move' | 'resize' | 'connection'
+    type: 'move' | 'resize' | 'connection' | 'marquee'
     itemId: string
     handle?: string   // corner key for resize, side for connection
     startScreen: { x: number; y: number }
     startBounds: { x: number; y: number; width: number; height: number }
+    startPositions?: Map<string, { x: number; y: number; width: number; height: number }>
+    startStrokeOffsets?: Map<string, { xOffset: number; yOffset: number }>
   } | null
   const manipulationRef = useRef<ManipulationState>(null)
   const [manipulation, _setManipulation] = useState<ManipulationState>(null)
@@ -158,13 +287,13 @@ export default function BoardScreen() {
     _setManipulation(val)
   }, [])
 
-  // Optimistic local override for the item being moved/resized (avoids DB writes per frame)
-  type LocalOverrideState = { id: string; x: number; y: number; width: number; height: number } | null
-  const localOverrideRef = useRef<LocalOverrideState>(null)
-  const [localOverride, _setLocalOverride] = useState<LocalOverrideState>(null)
-  const setLocalOv = useCallback((val: LocalOverrideState) => {
-    localOverrideRef.current = val
-    _setLocalOverride(val)
+  // Optimistic local overrides for items being moved/resized (avoids DB writes per frame)
+  type LocalOverridesState = Map<string, { x: number; y: number; width: number; height: number }>
+  const localOverridesRef = useRef<LocalOverridesState>(new Map())
+  const [localOverrides, _setLocalOverrides] = useState<LocalOverridesState>(new Map())
+  const setLocalOvs = useCallback((val: LocalOverridesState) => {
+    localOverridesRef.current = val
+    _setLocalOverrides(val)
   }, [])
 
   // Connection drag preview (screen coords)
@@ -271,18 +400,12 @@ export default function BoardScreen() {
     }
   }, [strokes])
 
-  // Clear localOverride once items query refetches (avoids visual jump after move/resize)
+  // Clear localOverrides once items query refetches (avoids visual jump after move/resize)
   useEffect(() => {
-    if (localOverride && !manipulationRef.current) {
-      setLocalOv(null)
+    if (localOverrides.size > 0 && !manipulationRef.current) {
+      setLocalOvs(new Map())
     }
   }, [items])
-
-  // Merge query strokes + pending strokes for flicker-free rendering
-  const allStrokes = useMemo(() => {
-    if (pendingStrokes.length === 0) return strokes
-    return [...strokes, ...pendingStrokes]
-  }, [strokes, pendingStrokes])
 
   const syncTransformToJS = useCallback(() => {
     setJsTranslateX(translateX.value)
@@ -292,6 +415,11 @@ export default function BoardScreen() {
 
   // ── Gesture handlers ──────────────────────────────────
 
+  // Track whether pinch is active so pan can compensate
+  const isPinching = useSharedValue(false)
+  const pinchFocalX = useSharedValue(0)
+  const pinchFocalY = useSharedValue(0)
+
   // Two-finger pan
   const panGesture = Gesture.Pan()
     .minPointers(2)
@@ -300,6 +428,8 @@ export default function BoardScreen() {
       savedTranslateY.value = translateY.value
     })
     .onUpdate((e) => {
+      // Skip translation while pinching — pinch handler manages position via focal point
+      if (isPinching.value) return
       translateX.value = savedTranslateX.value + e.translationX
       translateY.value = savedTranslateY.value + e.translationY
       runOnJS(syncTransformToJS)()
@@ -309,17 +439,28 @@ export default function BoardScreen() {
       runOnJS(saveViewport)({ x: translateX.value, y: translateY.value, zoom: scale.value })
     })
 
-  // Pinch zoom
+  // Pinch zoom — zooms toward focal point so content stays under fingers
   const pinchGesture = Gesture.Pinch()
-    .onStart(() => {
+    .onStart((e) => {
       savedScale.value = scale.value
+      savedTranslateX.value = translateX.value
+      savedTranslateY.value = translateY.value
+      pinchFocalX.value = e.focalX
+      pinchFocalY.value = e.focalY
+      isPinching.value = true
     })
     .onUpdate((e) => {
       const newScale = Math.min(Math.max(savedScale.value * e.scale, 0.1), 5)
+      // Adjust translation so the focal point stays fixed on screen
+      const fx = pinchFocalX.value
+      const fy = pinchFocalY.value
+      translateX.value = fx - (fx - savedTranslateX.value) * (newScale / savedScale.value)
+      translateY.value = fy - (fy - savedTranslateY.value) * (newScale / savedScale.value)
       scale.value = newScale
       runOnJS(syncTransformToJS)()
     })
     .onEnd(() => {
+      isPinching.value = false
       runOnJS(syncTransformToJS)()
       runOnJS(saveViewport)({ x: translateX.value, y: translateY.value, zoom: scale.value })
     })
@@ -327,7 +468,6 @@ export default function BoardScreen() {
   // ── Draw gesture helpers (called via runOnJS) ──────────
 
   function handleDrawStart(screenX: number, screenY: number) {
-    console.log('[DRAW] handleDrawStart, screenY:', screenY, 'editingTextId:', editingTextId)
     // Save any editing text when drawing starts
     if (editingTextId) {
       saveEditingText()
@@ -336,11 +476,17 @@ export default function BoardScreen() {
     const canvasX = (screenX - jsTranslateX) / jsScale
     const canvasY = (screenY - jsTranslateY) / jsScale
 
-    // If an item is selected, check for handle hits using the ORIGINAL touch position
-    // (before the Pan's minDistance moved the finger away from the handle)
+    // Marquee mode — start drawing a selection rectangle
+    if (isMarqueeMode) {
+      setManip({ type: 'marquee', itemId: '', startScreen: { x: screenX, y: screenY }, startBounds: { x: canvasX, y: canvasY, width: 0, height: 0 } })
+      setMarqueeRect({ startX: screenX, startY: screenY, currentX: screenX, currentY: screenY })
+      return
+    }
 
-    if (selectedItemId) {
-      const selectedItem = items.find((i) => i.id === selectedItemId)
+    // If exactly one item selected, check for handle hits (resize/connection)
+    if (selectedItemIds.size === 1 && selectedStrokeIds.size === 0) {
+      const singleId = Array.from(selectedItemIds)[0]
+      const selectedItem = items.find((i) => i.id === singleId)
 
       if (selectedItem) {
         const handle = getHandleAtPosition(touchStartRef.current.x, touchStartRef.current.y, selectedItem)
@@ -348,9 +494,7 @@ export default function BoardScreen() {
         if (handle) {
           const bounds = { x: selectedItem.x, y: selectedItem.y, width: selectedItem.width, height: selectedItem.height }
           if (handle.startsWith('side-')) {
-            // Start connection drag
             const side = handle.replace('side-', '')
-
             const sidePos = getSideMidpoint(selectedItem, side)
             setManip({ type: 'connection', itemId: selectedItem.id, handle: side, startScreen: { x: screenX, y: screenY }, startBounds: bounds })
             setConnectionPreview({
@@ -362,27 +506,47 @@ export default function BoardScreen() {
               currentY: screenY,
             })
           } else {
-            // Start resize
             setManip({ type: 'resize', itemId: selectedItem.id, handle, startScreen: { x: screenX, y: screenY }, startBounds: bounds })
-            setLocalOv({ id: selectedItem.id, ...bounds })
+            setLocalOvs(new Map([[selectedItem.id, bounds]]))
           }
           return
         }
+      }
+    }
 
-        // Check if touching inside the selected item → move
-        let selW = selectedItem.width
-        let selH = selectedItem.height
-        if (selectedItem.type === 'text' && selW === 0 && selectedItem.content) {
-          const measured = measuredSizes.current.get(selectedItem.id)
-          if (measured) { selW = measured.width; selH = measured.height }
+    // If we have selection, check if touching inside any selected item → multi-move
+    if (hasSelection) {
+      const hitSelected = findItemAtPosition(canvasX, canvasY, items.filter((i) => selectedItemIds.has(i.id)))
+      if (hitSelected) {
+        // Build start positions for all selected items
+        const startPositions = new Map<string, { x: number; y: number; width: number; height: number }>()
+        const overrides = new Map<string, { x: number; y: number; width: number; height: number }>()
+        for (const itemId of selectedItemIds) {
+          const item = items.find((i) => i.id === itemId)
+          if (item) {
+            const b = { x: item.x, y: item.y, width: item.width, height: item.height }
+            startPositions.set(itemId, b)
+            overrides.set(itemId, b)
+          }
         }
-        if (canvasX >= selectedItem.x && canvasX <= selectedItem.x + selW &&
-            canvasY >= selectedItem.y && canvasY <= selectedItem.y + selH) {
-          const bounds = { x: selectedItem.x, y: selectedItem.y, width: selectedItem.width, height: selectedItem.height }
-          setManip({ type: 'move', itemId: selectedItem.id, startScreen: { x: screenX, y: screenY }, startBounds: bounds })
-          setLocalOv({ id: selectedItem.id, ...bounds })
-          return
+        // Build start offsets for all selected strokes
+        const startStrokeOffsets = new Map<string, { xOffset: number; yOffset: number }>()
+        for (const strokeId of selectedStrokeIds) {
+          const stroke = allStrokes.find((s) => s.id === strokeId)
+          if (stroke) {
+            startStrokeOffsets.set(strokeId, { xOffset: stroke.xOffset, yOffset: stroke.yOffset })
+          }
         }
+        setManip({
+          type: 'move',
+          itemId: hitSelected.id,
+          startScreen: { x: screenX, y: screenY },
+          startBounds: { x: hitSelected.x, y: hitSelected.y, width: hitSelected.width, height: hitSelected.height },
+          startPositions,
+          startStrokeOffsets,
+        })
+        setLocalOvs(overrides)
+        return
       }
     }
 
@@ -408,7 +572,17 @@ export default function BoardScreen() {
       const b = manip.startBounds
 
       if (manip.type === 'move') {
-        setLocalOv({ id: manip.itemId, x: b.x + dx, y: b.y + dy, width: b.width, height: b.height })
+        // Multi-item move: apply delta to all selected items
+        if (manip.startPositions && manip.startPositions.size > 0) {
+          const overrides = new Map<string, { x: number; y: number; width: number; height: number }>()
+          manip.startPositions.forEach((pos, itemId) => {
+            overrides.set(itemId, { x: pos.x + dx, y: pos.y + dy, width: pos.width, height: pos.height })
+          })
+          setLocalOvs(overrides)
+        } else {
+          // Single item move
+          setLocalOvs(new Map([[manip.itemId, { x: b.x + dx, y: b.y + dy, width: b.width, height: b.height }]]))
+        }
       } else if (manip.type === 'resize') {
         let newX = b.x, newY = b.y, newW = b.width, newH = b.height
         const h = manip.handle!
@@ -416,9 +590,11 @@ export default function BoardScreen() {
         if (h.includes('Left')) { newX = b.x + dx; newW = Math.max(30, b.width - dx) }
         if (h.includes('bottom') || h.includes('Bottom')) newH = Math.max(30, b.height + dy)
         if (h.includes('top') || h.includes('Top')) { newY = b.y + dy; newH = Math.max(30, b.height - dy) }
-        setLocalOv({ id: manip.itemId, x: newX, y: newY, width: newW, height: newH })
+        setLocalOvs(new Map([[manip.itemId, { x: newX, y: newY, width: newW, height: newH }]]))
       } else if (manip.type === 'connection') {
         setConnectionPreview((prev) => prev ? { ...prev, currentX: screenX, currentY: screenY } : null)
+      } else if (manip.type === 'marquee') {
+        setMarqueeRect((prev) => prev ? { ...prev, currentX: screenX, currentY: screenY } : null)
       }
       return
     }
@@ -435,26 +611,57 @@ export default function BoardScreen() {
     const manip = manipulationRef.current
 
     if (manip) {
-      if (manip.type === 'move' || manip.type === 'resize') {
-        // Save final position/size to DB — keep localOverride visible until mutation succeeds
-        const ov = localOverrideRef.current
+      if (manip.type === 'move') {
+        // Push undo with original positions
+        const originalItemMoves = manip.startPositions
+          ? Array.from(manip.startPositions.entries()).map(([id, pos]) => ({ id, ...pos }))
+          : [{ id: manip.itemId, ...manip.startBounds }]
+        const originalStrokeMoves = manip.startStrokeOffsets
+          ? Array.from(manip.startStrokeOffsets.entries()).map(([id, off]) => ({ id, ...off }))
+          : []
+        pushUndo({ type: 'move', itemMoves: originalItemMoves, strokeMoves: originalStrokeMoves })
+
+        // Multi-move: save all items + strokes
+        const ovs = localOverridesRef.current
+        if (ovs.size > 0) {
+          const posUpdates = Array.from(ovs.entries()).map(([itemId, pos]) => ({
+            id: itemId, x: pos.x, y: pos.y, width: pos.width, height: pos.height,
+          }))
+          if (posUpdates.length > 1) {
+            batchUpdatePositions.mutate(posUpdates)
+          } else if (posUpdates.length === 1) {
+            updateItem.mutate({ id: posUpdates[0].id, data: posUpdates[0] })
+          }
+        }
+        // Update stroke offsets
+        if (manip.startStrokeOffsets && screenX !== undefined && screenY !== undefined) {
+          const dx = (screenX - manip.startScreen.x) / jsScale
+          const dy = (screenY - manip.startScreen.y) / jsScale
+          manip.startStrokeOffsets.forEach((startOff, strokeId) => {
+            updateStroke.mutate({
+              id: strokeId,
+              data: { xOffset: startOff.xOffset + dx, yOffset: startOff.yOffset + dy },
+            })
+          })
+        }
+      } else if (manip.type === 'resize') {
+        const ovs = localOverridesRef.current
+        const ov = ovs.get(manip.itemId)
         if (ov) {
+          // Push undo with original bounds
+          pushUndo({ type: 'resize', itemId: manip.itemId, ...manip.startBounds })
           updateItem.mutate({
             id: manip.itemId,
             data: { x: ov.x, y: ov.y, width: ov.width, height: ov.height },
           })
-          // localOverride is cleared by useEffect on `items` once query refetch completes
         }
       } else if (manip.type === 'connection' && screenX !== undefined && screenY !== undefined) {
-        // Check if released on another item
         const canvasX = (screenX - jsTranslateX) / jsScale
         const canvasY = (screenY - jsTranslateY) / jsScale
         const targetItem = findItemAtPosition(canvasX, canvasY, items)
 
         if (targetItem && targetItem.id !== manip.itemId) {
-          // Determine which side of the target is closest
           const targetSide = getClosestSide(targetItem, canvasX, canvasY)
-
           createConnection.mutate(
             {
               fromItemId: manip.itemId,
@@ -463,17 +670,20 @@ export default function BoardScreen() {
               toSide: targetSide,
             },
             {
+              onSuccess: (newConn) => {
+                if (newConn) pushUndo({ type: 'create-connection', connectionId: newConn.id })
+              },
               onError: (err) => console.error('[CONNECTION] failed:', err),
             }
           )
-        } else {
-
         }
+      } else if (manip.type === 'marquee') {
+        finishMarquee()
       }
       setManip(null)
       setConnectionPreview(null)
-      // localOverride for move/resize is cleared in mutation onSuccess to avoid visual jump
-      if (manip.type === 'connection') setLocalOv(null)
+      setMarqueeRect(null)
+      if (manip.type === 'connection') setLocalOvs(new Map())
       return
     }
     if (!isDrawingRef.current || !pathRef.current) {
@@ -536,6 +746,7 @@ export default function BoardScreen() {
   // Tap gesture — coord conversion done in JS via handleTap
   const tapGesture = Gesture.Tap()
     .onEnd((e) => {
+      if (e.numberOfPointers > 1) return
       runOnJS(handleTapFromGesture)(e.x, e.y)
     })
 
@@ -702,12 +913,15 @@ export default function BoardScreen() {
   // ── Tap handler ──────────────────────────────────────
 
   function handleTap(canvasX: number, canvasY: number, screenX: number, screenY: number) {
-    console.log('[TAP] handleTap called, screenY:', screenY, 'editingTextId:', editingTextId)
+    // If marquee mode is active, exit it
+    if (isMarqueeMode) {
+      setIsMarqueeMode(false)
+      return
+    }
 
     // If fly menu is visible, this tap is to dismiss it (or was on a fly menu button)
     if (flyMenu.visible) {
       dismissFlyMenu()
-      // If we had a pending empty text item, delete it
       if (editingTextId && editingTextValue === '') {
         deleteItem.mutate(editingTextId)
         setEditingTextId(null)
@@ -717,37 +931,51 @@ export default function BoardScreen() {
       return
     }
 
-    // Save any editing text first — if we were editing, this tap is to dismiss the keyboard,
-    // NOT to create a new text item.
+    // Save any editing text first
     if (editingTextId) {
       saveEditingText()
       return
     }
 
-    // If something is selected, just deselect — don't create new text or select another item
-    if (selectedItemId || selectedStrokeId || selectedConnectionId) {
-      setSelectedItemId(null)
-      setSelectedStrokeId(null)
-      setSelectedConnectionId(null)
+    // When we have a selection, tap is additive
+    if (hasSelection) {
+      const hitItem = findItemAtPosition(canvasX, canvasY, items)
+      if (hitItem) {
+        if (hitItem.groupId) {
+          toggleGroup(hitItem.groupId, true)
+        } else {
+          toggleItemSelection(hitItem.id)
+        }
+        return
+      }
+
+      const hitStroke = findStrokeAtPosition(canvasX, canvasY, allStrokes)
+      if (hitStroke) {
+        if (hitStroke.groupId) {
+          toggleGroup(hitStroke.groupId, true)
+        } else {
+          toggleStrokeSelection(hitStroke.id)
+        }
+        return
+      }
+
+      // Tap on empty space → clear selection
+      clearSelection()
       return
     }
 
-    // Check if tapping an item
+    // No selection — check if tapping an item
     const hitItem = findItemAtPosition(canvasX, canvasY, items)
 
     if (hitItem) {
       if (hitItem.type === 'text' && hitItem.content) {
-        // Tap on text → cursor at end
-        console.log('[FOCUS] setting editingTextId to', hitItem.id, '(tap on existing text)')
         setEditingTextId(hitItem.id)
         setEditingTextValue(hitItem.content || '')
         setTimeout(() => {
           const ref = textInputRefs.current.get(hitItem.id)
-          console.log('[FOCUS] calling .focus() for', hitItem.id, 'ref exists:', !!ref)
           ref?.focus()
         }, 100)
       } else if (hitItem.type === 'audio' && hitItem.audioUri) {
-        // Tap on audio → play/pause
         toggleAudio(hitItem.id, resolveAttachmentUri(hitItem.audioUri) || hitItem.audioUri)
       }
       return
@@ -757,7 +985,6 @@ export default function BoardScreen() {
     setFlyMenuCanvasPos({ x: canvasX, y: canvasY })
     setFlyMenu({ visible: true, x: screenX, y: screenY })
 
-    // Create text item — keyboard opens so user can start typing
     createItem.mutate(
       {
         type: 'text',
@@ -770,21 +997,17 @@ export default function BoardScreen() {
       },
       {
         onSuccess: (newItem) => {
-
           if (newItem) {
+            pushUndo({ type: 'create-item', itemId: newItem.id })
             setEditingTextId(newItem.id)
             setEditingTextValue('')
-            console.log('[FOCUS] setting editingTextId to', newItem.id, '(new text item created)')
             setTimeout(() => {
               const ref = textInputRefs.current.get(newItem.id)
-              console.log('[FOCUS] calling .focus() for', newItem.id, 'ref exists:', !!ref)
               ref?.focus()
             }, 200)
           }
         },
-        onError: (err) => {
-
-        },
+        onError: () => {},
       }
     )
   }
@@ -799,9 +1022,11 @@ export default function BoardScreen() {
     const hitItem = findItemAtPosition(canvasX, canvasY, items)
     if (hitItem) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      setSelectedItemId(hitItem.id)
-      setSelectedStrokeId(null)
-      setSelectedConnectionId(null)
+      if (hitItem.groupId) {
+        selectGroup(hitItem.groupId)
+      } else {
+        selectItem(hitItem.id)
+      }
       setFlyMenu({ visible: false, x: 0, y: 0 })
       return
     }
@@ -809,17 +1034,18 @@ export default function BoardScreen() {
     const hitStroke = findStrokeAtPosition(canvasX, canvasY, allStrokes)
     if (hitStroke) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      setSelectedStrokeId(hitStroke.id)
-      setSelectedItemId(null)
-      setSelectedConnectionId(null)
+      if (hitStroke.groupId) {
+        selectGroup(hitStroke.groupId)
+      } else {
+        selectStroke(hitStroke.id)
+      }
       setFlyMenu({ visible: false, x: 0, y: 0 })
       return
     }
 
     // Nothing hit — deselect
-    setSelectedItemId(null)
-    setSelectedStrokeId(null)
-    setSelectedConnectionId(null)
+    clearSelection()
+    setFlyMenu({ visible: false, x: 0, y: 0 })
   }
 
   // ── Drawing helpers ──────────────────────────────────
@@ -841,9 +1067,13 @@ export default function BoardScreen() {
         color: drawColor,
         width: drawWidth,
         opacity: 1,
+        zIndex: 0,
         xOffset: 0,
         yOffset: 0,
+        groupId: null,
+        syncStatus: 'pending' as const,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       },
     ])
     // Clear active drawing path immediately — pending stroke takes over
@@ -853,33 +1083,351 @@ export default function BoardScreen() {
       { pathData, color: drawColor, width: drawWidth },
       {
         onSuccess: (newStroke) => {
-
           if (newStroke) {
-            setUndoStack((prev) => [...prev, newStroke.id])
-            setRedoStack([])
+            pushUndo({ type: 'create-stroke', strokeId: newStroke.id })
           }
         },
-        onError: (err) => {
-
-        },
+        onError: () => {},
       }
     )
   }
 
   const handleUndo = useCallback(() => {
     if (undoStack.length === 0) return
-    const lastId = undoStack[undoStack.length - 1]
+    const action = undoStack[undoStack.length - 1]
     setUndoStack((prev) => prev.slice(0, -1))
-    setRedoStack((prev) => [...prev, lastId])
-    deleteStroke.mutate(lastId)
-  }, [undoStack, deleteStroke])
 
-  const handleRedo = useCallback(() => {
-    if (redoStack.length === 0) return
-    // Redo would require re-creating the stroke, which we don't have data for after deletion
-    // For now, redo is a no-op placeholder
-    // A proper implementation would store the full stroke data
-  }, [redoStack])
+    switch (action.type) {
+      case 'create-stroke':
+        deleteStroke.mutate(action.strokeId)
+        break
+      case 'create-item':
+        deleteItem.mutate(action.itemId)
+        break
+      case 'create-connection':
+        deleteConnection.mutate(action.connectionId)
+        break
+      case 'delete': {
+        // Recreate deleted items, strokes, and connections
+        const idMap = new Map<string, string>()
+        let pendingItems = action.items.length
+        let pendingStrokes = action.strokes.length
+        const recreateConnections = () => {
+          for (const conn of action.connections) {
+            const newFrom = idMap.get(conn.fromItemId) ?? conn.fromItemId
+            const newTo = idMap.get(conn.toItemId) ?? conn.toItemId
+            createConnection.mutate({
+              fromItemId: newFrom, toItemId: newTo,
+              fromSide: conn.fromSide, toSide: conn.toSide,
+              color: conn.color, strokeWidth: conn.strokeWidth,
+            })
+          }
+        }
+        const checkDone = () => {
+          if (pendingItems <= 0 && pendingStrokes <= 0) recreateConnections()
+        }
+        for (const item of action.items) {
+          createItem.mutate({
+            type: item.type, x: item.x, y: item.y, width: item.width, height: item.height,
+            content: item.content, imageUri: item.imageUri, audioUri: item.audioUri,
+            audioDuration: item.audioDuration, strokeColor: item.strokeColor,
+            strokeWidth: item.strokeWidth, fillColor: item.fillColor,
+            fontSize: item.fontSize, fontWeight: item.fontWeight, groupId: item.groupId,
+          }, {
+            onSuccess: (newItem) => {
+              if (newItem) idMap.set(item.id, newItem.id)
+              pendingItems--
+              checkDone()
+            },
+            onError: () => { pendingItems--; checkDone() },
+          })
+        }
+        for (const stroke of action.strokes) {
+          createStroke.mutate({
+            pathData: stroke.pathData, color: stroke.color, width: stroke.width,
+            opacity: stroke.opacity, xOffset: stroke.xOffset, yOffset: stroke.yOffset,
+            groupId: stroke.groupId,
+          }, {
+            onSuccess: () => { pendingStrokes--; checkDone() },
+            onError: () => { pendingStrokes--; checkDone() },
+          })
+        }
+        if (action.items.length === 0 && action.strokes.length === 0) recreateConnections()
+        break
+      }
+      case 'move': {
+        // Restore original positions
+        if (action.itemMoves.length > 1) {
+          batchUpdatePositions.mutate(action.itemMoves)
+        } else if (action.itemMoves.length === 1) {
+          const m = action.itemMoves[0]
+          updateItem.mutate({ id: m.id, data: { x: m.x, y: m.y, width: m.width, height: m.height } })
+        }
+        for (const sm of action.strokeMoves) {
+          updateStroke.mutate({ id: sm.id, data: { xOffset: sm.xOffset, yOffset: sm.yOffset } })
+        }
+        break
+      }
+      case 'resize':
+        updateItem.mutate({
+          id: action.itemId,
+          data: { x: action.x, y: action.y, width: action.width, height: action.height },
+        })
+        break
+      case 'update-item':
+        updateItem.mutate({ id: action.itemId, data: { [action.field]: action.oldValue } })
+        break
+      case 'group':
+      case 'ungroup': {
+        // Restore previous group IDs
+        const itemIds = action.itemIds
+        const strokeIds = action.strokeIds
+        // Group by target groupId for batch operations
+        const groupedItems = new Map<string, string[]>()
+        const groupedStrokes = new Map<string, string[]>()
+        for (const iid of itemIds) {
+          const prev = action.prevGroupIds[iid] ?? '__null__'
+          const list = groupedItems.get(prev) || []
+          list.push(iid)
+          groupedItems.set(prev, list)
+        }
+        for (const sid of strokeIds) {
+          const prev = action.prevGroupIds[sid] ?? '__null__'
+          const list = groupedStrokes.get(prev) || []
+          list.push(sid)
+          groupedStrokes.set(prev, list)
+        }
+        groupedItems.forEach((ids, gid) => {
+          groupItems.mutate({ itemIds: ids, strokeIds: [], groupId: gid === '__null__' ? '' : gid })
+        })
+        groupedStrokes.forEach((ids, gid) => {
+          groupItems.mutate({ itemIds: [], strokeIds: ids, groupId: gid === '__null__' ? '' : gid })
+        })
+        // For null groupId, use ungroup
+        const nullItemIds = groupedItems.get('__null__') || []
+        const nullStrokeIds = groupedStrokes.get('__null__') || []
+        if (nullItemIds.length > 0 || nullStrokeIds.length > 0) {
+          ungroupItems.mutate({ itemIds: nullItemIds, strokeIds: nullStrokeIds })
+        }
+        break
+      }
+      case 'batch-create':
+        batchDelete.mutate({ itemIds: action.itemIds, strokeIds: action.strokeIds })
+        break
+    }
+    clearSelection()
+  }, [undoStack, deleteStroke, deleteItem, deleteConnection, createItem, createStroke, createConnection, updateItem, updateStroke, batchUpdatePositions, batchDelete, groupItems, ungroupItems, clearSelection])
+
+  // ── Marquee helpers ──────────────────────────────────
+
+  function getStrokeBounds(stroke: BoardStroke): { x: number; y: number; width: number; height: number } | null {
+    const points: { x: number; y: number }[] = []
+    const parts = stroke.pathData.match(/[ML]\s*[-\d.e]+[\s,]+[-\d.e]+/gi)
+    if (!parts) return null
+    for (const part of parts) {
+      const nums = part.match(/[-\d.e]+/gi)
+      if (nums && nums.length >= 2) {
+        points.push({ x: parseFloat(nums[0]) + stroke.xOffset, y: parseFloat(nums[1]) + stroke.yOffset })
+      }
+    }
+    if (points.length === 0) return null
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const p of points) {
+      if (p.x < minX) minX = p.x
+      if (p.y < minY) minY = p.y
+      if (p.x > maxX) maxX = p.x
+      if (p.y > maxY) maxY = p.y
+    }
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+  }
+
+  function finishMarquee() {
+    if (!marqueeRect) return
+    // Convert screen coords to canvas coords
+    const sx = Math.min(marqueeRect.startX, marqueeRect.currentX)
+    const sy = Math.min(marqueeRect.startY, marqueeRect.currentY)
+    const ex = Math.max(marqueeRect.startX, marqueeRect.currentX)
+    const ey = Math.max(marqueeRect.startY, marqueeRect.currentY)
+
+    const csx = (sx - jsTranslateX) / jsScale
+    const csy = (sy - jsTranslateY) / jsScale
+    const cex = (ex - jsTranslateX) / jsScale
+    const cey = (ey - jsTranslateY) / jsScale
+
+    const newItemIds = new Set<string>()
+    const newStrokeIds = new Set<string>()
+
+    // Test items
+    for (const item of items) {
+      if (item.type === 'text' && !item.content) continue
+      let w = item.width, h = item.height
+      if (item.type === 'text' && w === 0 && item.content) {
+        const measured = measuredSizes.current.get(item.id)
+        if (measured) { w = measured.width; h = measured.height }
+      }
+      // Check intersection
+      if (item.x + w >= csx && item.x <= cex && item.y + h >= csy && item.y <= cey) {
+        if (item.groupId) {
+          // Select entire group
+          items.filter((i) => i.groupId === item.groupId).forEach((i) => newItemIds.add(i.id))
+          allStrokes.filter((s) => s.groupId === item.groupId).forEach((s) => newStrokeIds.add(s.id))
+        } else {
+          newItemIds.add(item.id)
+        }
+      }
+    }
+
+    // Test strokes
+    for (const stroke of allStrokes) {
+      const bounds = getStrokeBounds(stroke)
+      if (!bounds) continue
+      if (bounds.x + bounds.width >= csx && bounds.x <= cex && bounds.y + bounds.height >= csy && bounds.y <= cey) {
+        if (stroke.groupId) {
+          items.filter((i) => i.groupId === stroke.groupId).forEach((i) => newItemIds.add(i.id))
+          allStrokes.filter((s) => s.groupId === stroke.groupId).forEach((s) => newStrokeIds.add(s.id))
+        } else {
+          newStrokeIds.add(stroke.id)
+        }
+      }
+    }
+
+    setSelectedItemIds(newItemIds)
+    setSelectedStrokeIds(newStrokeIds)
+    setSelectedConnectionIds(new Set())
+    setIsMarqueeMode(false)
+  }
+
+  // ── Clipboard handlers ──────────────────────────────
+
+  const handleCut = useCallback(() => {
+    const selectedItems = items.filter((i) => selectedItemIds.has(i.id))
+    const selectedStrokes = allStrokes.filter((s) => selectedStrokeIds.has(s.id))
+    setClipboard({ items: selectedItems, strokes: selectedStrokes })
+    // Delete originals immediately
+    batchDelete.mutate({
+      itemIds: Array.from(selectedItemIds),
+      strokeIds: Array.from(selectedStrokeIds),
+    })
+    pasteOffsetRef.current = 0
+    clearSelection()
+  }, [items, allStrokes, selectedItemIds, selectedStrokeIds, batchDelete, clearSelection])
+
+  const handleCopy = useCallback(() => {
+    const selectedItems = items.filter((i) => selectedItemIds.has(i.id))
+    const selectedStrokes = allStrokes.filter((s) => selectedStrokeIds.has(s.id))
+    setClipboard({ items: selectedItems, strokes: selectedStrokes })
+    pasteOffsetRef.current = 0
+    clearSelection()
+  }, [items, allStrokes, selectedItemIds, selectedStrokeIds, clearSelection])
+
+  const handlePaste = useCallback(() => {
+    if (!clipboard) return
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+
+    // Compute bounding box of clipboard content
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    for (const item of clipboard.items) {
+      minX = Math.min(minX, item.x)
+      minY = Math.min(minY, item.y)
+      maxX = Math.max(maxX, item.x + item.width)
+      maxY = Math.max(maxY, item.y + item.height)
+    }
+    for (const stroke of clipboard.strokes) {
+      const bounds = getStrokeBounds(stroke)
+      if (bounds) {
+        minX = Math.min(minX, bounds.x)
+        minY = Math.min(minY, bounds.y)
+        maxX = Math.max(maxX, bounds.x + bounds.width)
+        maxY = Math.max(maxY, bounds.y + bounds.height)
+      }
+    }
+
+    // Viewport center in canvas coords
+    const viewCenterX = (canvasSize.width / 2 - jsTranslateX) / jsScale
+    const viewCenterY = (canvasSize.height / 2 - jsTranslateY) / jsScale
+
+    // Offset to move clipboard center to viewport center
+    const clipCenterX = (minX + maxX) / 2
+    const clipCenterY = (minY + maxY) / 2
+    const dx = viewCenterX - clipCenterX + pasteOffsetRef.current
+    const dy = viewCenterY - clipCenterY + pasteOffsetRef.current
+    pasteOffsetRef.current += 30
+
+    for (const item of clipboard.items) {
+      createItem.mutate({
+        type: item.type,
+        x: item.x + dx,
+        y: item.y + dy,
+        width: item.width,
+        height: item.height,
+        content: item.content,
+        imageUri: item.imageUri,
+        audioUri: item.audioUri,
+        audioDuration: item.audioDuration,
+        strokeColor: item.strokeColor,
+        strokeWidth: item.strokeWidth,
+        fillColor: item.fillColor,
+        fontSize: item.fontSize,
+        fontWeight: item.fontWeight,
+      })
+    }
+    for (const stroke of clipboard.strokes) {
+      createStroke.mutate({
+        pathData: stroke.pathData,
+        color: stroke.color,
+        width: stroke.width,
+        opacity: stroke.opacity,
+        xOffset: stroke.xOffset + dx,
+        yOffset: stroke.yOffset + dy,
+      })
+    }
+
+    // Exit marquee mode after paste
+    setIsMarqueeMode(false)
+  }, [clipboard, createItem, createStroke, canvasSize, jsTranslateX, jsTranslateY, jsScale])
+
+  // ── Group/Ungroup handlers ──────────────────────────
+
+  const handleGroup = useCallback(() => {
+    const newGroupId = generateUUID()
+    groupItems.mutate({
+      itemIds: Array.from(selectedItemIds),
+      strokeIds: Array.from(selectedStrokeIds),
+      groupId: newGroupId,
+    })
+  }, [selectedItemIds, selectedStrokeIds, groupItems])
+
+  const handleUngroup = useCallback(() => {
+    ungroupItems.mutate({
+      itemIds: Array.from(selectedItemIds),
+      strokeIds: Array.from(selectedStrokeIds),
+    })
+  }, [selectedItemIds, selectedStrokeIds, ungroupItems])
+
+  // Computed group/ungroup visibility
+  const showGroupAction = useMemo(() => {
+    if (selectionCount < 2) return false
+    // Check if all selected items already share the same group
+    const selectedItems = items.filter((i) => selectedItemIds.has(i.id))
+    const selectedStrks = allStrokes.filter((s) => selectedStrokeIds.has(s.id))
+    const allGroupIds = new Set([
+      ...selectedItems.map((i) => i.groupId).filter(Boolean),
+      ...selectedStrks.map((s) => s.groupId).filter(Boolean),
+    ])
+    if (allGroupIds.size === 1) {
+      const groupId = Array.from(allGroupIds)[0]!
+      const allInGroup = selectedItems.every((i) => i.groupId === groupId) &&
+                         selectedStrks.every((s) => s.groupId === groupId)
+      if (allInGroup) return false // all in same group, show ungroup instead
+    }
+    return true
+  }, [selectionCount, items, allStrokes, selectedItemIds, selectedStrokeIds])
+
+  const showUngroupAction = useMemo(() => {
+    const selectedItems = items.filter((i) => selectedItemIds.has(i.id))
+    const selectedStrks = allStrokes.filter((s) => selectedStrokeIds.has(s.id))
+    return selectedItems.some((i) => i.groupId) || selectedStrks.some((s) => s.groupId)
+  }, [items, allStrokes, selectedItemIds, selectedStrokeIds])
 
   // ── Text editing ──────────────────────────────────────
 
@@ -887,11 +1435,19 @@ export default function BoardScreen() {
     console.log('[SAVE] saveEditingText called, editingTextId:', editingTextId, 'value:', editingTextValue?.slice(0, 20))
     if (!editingTextId) return
 
+    const oldItem = items.find((i) => i.id === editingTextId)
+    const oldContent = oldItem?.content ?? ''
+
     if (editingTextValue.trim() === '') {
       console.log('[SAVE] empty → deleting item', editingTextId)
+      if (oldContent) {
+        // Had content before, now empty — track as content change for undo
+        pushUndo({ type: 'update-item', itemId: editingTextId, field: 'content', oldValue: oldContent })
+      }
       deleteItem.mutate(editingTextId)
-    } else {
+    } else if (editingTextValue !== oldContent) {
       console.log('[SAVE] saving content for', editingTextId)
+      pushUndo({ type: 'update-item', itemId: editingTextId, field: 'content', oldValue: oldContent })
       updateItem.mutate({ id: editingTextId, data: { content: editingTextValue } })
     }
     setEditingTextId(null)
@@ -938,6 +1494,13 @@ export default function BoardScreen() {
     const pos = { ...flyMenuCanvasPos }
     cleanupPendingText()
 
+    // Convert hex color to 50% opacity for fill
+    const hex = drawColor.replace('#', '')
+    const r = parseInt(hex.substring(0, 2), 16)
+    const g = parseInt(hex.substring(2, 4), 16)
+    const b = parseInt(hex.substring(4, 6), 16)
+    const fillColor = `rgba(${r},${g},${b},0.5)`
+
     createItem.mutate({
       type: 'shape',
       x: pos.x,
@@ -946,6 +1509,7 @@ export default function BoardScreen() {
       height: 100,
       strokeColor: drawColor,
       strokeWidth: 2,
+      fillColor,
     })
   }, [flyMenuCanvasPos, createItem, drawColor, editingTextId, deleteItem])
 
@@ -979,15 +1543,17 @@ export default function BoardScreen() {
 
   // ── Selected text item (for toolbar text controls) ──────
   const selectedTextItem = useMemo(() => {
-    if (!selectedItemId) return null
-    const item = items.find((i) => i.id === selectedItemId)
+    if (selectedItemIds.size !== 1) return null
+    const singleId = Array.from(selectedItemIds)[0]
+    const item = items.find((i) => i.id === singleId)
     return item?.type === 'text' ? item : null
-  }, [selectedItemId, items])
+  }, [selectedItemIds, items])
 
   const handleFontSizeChange = useCallback((size: number) => {
-    if (!selectedItemId) return
-    updateItem.mutate({ id: selectedItemId, data: { fontSize: size } })
-  }, [selectedItemId, updateItem])
+    if (selectedItemIds.size !== 1) return
+    const singleId = Array.from(selectedItemIds)[0]
+    updateItem.mutate({ id: singleId, data: { fontSize: size } })
+  }, [selectedItemIds, updateItem])
 
   const handleBoldToggle = useCallback(() => {
     if (!selectedTextItem) return
@@ -998,17 +1564,30 @@ export default function BoardScreen() {
   // ── Delete selected ──────────────────────────────────
 
   const handleDeleteSelected = useCallback(() => {
-    if (selectedItemId) {
-      deleteItem.mutate(selectedItemId)
-      setSelectedItemId(null)
-    } else if (selectedStrokeId) {
-      deleteStroke.mutate(selectedStrokeId)
-      setSelectedStrokeId(null)
-    } else if (selectedConnectionId) {
-      deleteConnection.mutate(selectedConnectionId)
-      setSelectedConnectionId(null)
+    const itemIds = Array.from(selectedItemIds)
+    const strokeIds = Array.from(selectedStrokeIds)
+    const connIds = Array.from(selectedConnectionIds)
+
+    // Snapshot items/strokes/connections for undo before deleting
+    const deletedItems = items.filter((i) => selectedItemIds.has(i.id))
+    const deletedStrokes = allStrokes.filter((s) => selectedStrokeIds.has(s.id))
+    // Also capture connections that reference any deleted item
+    const deletedConnections = connections.filter(
+      (c) => connIds.includes(c.id) || selectedItemIds.has(c.fromItemId) || selectedItemIds.has(c.toItemId)
+    )
+
+    if (deletedItems.length > 0 || deletedStrokes.length > 0 || deletedConnections.length > 0) {
+      pushUndo({ type: 'delete', items: deletedItems, strokes: deletedStrokes, connections: deletedConnections })
     }
-  }, [selectedItemId, selectedStrokeId, selectedConnectionId, deleteItem, deleteStroke, deleteConnection])
+
+    if (itemIds.length > 0 || strokeIds.length > 0) {
+      batchDelete.mutate({ itemIds, strokeIds })
+    }
+    for (const connId of connIds) {
+      deleteConnection.mutate(connId)
+    }
+    clearSelection()
+  }, [selectedItemIds, selectedStrokeIds, selectedConnectionIds, items, allStrokes, connections, batchDelete, deleteConnection, clearSelection, pushUndo])
 
   // ── Text input on change → dismiss fly menu ──────────
 
@@ -1034,17 +1613,22 @@ export default function BoardScreen() {
       Keyboard.dismiss()
       return true
     }
-    // 3. Deselect any selected item/stroke/connection
-    if (selectedItemId || selectedStrokeId || selectedConnectionId) {
-      setSelectedItemId(null)
-      setSelectedStrokeId(null)
-      setSelectedConnectionId(null)
+    // 3. Exit marquee mode
+    if (isMarqueeMode) {
+      setIsMarqueeMode(false)
       return true
     }
-    // 4. Nothing to intercept → navigate back
-    router.back()
+    // 4. Deselect any selected item/stroke/connection
+    if (hasSelection) {
+      clearSelection()
+      return true
+    }
+    // 5. Navigate back (only if possible)
+    if (router.canGoBack()) {
+      router.back()
+    }
     return false
-  }, [router, editingTextId, flyMenu.visible, selectedItemId, selectedStrokeId, selectedConnectionId])
+  }, [router, editingTextId, flyMenu.visible, isMarqueeMode, hasSelection, clearSelection])
 
   // Android hardware back button
   useEffect(() => {
@@ -1064,6 +1648,26 @@ export default function BoardScreen() {
       await Share.share({ message: `Check out my board: ${board?.name}` })
     } catch {}
   }, [board?.name])
+
+  const handleZoomReset = useCallback(() => {
+    // Keep the viewport center at the same canvas point
+    const cx = canvasSize.width / 2
+    const cy = canvasSize.height / 2
+    const oldScale = scale.value
+    const newTx = cx - (cx - translateX.value) / oldScale
+    const newTy = cy - (cy - translateY.value) / oldScale
+
+    scale.value = withTiming(1, { duration: 200 })
+    translateX.value = withTiming(newTx, { duration: 200 })
+    translateY.value = withTiming(newTy, { duration: 200 })
+    savedScale.value = 1
+    savedTranslateX.value = newTx
+    savedTranslateY.value = newTy
+    setJsScale(1)
+    setJsTranslateX(newTx)
+    setJsTranslateY(newTy)
+    saveViewport({ x: newTx, y: newTy, zoom: 1 })
+  }, [canvasSize])
 
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
     setCanvasSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })
@@ -1095,6 +1699,7 @@ export default function BoardScreen() {
         onBack={handleBack}
         onBoardPress={handleBoardPress}
         onShare={handleShare}
+        onZoomReset={handleZoomReset}
       />
 
       <View style={{ flex: 1 }}>
@@ -1127,14 +1732,14 @@ export default function BoardScreen() {
                   translateY={jsTranslateY}
                   scale={jsScale}
                   isDark={isDark}
-                  selectedStrokeId={selectedStrokeId}
+                  selectedStrokeIds={selectedStrokeIds}
                 />
               )}
 
               {/* Items layer — rendered as positioned RN views */}
               {items.map((item) => {
                 // Use local override for the item being manipulated (smooth drag/resize)
-                const ov = localOverride?.id === item.id ? localOverride : null
+                const ov = localOverrides.get(item.id) ?? null
                 const ix = ov ? ov.x : item.x
                 const iy = ov ? ov.y : item.y
                 let iw = ov ? ov.width : item.width
@@ -1151,7 +1756,8 @@ export default function BoardScreen() {
                 const screenY = iy * jsScale + jsTranslateY
                 const screenW = iw * jsScale
                 const screenH = ih * jsScale
-                const isSelected = selectedItemId === item.id
+                const isSelected = selectedItemIds.has(item.id)
+                const isSingleSelected = isSelected && selectedItemIds.size === 1 && selectedStrokeIds.size === 0
                 const isEditing = editingTextId === item.id
 
                 // Viewport culling (use generous bounds for text since stored size may be 0)
@@ -1187,9 +1793,6 @@ export default function BoardScreen() {
                       maxWidth: isText ? TEXT_MAX_WIDTH * jsScale : undefined,
                       height: isText ? undefined : screenH,
                       minHeight: isText ? 20 : screenH,
-                      borderWidth: isSelected ? 2 : 0,
-                      borderColor: isSelected ? accentColor : 'transparent',
-                      borderRadius: item.type === 'audio' ? screenW / 2 : 0,
                     }}
                   >
                     {/* Text item */}
@@ -1278,8 +1881,25 @@ export default function BoardScreen() {
                       </View>
                     )}
 
-                    {/* Selection handles */}
+                    {/* Selection border overlay — rendered on top of content */}
                     {isSelected && (
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: 'absolute',
+                          top: -2,
+                          left: -2,
+                          right: -2,
+                          bottom: -2,
+                          borderWidth: 2,
+                          borderColor: '#3b82f6',
+                          borderRadius: item.type === 'audio' ? 9999 : 4,
+                        }}
+                      />
+                    )}
+
+                    {/* Selection handles — only show for single selection */}
+                    {isSingleSelected && (
                       <>
                         {/* Corner resize handles (not for audio) */}
                         {item.type !== 'audio' && ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'].map((corner) => {
@@ -1295,7 +1915,7 @@ export default function BoardScreen() {
                                 width: 14,
                                 height: 14,
                                 borderRadius: 7,
-                                backgroundColor: accentColor,
+                                backgroundColor: '#3b82f6',
                                 borderWidth: 2,
                                 borderColor: 'white',
                               }}
@@ -1319,7 +1939,7 @@ export default function BoardScreen() {
                               width: 24,
                               height: 24,
                               borderRadius: 12,
-                              backgroundColor: accentColor,
+                              backgroundColor: '#3b82f6',
                               borderWidth: 2,
                               borderColor: 'white',
                               alignItems: 'center',
@@ -1350,8 +1970,8 @@ export default function BoardScreen() {
                   translateX={jsTranslateX}
                   translateY={jsTranslateY}
                   scale={jsScale}
-                  selectedConnectionId={selectedConnectionId}
-                  localOverride={localOverride}
+                  selectedConnectionIds={selectedConnectionIds}
+                  localOverrides={localOverrides}
                 />
               )}
 
@@ -1390,6 +2010,23 @@ export default function BoardScreen() {
                   />
                 </View>
               )}
+              {/* Marquee selection overlay */}
+              {marqueeRect && (
+                <View
+                  pointerEvents="none"
+                  style={{
+                    position: 'absolute',
+                    left: Math.min(marqueeRect.startX, marqueeRect.currentX),
+                    top: Math.min(marqueeRect.startY, marqueeRect.currentY),
+                    width: Math.abs(marqueeRect.currentX - marqueeRect.startX),
+                    height: Math.abs(marqueeRect.currentY - marqueeRect.startY),
+                    borderWidth: 2,
+                    borderColor: accentColor,
+                    borderStyle: 'dashed',
+                    backgroundColor: 'rgba(59,130,246,0.1)',
+                  }}
+                />
+              )}
             </Animated.View>
           </GestureDetector>
 
@@ -1401,6 +2038,7 @@ export default function BoardScreen() {
             onImage={handleFlyImage}
             onRectangle={handleFlyRectangle}
             onAudio={handleFlyAudio}
+            onPaste={clipboard ? () => { cleanupPendingText(); handlePaste() } : undefined}
             onDismiss={cleanupPendingText}
           />
 
@@ -1448,14 +2086,24 @@ export default function BoardScreen() {
           selectedWidth={drawWidth}
           onColorChange={(c) => {
             setDrawColor(c)
-            // Also update the selected item's color
-            if (selectedItemId) {
-              updateItem.mutate({ id: selectedItemId, data: { strokeColor: c } })
+            // Also update the selected item's color (and fill for shapes)
+            if (selectedItemIds.size === 1) {
+              const singleId = Array.from(selectedItemIds)[0]
+              const selectedItem = items.find((i) => i.id === singleId)
+              const data: Record<string, any> = { strokeColor: c }
+              if (selectedItem?.type === 'shape') {
+                const hex = c.replace('#', '')
+                const r = parseInt(hex.substring(0, 2), 16)
+                const g = parseInt(hex.substring(2, 4), 16)
+                const b = parseInt(hex.substring(4, 6), 16)
+                data.fillColor = `rgba(${r},${g},${b},0.5)`
+              }
+              updateItem.mutate({ id: singleId, data })
             }
           }}
           onWidthChange={setDrawWidth}
           onUndo={handleUndo}
-          onRedo={handleRedo}
+          onRedo={() => {}}
           canUndo={undoStack.length > 0}
           canRedo={false}
           textSelected={!!selectedTextItem}
@@ -1463,8 +2111,25 @@ export default function BoardScreen() {
           textBold={selectedTextItem?.fontWeight === 'bold'}
           onFontSizeChange={handleFontSizeChange}
           onBoldToggle={handleBoldToggle}
-          showDelete={!!(selectedItemId || selectedStrokeId || selectedConnectionId)}
+          showDelete={hasSelection}
           onDelete={handleDeleteSelected}
+          selectionCount={selectionCount}
+          showGroup={showGroupAction}
+          showUngroup={showUngroupAction}
+          showCut={selectionCount > 0}
+          showCopy={selectionCount > 0}
+          showPaste={!!clipboard}
+          showMarquee
+          isMarqueeMode={isMarqueeMode}
+          onGroup={handleGroup}
+          onUngroup={handleUngroup}
+          onCut={handleCut}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
+          onMarqueeToggle={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+            setIsMarqueeMode((prev) => !prev)
+          }}
         />
       </View>
     </YStack>

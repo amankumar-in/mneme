@@ -3,6 +3,7 @@ import { Pressable } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { XStack, YStack, Text } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
+import { Group, Scissors, SquareDashedMousePointer, Clipboard, Undo, Redo } from 'lucide-react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import { useAppTheme } from '../../contexts/ThemeContext'
 
@@ -56,6 +57,21 @@ interface DrawingToolbarProps {
   // Delete button (shown when something is selected)
   showDelete?: boolean
   onDelete?: () => void
+  // Multi-select actions
+  selectionCount?: number
+  showGroup?: boolean
+  showUngroup?: boolean
+  showCut?: boolean
+  showCopy?: boolean
+  showPaste?: boolean
+  showMarquee?: boolean
+  isMarqueeMode?: boolean
+  onGroup?: () => void
+  onUngroup?: () => void
+  onCut?: () => void
+  onCopy?: () => void
+  onPaste?: () => void
+  onMarqueeToggle?: () => void
 }
 
 export function DrawingToolbar({
@@ -74,6 +90,20 @@ export function DrawingToolbar({
   onBoldToggle,
   showDelete,
   onDelete,
+  selectionCount = 0,
+  showGroup,
+  showUngroup,
+  showCut,
+  showCopy,
+  showPaste,
+  showMarquee,
+  isMarqueeMode,
+  onGroup,
+  onUngroup,
+  onCut,
+  onCopy,
+  onPaste,
+  onMarqueeToggle,
 }: DrawingToolbarProps) {
   const { resolvedTheme } = useAppTheme()
   const { iconColor, iconColorStrong, background, accentColor } = useThemeColor()
@@ -171,7 +201,7 @@ export function DrawingToolbar({
                 backgroundColor={textBold ? '$accentColor' : '$backgroundTinted'}
               >
                 <Text
-                  color={textBold ? 'white' : '$color'}
+                  color={textBold ? '#000000' : '$color'}
                   fontSize={16}
                   fontWeight="800"
                 >
@@ -188,9 +218,9 @@ export function DrawingToolbar({
               return (
                 <Pressable key={opt.key} onPress={() => onWidthChange(opt.width)}>
                   <YStack
-                    width={32}
-                    height={32}
-                    borderRadius={16}
+                    width={28}
+                    height={28}
+                    borderRadius={14}
                     alignItems="center"
                     justifyContent="center"
                     backgroundColor={isSelected ? '$backgroundTinted' : 'transparent'}
@@ -211,9 +241,9 @@ export function DrawingToolbar({
         )}
       </XStack>
 
-      {/* Second row: undo/redo centered + delete on right */}
+      {/* Second row: undo/redo on left + selection info + actions on right */}
       <XStack justifyContent="space-between" alignItems="center">
-        <XStack gap="$2">
+        <XStack gap="$1" alignItems="center">
           <Pressable onPress={onUndo} disabled={!canUndo}>
             <YStack
               width={36}
@@ -223,7 +253,7 @@ export function DrawingToolbar({
               justifyContent="center"
               opacity={canUndo ? 1 : 0.3}
             >
-              <Ionicons name="arrow-undo" size={20} color={iconColorStrong} />
+              <Undo size={20} color={iconColorStrong} />
             </YStack>
           </Pressable>
           <Pressable onPress={onRedo} disabled={!canRedo}>
@@ -235,26 +265,125 @@ export function DrawingToolbar({
               justifyContent="center"
               opacity={canRedo ? 1 : 0.3}
             >
-              <Ionicons name="arrow-redo" size={20} color={iconColorStrong} />
+              <Redo size={20} color={iconColorStrong} />
             </YStack>
           </Pressable>
+
+          {selectionCount > 0 && (
+            <Text color="$colorSubtle" fontSize={12} marginLeft="$1">
+              {selectionCount} selected
+            </Text>
+          )}
         </XStack>
 
-        {/* Delete button on right */}
-        {showDelete && (
-          <Pressable onPress={onDelete}>
-            <YStack
-              width={36}
-              height={36}
-              borderRadius={18}
-              alignItems="center"
-              justifyContent="center"
-              backgroundColor="rgba(239,68,68,0.9)"
-            >
-              <Ionicons name="trash-outline" size={18} color="white" />
-            </YStack>
-          </Pressable>
-        )}
+        {/* Action buttons on right */}
+        <XStack gap="$1" alignItems="center">
+          {/* Marquee toggle */}
+          {showMarquee && (
+            <Pressable onPress={onMarqueeToggle}>
+              <YStack
+                width={36}
+                height={36}
+                borderRadius={18}
+                alignItems="center"
+                justifyContent="center"
+                backgroundColor={isMarqueeMode ? '$accentColor' : 'transparent'}
+              >
+                <SquareDashedMousePointer size={18} color={isMarqueeMode ? '#000000' : iconColorStrong} />
+              </YStack>
+            </Pressable>
+          )}
+
+          {/* Paste */}
+          {showPaste && (
+            <Pressable onPress={onPaste}>
+              <YStack
+                width={36}
+                height={36}
+                borderRadius={18}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Clipboard size={18} color={iconColorStrong} />
+              </YStack>
+            </Pressable>
+          )}
+
+          {/* Cut */}
+          {showCut && (
+            <Pressable onPress={onCut}>
+              <YStack
+                width={36}
+                height={36}
+                borderRadius={18}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Scissors size={18} color={iconColorStrong} />
+              </YStack>
+            </Pressable>
+          )}
+
+          {/* Copy */}
+          {showCopy && (
+            <Pressable onPress={onCopy}>
+              <YStack
+                width={36}
+                height={36}
+                borderRadius={18}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Ionicons name="copy-outline" size={18} color={iconColorStrong} />
+              </YStack>
+            </Pressable>
+          )}
+
+          {/* Group */}
+          {showGroup && (
+            <Pressable onPress={onGroup}>
+              <YStack
+                width={36}
+                height={36}
+                borderRadius={18}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Group size={18} color={iconColorStrong} />
+              </YStack>
+            </Pressable>
+          )}
+
+          {/* Ungroup */}
+          {showUngroup && (
+            <Pressable onPress={onUngroup}>
+              <YStack
+                width={36}
+                height={36}
+                borderRadius={18}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Ionicons name="git-branch-outline" size={18} color={iconColorStrong} />
+              </YStack>
+            </Pressable>
+          )}
+
+          {/* Delete */}
+          {showDelete && (
+            <Pressable onPress={onDelete}>
+              <YStack
+                width={36}
+                height={36}
+                borderRadius={18}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Ionicons name="trash" size={20} color="#ef4444" />
+              </YStack>
+            </Pressable>
+          )}
+        </XStack>
       </XStack>
     </YStack>
   )

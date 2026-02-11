@@ -11,6 +11,7 @@ interface BoardHeaderProps {
   onBack: () => void
   onBoardPress: () => void
   onShare: () => void
+  onZoomReset: () => void
 }
 
 function getInitials(name: string): string {
@@ -21,7 +22,7 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-export function BoardHeader({ board, zoom, onBack, onBoardPress, onShare }: BoardHeaderProps) {
+export function BoardHeader({ board, zoom, onBack, onBoardPress, onShare, onZoomReset }: BoardHeaderProps) {
   const insets = useSafeAreaInsets()
   const { iconColorStrong, brandText } = useThemeColor()
 
@@ -80,7 +81,14 @@ export function BoardHeader({ board, zoom, onBack, onBoardPress, onShare }: Boar
       </XStack>
 
       <XStack gap="$2" alignItems="center">
-        <Text color="$colorSubtle" fontSize="$2">{zoomPercent}%</Text>
+        <Text
+          color="$colorSubtle"
+          fontSize="$2"
+          onPress={onZoomReset}
+          pressStyle={{ opacity: 0.7 }}
+        >
+          {zoomPercent}%
+        </Text>
         <Button
           size="$3"
           circular

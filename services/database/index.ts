@@ -16,10 +16,10 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   // Fresh database - create initial schema
   if (currentVersion === 0) {
     await db.execAsync(SCHEMA_V1)
-    // V1 schema already includes columns from migrations 2–9
-    // (is_system_thread, notification_id, link_preview_*, attachment_waveform, thread is_locked, note is_pinned, boards, font_weight),
+    // V1 schema already includes columns from migrations 2–10
+    // (is_system_thread, notification_id, link_preview_*, attachment_waveform, thread is_locked, note is_pinned, boards, font_weight, group_id),
     // so skip to current version to avoid duplicate ALTER TABLE errors.
-    currentVersion = 9
+    currentVersion = 10
   }
 
   // Run any pending migrations
@@ -87,6 +87,24 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
     }
     if (!bsColumnNames.has('y_offset')) {
       await db.execAsync('ALTER TABLE board_strokes ADD COLUMN y_offset REAL NOT NULL DEFAULT 0')
+    }
+    if (!bsColumnNames.has('group_id')) {
+      await db.execAsync('ALTER TABLE board_strokes ADD COLUMN group_id TEXT')
+    }
+  }
+
+  // Check board_items table for group_id column
+  const boardItemTables = await db.getAllAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='board_items'"
+  )
+  if (boardItemTables.length > 0) {
+    const biColumns = await db.getAllAsync<{ name: string }>(
+      'PRAGMA table_info(board_items)'
+    )
+    const biColumnNames = new Set(biColumns.map(col => col.name))
+
+    if (!biColumnNames.has('group_id')) {
+      await db.execAsync('ALTER TABLE board_items ADD COLUMN group_id TEXT')
     }
   }
 

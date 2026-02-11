@@ -1,6 +1,6 @@
 // SQLite schema definitions for offline-first architecture
 
-export const DATABASE_VERSION = 9
+export const DATABASE_VERSION = 10
 export const DATABASE_NAME = 'laterbox.db'
 
 // Schema for version 1
@@ -190,6 +190,7 @@ export const SCHEMA_V1 = `
     fill_color TEXT,
     font_size REAL,
     font_weight TEXT,
+    group_id TEXT,
     sync_status TEXT NOT NULL DEFAULT 'pending',
     deleted_at TEXT,
     created_at TEXT NOT NULL,
@@ -198,6 +199,7 @@ export const SCHEMA_V1 = `
   );
   CREATE INDEX IF NOT EXISTS idx_board_items_board_id ON board_items(board_id);
   CREATE INDEX IF NOT EXISTS idx_board_items_deleted_at ON board_items(deleted_at);
+  CREATE INDEX IF NOT EXISTS idx_board_items_group_id ON board_items(group_id);
 
   -- Board strokes table
   CREATE TABLE IF NOT EXISTS board_strokes (
@@ -210,6 +212,7 @@ export const SCHEMA_V1 = `
     z_index INTEGER NOT NULL DEFAULT 0,
     x_offset REAL NOT NULL DEFAULT 0,
     y_offset REAL NOT NULL DEFAULT 0,
+    group_id TEXT,
     sync_status TEXT NOT NULL DEFAULT 'pending',
     deleted_at TEXT,
     created_at TEXT NOT NULL,
@@ -218,6 +221,7 @@ export const SCHEMA_V1 = `
   );
   CREATE INDEX IF NOT EXISTS idx_board_strokes_board_id ON board_strokes(board_id);
   CREATE INDEX IF NOT EXISTS idx_board_strokes_deleted_at ON board_strokes(deleted_at);
+  CREATE INDEX IF NOT EXISTS idx_board_strokes_group_id ON board_strokes(group_id);
 
   -- Board connections table
   CREATE TABLE IF NOT EXISTS board_connections (
@@ -436,5 +440,11 @@ export const MIGRATIONS: Record<number, string> = {
   `,
   9: `
     ALTER TABLE board_items ADD COLUMN font_weight TEXT;
+  `,
+  10: `
+    ALTER TABLE board_items ADD COLUMN group_id TEXT;
+    ALTER TABLE board_strokes ADD COLUMN group_id TEXT;
+    CREATE INDEX IF NOT EXISTS idx_board_items_group_id ON board_items(group_id);
+    CREATE INDEX IF NOT EXISTS idx_board_strokes_group_id ON board_strokes(group_id);
   `,
 }

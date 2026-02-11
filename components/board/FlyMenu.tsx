@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Pressable, View } from 'react-native'
 import { XStack, YStack } from 'tamagui'
 import { Ionicons } from '@expo/vector-icons'
+import { Clipboard } from 'lucide-react-native'
 import { useThemeColor } from '../../hooks/useThemeColor'
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated'
 
@@ -12,10 +13,11 @@ interface FlyMenuProps {
   onImage: () => void
   onRectangle: () => void
   onAudio: () => void
+  onPaste?: () => void
   onDismiss: () => void
 }
 
-export function FlyMenu({ visible, x, y, onImage, onRectangle, onAudio, onDismiss }: FlyMenuProps) {
+export function FlyMenu({ visible, x, y, onImage, onRectangle, onAudio, onPaste, onDismiss }: FlyMenuProps) {
   const { iconColorStrong } = useThemeColor()
   const opacity = useSharedValue(0)
 
@@ -80,7 +82,7 @@ export function FlyMenu({ visible, x, y, onImage, onRectangle, onAudio, onDismis
               alignItems="center"
               justifyContent="center"
             >
-              <Ionicons name="square-outline" size={22} color={iconColorStrong} />
+              <Ionicons name="square" size={22} color={iconColorStrong} />
             </YStack>
           </Pressable>
           <Pressable onPress={onAudio}>
@@ -93,6 +95,18 @@ export function FlyMenu({ visible, x, y, onImage, onRectangle, onAudio, onDismis
               <Ionicons name="mic-outline" size={22} color={iconColorStrong} />
             </YStack>
           </Pressable>
+          {onPaste && (
+            <Pressable onPress={onPaste}>
+              <YStack
+                width={34}
+                height={30}
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Clipboard size={20} color={iconColorStrong} />
+              </YStack>
+            </Pressable>
+          )}
         </XStack>
       </Animated.View>
     </View>
