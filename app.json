@@ -12,7 +12,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.xcore.laterbox",
       "buildNumber": "1",
-      "deploymentTarget": "16.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -88,18 +87,40 @@
         }
       ],
       "expo-video",
-      ["expo-share-intent", {
-        "iosActivationRules": {
-          "NSExtensionActivationSupportsText": true,
-          "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
-          "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
-          "NSExtensionActivationSupportsImageWithMaxCount": 10,
-          "NSExtensionActivationSupportsMovieWithMaxCount": 5,
-          "NSExtensionActivationSupportsFileWithMaxCount": 5
-        },
-        "androidIntentFilters": ["text/*", "image/*", "video/*", "audio/*", "application/*"],
-        "androidMultiIntentFilters": ["image/*", "video/*"],
-        "iosAppGroupIdentifier": "group.com.xcore.laterbox.shared"
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsText": true,
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsImageWithMaxCount": 10,
+            "NSExtensionActivationSupportsMovieWithMaxCount": 5,
+            "NSExtensionActivationSupportsFileWithMaxCount": 5
+          },
+          "androidIntentFilters": [
+            "text/*",
+            "image/*",
+            "video/*",
+            "audio/*",
+            "application/*"
+          ],
+          "androidMultiIntentFilters": [
+            "image/*",
+            "video/*"
+          ],
+          "iosAppGroupIdentifier": "group.com.xcore.laterbox.shared",
+          "iosShareExtensionBundleIdentifier": "com.xcore.laterbox.shareextension"
+        }
+      ],
+      ["expo-build-properties", {
+        "ios": {
+          "deploymentTarget": "16.0"
+        }
+      }],
+      ["./plugins/withDeploymentTarget", {
+        "deploymentTarget": "16.0",
+        "developmentTeam": "8S76DB4279"
       }]
     ],
     "experiments": {
