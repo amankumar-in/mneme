@@ -42,7 +42,9 @@ app-example
 
 # build artifacts
 *.apk
+
 *.aab
+*.ipa
 build-*.apk
 build-*.aab
 

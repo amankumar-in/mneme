@@ -458,10 +458,8 @@ function ThreadListHome() {
                   onFullSwipeLeft={() => handleDeleteWithUndo(item)}
                   leftIcon={item.isPinned ? 'bookmark-outline' : 'bookmark'}
                   leftLabel={item.isPinned ? 'Unpin' : 'Pin'}
-                  leftColor={warningColor}
                   rightIcon="trash"
                   rightLabel="Delete"
-                  rightColor={errorColor}
                 >
                   <ThreadListItem
                     thread={item}

@@ -316,12 +316,19 @@ export class ThreadRepository {
     )
 
     if (existing && existing.id !== localId) {
-      // Merge local duplicate into existing server-backed thread
+      // Merge stale server duplicate into user's local thread (local-first)
       await this.db.runAsync(
         `UPDATE notes SET thread_id = ? WHERE thread_id = ?`,
-        [existing.id, localId]
+        [localId, existing.id]
       )
 
+      // Delete the stale duplicate
+      await this.db.runAsync(
+        `DELETE FROM threads WHERE id = ?`,
+        [existing.id]
+      )
+
+      // Set server_id on user's thread and update last note preview
       const latestNote = await this.db.getFirstAsync<{
         content: string | null
         type: string | null
@@ -332,30 +339,25 @@ export class ThreadRepository {
          WHERE thread_id = ? AND deleted_at IS NULL
          ORDER BY created_at DESC
          LIMIT 1`,
-        [existing.id]
+        [localId]
       )
 
-      if (latestNote) {
-        await this.db.runAsync(
-          `UPDATE threads SET
-             last_note_content = ?,
-             last_note_type = ?,
-             last_note_timestamp = ?,
-             updated_at = ?
-           WHERE id = ?`,
-          [
-            latestNote.content ?? null,
-            latestNote.type ?? null,
-            latestNote.created_at ?? null,
-            getTimestamp(),
-            existing.id,
-          ]
-        )
-      }
-
       await this.db.runAsync(
-        `DELETE FROM threads WHERE id = ?`,
-        [localId]
+        `UPDATE threads SET
+           server_id = ?, sync_status = 'synced',
+           last_note_content = ?,
+           last_note_type = ?,
+           last_note_timestamp = ?,
+           updated_at = ?
+         WHERE id = ?`,
+        [
+          serverId,
+          latestNote?.content ?? null,
+          latestNote?.type ?? null,
+          latestNote?.created_at ?? null,
+          getTimestamp(),
+          localId,
+        ]
       )
       return
     }
