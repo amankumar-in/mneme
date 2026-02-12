@@ -568,19 +568,6 @@ export default function SettingsScreen() {
           trackColor={accentColor}
         />
         <SettingsItem
-          icon="shield-checkmark-outline"
-          iconColor={successColor}
-          title="End-to-End Encryption"
-          subtitle="Data encrypted before sync"
-          onPress={() => {
-            Alert.alert(
-              'End-to-End Encryption',
-              'When enabled, your notes and thread names are encrypted on your device before syncing. Only you can decrypt them with your password.\n\nThis feature activates automatically when you have an account with a password and sync is enabled.',
-              [{ text: 'OK' }]
-            )
-          }}
-        />
-        <SettingsItem
           icon="server-outline"
           iconColor={warningColor}
           customIcon={<Database size={20} color={warningColor} />}
@@ -616,9 +603,23 @@ subtitle="Remove identity data from cloud and this device"          onPress={han
 
         <SectionHeader title="Information" />
         <SettingsItem
+          icon="shield-checkmark-outline"
+          iconColor={successColor}
+          title="End-to-End Encryption"
+          subtitle="Data encrypted before sync"
+          onPress={() => {
+            Alert.alert(
+              'End-to-End Encryption',
+              'When enabled, your notes and thread names are encrypted on your device before syncing. Only you can decrypt them with your password.\n\nThis feature activates automatically when you have an account with a password and sync is enabled.',
+              [{ text: 'OK' }]
+            )
+          }}
+        />
+        <SettingsItem
           icon="help-circle-outline"
           iconColor="#6366f1"
           title="Help"
+          subtitle="Frequently asked questions"
           onPress={handleHelp}
         />
         <SettingsItem

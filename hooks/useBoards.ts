@@ -117,6 +117,7 @@ export function useDeleteBoard() {
     mutationFn: (id: string) => repo.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['boards'] })
+      queryClient.invalidateQueries({ queryKey: ['trash'] })
       schedulePush()
     },
   })

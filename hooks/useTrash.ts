@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDb } from '@/contexts/DatabaseContext'
-import { getNoteRepository, getThreadRepository } from '@/services/repositories'
+import { getNoteRepository, getThreadRepository, getBoardRepository } from '@/services/repositories'
 import { useSyncService } from './useSyncService'
 import { deleteAttachment } from '@/services/fileStorage'
 
@@ -93,17 +93,58 @@ export function usePermanentlyDeleteNote() {
   })
 }
 
+export function useDeletedBoards() {
+  const db = useDb()
+  const boardRepo = getBoardRepository(db)
+
+  return useQuery({
+    queryKey: ['trash', 'boards'],
+    queryFn: () => boardRepo.getDeleted(),
+  })
+}
+
+export function useRestoreBoard() {
+  const db = useDb()
+  const boardRepo = getBoardRepository(db)
+  const queryClient = useQueryClient()
+  const { schedulePush } = useSyncService()
+
+  return useMutation({
+    mutationFn: (id: string) => boardRepo.restore(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trash'] })
+      queryClient.invalidateQueries({ queryKey: ['boards'] })
+      schedulePush()
+    },
+  })
+}
+
+export function usePermanentlyDeleteBoard() {
+  const db = useDb()
+  const boardRepo = getBoardRepository(db)
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => boardRepo.permanentlyDelete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trash'] })
+    },
+  })
+}
+
 export function usePurgeOldTrash() {
   const db = useDb()
   const threadRepo = getThreadRepository(db)
   const noteRepo = getNoteRepository(db)
+  const boardRepo = getBoardRepository(db)
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (days: number = 30) => {
       const threadsPurged = await threadRepo.purgeOlderThan(days)
       const notesPurged = await noteRepo.purgeOlderThan(days)
-      return { threadsPurged, notesPurged }
+      const boardsPurged = await boardRepo.purgeOlderThan(days)
+      return { threadsPurged, notesPurged, boardsPurged }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trash'] })

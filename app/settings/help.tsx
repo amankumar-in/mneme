@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { useCallback, useState } from 'react'
-import { Linking, ScrollView } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Linking, ScrollView, TextInput } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Text, XStack, YStack } from 'tamagui'
 import { ScreenBackground } from '../../components/ScreenBackground'
@@ -372,12 +372,38 @@ function FAQItemRow({
 export default function HelpScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { iconColorStrong, iconColor, accentColor } = useThemeColor()
+  const { iconColorStrong, iconColor, accentColor, backgroundStrong, colorSubtle } = useThemeColor()
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<TextInput>(null)
 
   const handleBack = useCallback(() => {
-    router.back()
-  }, [router])
+    if (isSearching) {
+      setIsSearching(false)
+      setSearchQuery('')
+    } else {
+      router.back()
+    }
+  }, [router, isSearching])
+
+  const handleSearch = useCallback(() => {
+    setIsSearching(true)
+    setSearchQuery('')
+  }, [])
+
+  const handleSearchClose = useCallback(() => {
+    setIsSearching(false)
+    setSearchQuery('')
+  }, [])
+
+  useEffect(() => {
+    if (isSearching && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 100)
+    }
+  }, [isSearching])
 
   const toggleItem = useCallback((itemId: string) => {
     setExpandedItems((prev) => {
@@ -395,48 +421,136 @@ export default function HelpScreen() {
     Linking.openURL('mailto:help@xcoreapps.com')
   }, [])
 
+  // Filter FAQs based on search query
+  const filteredSections = useMemo(() => {
+    if (!searchQuery.trim()) return FAQ_SECTIONS
+
+    const query = searchQuery.toLowerCase()
+    return FAQ_SECTIONS
+      .map(section => ({
+        ...section,
+        items: section.items.filter(
+          item =>
+            item.question.toLowerCase().includes(query) ||
+            item.answer.toLowerCase().includes(query)
+        ),
+      }))
+      .filter(section => section.items.length > 0)
+  }, [searchQuery])
+
   return (
     <ScreenBackground>
-      <XStack
-        paddingTop={insets.top + 8}
-        paddingHorizontal="$4"
-        paddingBottom="$2"
-        alignItems="center"
-        gap="$2"
-        borderBottomWidth={1}
-        borderBottomColor="$borderColor"
-      >
-        <Button
-          size="$3"
-          circular
-          chromeless
-          onPress={handleBack}
-          icon={<Ionicons name="arrow-back" size={24} color={iconColorStrong} />}
-        />
-        <Text fontSize="$6" fontWeight="700" flex={1} color="$color">
-          Help
-        </Text>
-      </XStack>
+      {isSearching ? (
+        <XStack
+          paddingTop={insets.top + 8}
+          paddingHorizontal="$4"
+          paddingBottom="$2"
+          alignItems="center"
+          gap="$2"
+        >
+          <Button
+            size="$3"
+            circular
+            chromeless
+            onPress={handleSearchClose}
+            icon={<Ionicons name="arrow-back" size={24} color={iconColorStrong} />}
+          />
+
+          <XStack
+            flex={1}
+            backgroundColor={backgroundStrong + '80'}
+            borderRadius="$3"
+            paddingHorizontal="$3"
+            alignItems="center"
+            height={40}
+          >
+            <Ionicons name="search" size={18} color={iconColor} />
+            <TextInput
+              ref={searchInputRef}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search help..."
+              placeholderTextColor={colorSubtle}
+              style={{
+                flex: 1,
+                marginLeft: 8,
+                fontSize: 16,
+                color: iconColorStrong,
+              }}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <Button
+                size="$2"
+                circular
+                chromeless
+                onPress={() => setSearchQuery('')}
+                icon={<Ionicons name="close" size={16} color={iconColor} />}
+              />
+            )}
+          </XStack>
+        </XStack>
+      ) : (
+        <XStack
+          paddingTop={insets.top + 8}
+          paddingHorizontal="$4"
+          paddingBottom="$2"
+          alignItems="center"
+          gap="$2"
+          borderBottomWidth={1}
+          borderBottomColor="$borderColor"
+        >
+          <Button
+            size="$3"
+            circular
+            chromeless
+            onPress={handleBack}
+            icon={<Ionicons name="arrow-back" size={24} color={iconColorStrong} />}
+          />
+          <Text fontSize="$6" fontWeight="700" flex={1} color="$color">
+            Help
+          </Text>
+          <Button
+            size="$3"
+            circular
+            chromeless
+            onPress={handleSearch}
+            icon={<Ionicons name="search" size={22} color={iconColorStrong} />}
+          />
+        </XStack>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {FAQ_SECTIONS.map((section, sectionIndex) => (
-          <YStack key={section.title}>
-            <SectionHeader title={section.title} />
-            {section.items.map((item, itemIndex) => {
-              const itemId = `${sectionIndex}-${itemIndex}`
-              return (
-                <FAQItemRow
-                  key={itemId}
-                  question={item.question}
-                  answer={item.answer}
-                  isExpanded={expandedItems.has(itemId)}
-                  onToggle={() => toggleItem(itemId)}
-                  iconColor={iconColor}
-                />
-              )
-            })}
+        {filteredSections.length === 0 ? (
+          <YStack flex={1} justifyContent="center" alignItems="center" padding="$8" paddingBottom={insets.bottom + 100}>
+            <Ionicons name="search-outline" size={64} color={iconColor} />
+            <Text fontSize="$5" color="$colorSubtle" marginTop="$4" textAlign="center">
+              No results found
+            </Text>
+            <Text fontSize="$3" color="$colorMuted" marginTop="$2" textAlign="center">
+              Try a different search term
+            </Text>
           </YStack>
-        ))}
+        ) : (
+          filteredSections.map((section, sectionIndex) => (
+            <YStack key={section.title}>
+              <SectionHeader title={section.title} />
+              {section.items.map((item, itemIndex) => {
+                const itemId = `${sectionIndex}-${itemIndex}`
+                return (
+                  <FAQItemRow
+                    key={itemId}
+                    question={item.question}
+                    answer={item.answer}
+                    isExpanded={expandedItems.has(itemId)}
+                    onToggle={() => toggleItem(itemId)}
+                    iconColor={iconColor}
+                  />
+                )
+              })}
+            </YStack>
+          ))
+        )}
 
         <YStack
           paddingHorizontal="$4"

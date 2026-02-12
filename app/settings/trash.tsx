@@ -11,14 +11,17 @@ import { useThemeColor } from '../../hooks/useThemeColor'
 import {
   useDeletedThreads,
   useDeletedNotes,
+  useDeletedBoards,
   useRestoreThread,
   useRestoreNote,
+  useRestoreBoard,
   usePermanentlyDeleteThread,
   usePermanentlyDeleteNote,
+  usePermanentlyDeleteBoard,
 } from '../../hooks/useTrash'
-import type { ThreadWithLastNote, NoteWithDetails } from '../../types'
+import type { ThreadWithLastNote, NoteWithDetails, Board } from '../../types'
 
-type Tab = 'threads' | 'notes'
+type Tab = 'threads' | 'notes' | 'boards'
 
 function formatDeletedDate(dateString: string | null): string {
   if (!dateString) return ''
@@ -42,11 +45,14 @@ export default function TrashScreen() {
 
   const { data: deletedThreads = [], isLoading: threadsLoading } = useDeletedThreads()
   const { data: deletedNotes = [], isLoading: notesLoading } = useDeletedNotes()
+  const { data: deletedBoards = [], isLoading: boardsLoading } = useDeletedBoards()
 
   const restoreThread = useRestoreThread()
   const restoreNote = useRestoreNote()
+  const restoreBoard = useRestoreBoard()
   const permDeleteThread = usePermanentlyDeleteThread()
   const permDeleteNote = usePermanentlyDeleteNote()
+  const permDeleteBoard = usePermanentlyDeleteBoard()
 
   const handleBack = useCallback(() => {
     router.back()
@@ -98,13 +104,37 @@ export default function TrashScreen() {
     )
   }, [permDeleteNote])
 
+  const handleRestoreBoard = useCallback((id: string) => {
+    restoreBoard.mutate(id)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+  }, [restoreBoard])
+
+  const handlePermDeleteBoard = useCallback((id: string, name: string) => {
+    Alert.alert(
+      'Delete Permanently',
+      `"${name}" and all its items will be permanently deleted. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            permDeleteBoard.mutate(id)
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+          },
+        },
+      ]
+    )
+  }, [permDeleteBoard])
+
   const handleDeleteAllPermanently = useCallback(() => {
-    const count = activeTab === 'threads' ? deletedThreads.length : deletedNotes.length
+    const count = activeTab === 'threads' ? deletedThreads.length : activeTab === 'notes' ? deletedNotes.length : deletedBoards.length
     if (count === 0) return
 
+    const label = activeTab === 'threads' ? 'threads' : activeTab === 'notes' ? 'notes' : 'boards'
     Alert.alert(
       'Delete All Permanently',
-      `All ${count} ${activeTab === 'threads' ? 'threads' : 'notes'} will be permanently deleted. This cannot be undone.`,
+      `All ${count} ${label} will be permanently deleted. This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -113,15 +143,17 @@ export default function TrashScreen() {
           onPress: () => {
             if (activeTab === 'threads') {
               deletedThreads.forEach((t) => permDeleteThread.mutate(t.id))
-            } else {
+            } else if (activeTab === 'notes') {
               deletedNotes.forEach((n) => permDeleteNote.mutate(n.id))
+            } else {
+              deletedBoards.forEach((b) => permDeleteBoard.mutate(b.id))
             }
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
           },
         },
       ]
     )
-  }, [activeTab, deletedThreads, deletedNotes, permDeleteThread, permDeleteNote])
+  }, [activeTab, deletedThreads, deletedNotes, deletedBoards, permDeleteThread, permDeleteNote, permDeleteBoard])
 
   const renderThreadItem = useCallback(({ item }: { item: ThreadWithLastNote }) => {
     const daysLeft = getDaysRemaining(item.updatedAt)
@@ -229,7 +261,60 @@ export default function TrashScreen() {
     )
   }, [iconColor, successColor, errorColor, handleRestoreNote, handlePermDeleteNote])
 
-  const isEmpty = activeTab === 'threads' ? deletedThreads.length === 0 : deletedNotes.length === 0
+  const renderBoardItem = useCallback(({ item }: { item: Board }) => {
+    const daysLeft = getDaysRemaining(item.deletedAt)
+    return (
+      <XStack
+        paddingHorizontal="$4"
+        paddingVertical="$3"
+        gap="$3"
+        alignItems="center"
+      >
+        <XStack
+          width={44}
+          height={44}
+          borderRadius={22}
+          backgroundColor="$backgroundTinted"
+          alignItems="center"
+          justifyContent="center"
+        >
+          {item.icon ? (
+            <Text fontSize="$5">{item.icon}</Text>
+          ) : (
+            <Ionicons name="easel-outline" size={20} color={iconColor} />
+          )}
+        </XStack>
+
+        <YStack flex={1} gap="$0.5">
+          <Text fontSize="$4" fontWeight="600" color="$color" numberOfLines={1}>
+            {item.name}
+          </Text>
+          <Text fontSize="$2" color="$colorSubtle">
+            Deleted {formatDeletedDate(item.deletedAt)} · {daysLeft}d left
+          </Text>
+        </YStack>
+
+        <XStack gap="$2">
+          <Button
+            size="$3"
+            circular
+            chromeless
+            onPress={() => handleRestoreBoard(item.id)}
+            icon={<Ionicons name="arrow-undo-outline" size={18} color={successColor} />}
+          />
+          <Button
+            size="$3"
+            circular
+            chromeless
+            onPress={() => handlePermDeleteBoard(item.id, item.name)}
+            icon={<Ionicons name="trash-outline" size={18} color={errorColor} />}
+          />
+        </XStack>
+      </XStack>
+    )
+  }, [iconColor, successColor, errorColor, handleRestoreBoard, handlePermDeleteBoard])
+
+  const isEmpty = activeTab === 'threads' ? deletedThreads.length === 0 : activeTab === 'notes' ? deletedNotes.length === 0 : deletedBoards.length === 0
 
   return (
     <ScreenBackground>
@@ -281,6 +366,19 @@ export default function TrashScreen() {
               Notes ({deletedNotes.length})
             </Text>
           </Button>
+          <Button
+            size="$3"
+            borderRadius="$10"
+            backgroundColor={activeTab === 'boards' ? '$backgroundTinted' : backgroundStrong + '55'}
+            borderWidth={1}
+            borderColor={activeTab === 'boards' ? '$borderColorTinted' : 'rgba(128,128,128,0.15)'}
+            pressStyle={{ backgroundColor: backgroundStrong + '88' }}
+            onPress={() => setActiveTab('boards')}
+          >
+            <Text color={activeTab === 'boards' ? '$accentColor' : '$colorSubtle'} fontSize="$3" fontWeight="600">
+              Boards ({deletedBoards.length})
+            </Text>
+          </Button>
         </XStack>
       </ScrollView>
 
@@ -303,11 +401,18 @@ export default function TrashScreen() {
               renderItem={renderThreadItem}
               contentContainerStyle={{ paddingTop: 4, paddingBottom: insets.bottom + 100 }}
             />
-          ) : (
+          ) : activeTab === 'notes' ? (
             <FlatList
               data={deletedNotes}
               keyExtractor={(item) => item.id}
               renderItem={renderNoteItem}
+              contentContainerStyle={{ paddingTop: 4, paddingBottom: insets.bottom + 100 }}
+            />
+          ) : (
+            <FlatList
+              data={deletedBoards}
+              keyExtractor={(item) => item.id}
+              renderItem={renderBoardItem}
               contentContainerStyle={{ paddingTop: 4, paddingBottom: insets.bottom + 100 }}
             />
           )}

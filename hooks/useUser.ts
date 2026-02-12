@@ -133,6 +133,10 @@ export function useDeleteLocalData() {
 
   return useMutation({
     mutationFn: async () => {
+      await db.runAsync('DELETE FROM board_connections')
+      await db.runAsync('DELETE FROM board_strokes')
+      await db.runAsync('DELETE FROM board_items')
+      await db.runAsync('DELETE FROM boards')
       await db.runAsync('DELETE FROM notes')
       await db.runAsync('DELETE FROM threads')
       await db.runAsync('DELETE FROM user')

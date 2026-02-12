@@ -119,6 +119,41 @@ export class BoardRepository {
     )
   }
 
+  async getDeleted(): Promise<Board[]> {
+    const rows = await this.db.getAllAsync<BoardRow>(
+      `SELECT * FROM boards WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
+    )
+    return rows.map((row) => this.mapToBoard(row))
+  }
+
+  async restore(id: string): Promise<void> {
+    const now = getTimestamp()
+    await this.db.runAsync(
+      `UPDATE boards SET deleted_at = NULL, sync_status = 'pending', updated_at = ? WHERE id = ?`,
+      [now, id]
+    )
+  }
+
+  async permanentlyDelete(id: string): Promise<void> {
+    await this.db.runAsync(`DELETE FROM board_connections WHERE board_id = ?`, [id])
+    await this.db.runAsync(`DELETE FROM board_strokes WHERE board_id = ?`, [id])
+    await this.db.runAsync(`DELETE FROM board_items WHERE board_id = ?`, [id])
+    await this.db.runAsync(`DELETE FROM boards WHERE id = ?`, [id])
+  }
+
+  async purgeOlderThan(days: number): Promise<number> {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+    // Get boards to purge so we can cascade delete their children
+    const boards = await this.db.getAllAsync<{ id: string }>(
+      `SELECT id FROM boards WHERE deleted_at IS NOT NULL AND deleted_at < ?`,
+      [cutoff]
+    )
+    for (const board of boards) {
+      await this.permanentlyDelete(board.id)
+    }
+    return boards.length
+  }
+
   // ── Board Items ──────────────────────────────────────────
 
   async createItem(input: CreateBoardItemInput): Promise<BoardItem> {
