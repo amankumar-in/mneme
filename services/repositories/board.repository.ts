@@ -430,6 +430,19 @@ export class BoardRepository {
     }
   }
 
+  // ── Export ──────────────────────────────────────────────
+
+  async exportBoard(id: string): Promise<object | null> {
+    const board = await this.getById(id)
+    if (!board) return null
+
+    const items = await this.getItemsByBoard(id)
+    const strokes = await this.getStrokesByBoard(id)
+    const connections = await this.getConnectionsByBoard(id)
+
+    return { board, items, strokes, connections }
+  }
+
   // ── Mappers ──────────────────────────────────────────────
 
   private mapToBoard(row: BoardRow): Board {

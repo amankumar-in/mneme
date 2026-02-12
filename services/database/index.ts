@@ -1,6 +1,7 @@
 // Database initialization and migration utilities
 import type { SQLiteDatabase } from 'expo-sqlite'
 import { DATABASE_VERSION, SCHEMA_V1, MIGRATIONS } from './schema'
+import { seedDemoScrap } from './seedDemoScrap'
 
 /**
  * Initialize the database with schema and run migrations
@@ -16,10 +17,10 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
   // Fresh database - create initial schema
   if (currentVersion === 0) {
     await db.execAsync(SCHEMA_V1)
-    // V1 schema already includes columns from migrations 2–11
-    // (is_system_thread, notification_id, link_preview_*, attachment_waveform, thread is_locked, note is_pinned, boards, font_weight, group_id, arrow_start/end),
+    // V1 schema already includes columns from migrations 2–12
+    // (is_system_thread, notification_id, link_preview_*, attachment_waveform, thread is_locked, note is_pinned, boards, font_weight, group_id, arrow_start/end, board is_locked),
     // so skip to current version to avoid duplicate ALTER TABLE errors.
-    currentVersion = 11
+    currentVersion = DATABASE_VERSION
   }
 
   // Run any pending migrations
@@ -162,6 +163,13 @@ export async function initializeDatabase(db: SQLiteDatabase): Promise<void> {
 
   // Update the database version
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`)
+
+  // Seed demo scrap (idempotent — skips if already exists)
+  try {
+    await seedDemoScrap(db)
+  } catch (error) {
+    console.error('Demo scrap seed failed:', error)
+  }
 }
 
 /**

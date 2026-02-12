@@ -133,7 +133,7 @@ export default function BoardInfoScreen() {
 
   const handleDelete = useCallback(() => {
     Alert.alert(
-      'Delete Board',
+      'Delete Scrap',
       `Are you sure you want to delete "${board?.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -177,7 +177,7 @@ export default function BoardInfoScreen() {
           icon={<Ionicons name="arrow-back" size={24} color={iconColorStrong} />}
         />
         <Text fontSize="$5" fontWeight="600" color="$color" flex={1}>
-          Board Info
+          Scrap Info
         </Text>
       </XStack>
 
@@ -308,7 +308,7 @@ export default function BoardInfoScreen() {
           <ToggleItem
             icon="lock-closed-outline"
             iconColor={accentColor}
-            title="Lock Board"
+            title="Lock Scrap"
             subtitle="Require authentication to open"
             value={board.isLocked}
             onValueChange={(value) => {
@@ -326,7 +326,7 @@ export default function BoardInfoScreen() {
           <MenuItem
             icon="trash-outline"
             iconColor={errorColor}
-            label="Delete Board"
+            label="Delete Scrap"
             onPress={handleDelete}
             danger
           />

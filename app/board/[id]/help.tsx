@@ -82,7 +82,7 @@ export default function BoardHelpScreen() {
           icon={<Ionicons name="arrow-back" size={24} color={iconColorStrong} />}
         />
         <Text fontSize="$5" fontWeight="600" color="$color" flex={1}>
-          How to use Boards
+          How to use Scrapbook
         </Text>
       </XStack>
 

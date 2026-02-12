@@ -7,6 +7,8 @@
 - Native module not linking? Rebuild the app. Don't swap to a different package.
 - If a solution requires a rebuild, say so. Don't avoid it by changing the approach.
 
+### Use debug logs to confirm the issue before making any edits.
+
 ### Follow the Plan
 - Always follow IMPLEMENTATION_PLAN.md exactly
 - No shortcuts, no "I'll simplify this" bullshit
@@ -28,6 +30,9 @@
 - Don't blame libraries/frameworks without evidence
 - If you don't know why something doesn't work, say "I don't know" and investigate
 - Compare working vs broken projects to find differences, then read docs to understand why
+
+### Naming
+- "Boards" are called "Scrapbook" / "Scraps" in the UI. Internal code (DB, hooks, repos, types, file names) uses `board` everywhere.
 
 ### Commands Reference
 - `npx expo start --clear` - Start with clean cache

@@ -37,11 +37,40 @@ import {
 import { useUser } from '../hooks/useUser'
 import { useThreadViewStyle } from '../contexts/ThreadViewContext'
 import { useBoards, useCreateBoard, useDeleteBoard, useUpdateBoard } from '../hooks/useBoards'
+import { useDb } from '../contexts/DatabaseContext'
+import { getBoardRepository } from '../services/repositories'
 import type { Board, ThreadFilter, ThreadWithLastNote } from '../types'
+
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays}d ago`
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function getBoardSubtitle(board: Board): string {
+  if (board.updatedAt !== board.createdAt) {
+    return `Last edited ${formatRelativeTime(board.updatedAt)}`
+  }
+  return 'Empty scrap'
+}
 
 const FILTER_OPTIONS = [
   { key: 'threads', label: 'Threads' },
-  { key: 'boards', label: 'Boards' },
+  { key: 'boards', label: 'Scrapbook' },
   { key: 'tasks', label: 'Tasks' },
 ]
 
@@ -107,6 +136,7 @@ function ThreadListHome() {
   const restoreThread = useRestoreThread()
 
   // Board hooks
+  const db = useDb()
   const { data: allBoards = [], isLoading: boardsLoading } = useBoards()
   const createBoard = useCreateBoard()
   const updateBoard = useUpdateBoard()
@@ -319,7 +349,7 @@ function ThreadListHome() {
 
   const handleCreateBoard = useCallback(async () => {
     try {
-      const board = await createBoard.mutateAsync({ name: 'New Board' })
+      const board = await createBoard.mutateAsync({ name: 'New Scrap' })
       router.push(`/board/${board.id}`)
     } catch {
       Alert.alert('Error', 'Could not create the board.')
@@ -371,13 +401,33 @@ function ThreadListHome() {
     handleClearBoardSelection()
   }, [selectedBoards, allBoardsLocked, updateBoard, handleClearBoardSelection])
 
-  const handleExportSelectedBoards = useCallback(() => {
-    Alert.alert('Export', 'Board export is not available yet.')
-  }, [])
+  const handleExportSelectedBoards = useCallback(async () => {
+    if (selectedBoards.length !== 1) {
+      Alert.alert('Export', 'Select a single scrap to export.')
+      return
+    }
+    try {
+      const repo = getBoardRepository(db)
+      const data = await repo.exportBoard(selectedBoards[0].id)
+      if (!data) {
+        Alert.alert('Export', 'Could not find scrap data.')
+        return
+      }
+      const { File, Paths } = await import('expo-file-system')
+      const Sharing = await import('expo-sharing')
+      const file = new File(Paths.cache, 'scrap-export.json')
+      file.create()
+      file.write(JSON.stringify(data, null, 2))
+      await Sharing.shareAsync(file.uri, { mimeType: 'application/json', UTI: 'public.json' })
+    } catch {
+      Alert.alert('Export Failed', 'Could not export the scrap.')
+    }
+    handleClearBoardSelection()
+  }, [selectedBoards, db, handleClearBoardSelection])
 
   const handleShortcutSelectedBoards = useCallback(async () => {
     if (selectedBoards.length !== 1) {
-      Alert.alert('Shortcut', 'Select a single board to add a shortcut.')
+      Alert.alert('Shortcut', 'Select a single scrap to add a shortcut.')
       return
     }
     const board = selectedBoards[0]
@@ -413,8 +463,8 @@ function ThreadListHome() {
   const handleDeleteSelectedBoards = useCallback(() => {
     const count = selectedBoards.length
     Alert.alert(
-      'Delete Board' + (count > 1 ? 's' : ''),
-      `Are you sure you want to delete ${count} board${count > 1 ? 's' : ''}?`,
+      'Delete Scrap' + (count > 1 ? 's' : ''),
+      `Are you sure you want to delete ${count} scrap${count > 1 ? 's' : ''}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -522,7 +572,7 @@ function ThreadListHome() {
         </Text>
         <XStack alignItems="center" gap="$2">
           <Text fontSize="$2" color="$colorSubtle">
-            {item.isLocked ? 'Locked Board' : 'Board'}
+            {getBoardSubtitle(item)}
           </Text>
           {item.isLocked && (
             <Ionicons name="lock-closed" size={12} color={warningColor} />

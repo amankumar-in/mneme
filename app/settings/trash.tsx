@@ -376,7 +376,7 @@ export default function TrashScreen() {
             onPress={() => setActiveTab('boards')}
           >
             <Text color={activeTab === 'boards' ? '$accentColor' : '$colorSubtle'} fontSize="$3" fontWeight="600">
-              Boards ({deletedBoards.length})
+              Scraps ({deletedBoards.length})
             </Text>
           </Button>
         </XStack>
