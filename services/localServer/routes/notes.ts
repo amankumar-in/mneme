@@ -4,6 +4,26 @@ import { getThreadRepository } from '../../repositories/thread.repository'
 import type { Router } from '../router'
 import { rewriteNoteUrls, rewriteNotesUrls } from '../utils/rewriteUrls'
 
+/**
+ * Strip local server URL prefix from attachment fields so we store relative paths in the DB.
+ * e.g. "http://192.168.1.5:8765/api/files/laterbox/attachments/images/x.jpg"
+ *   → "laterbox/attachments/images/x.jpg"
+ */
+function stripLocalUrls(
+  attachment: { url?: string; thumbnail?: string; [key: string]: any },
+  baseUrl: string
+): typeof attachment {
+  const prefix = `${baseUrl}/api/files/`
+  const result = { ...attachment }
+  if (result.url?.startsWith(prefix)) {
+    result.url = result.url.slice(prefix.length)
+  }
+  if (result.thumbnail?.startsWith(prefix)) {
+    result.thumbnail = result.thumbnail.slice(prefix.length)
+  }
+  return result
+}
+
 export function registerNoteRoutes(router: Router, db: SQLiteDatabase): void {
   const noteRepo = getNoteRepository(db)
   const threadRepo = getThreadRepository(db)
@@ -29,11 +49,14 @@ export function registerNoteRoutes(router: Router, db: SQLiteDatabase): void {
     const body = JSON.parse(req.body || '{}')
     const type = body.type || 'text'
 
+    // Strip local server URL prefix from attachment URLs so we store relative paths
+    const attachment = body.attachment ? stripLocalUrls(body.attachment, router.getBaseUrl()) : null
+
     const note = await noteRepo.create({
       threadId: params.id,
       content: body.content ?? null,
       type,
-      attachment: body.attachment ?? null,
+      attachment,
       location: body.location ?? null,
       linkPreview: body.linkPreview ?? null,
     })

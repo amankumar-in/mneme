@@ -32,15 +32,36 @@ export function NoteArea({ threadId, threadName }: NoteAreaProps) {
     return allNotes.filter((n) => n.content?.toLowerCase().includes(q))
   }, [allNotes, noteSearch])
 
-  const scrollToBottom = useCallback(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
+  const isNearBottom = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 150
   }, [])
 
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+      }
+    })
+  }, [])
+
+  // Scroll to bottom on initial load and when new notes arrive (if near bottom)
+  const prevNoteCountRef = useRef(0)
   useEffect(() => {
-    scrollToBottom()
-  }, [allNotes.length, scrollToBottom])
+    if (allNotes.length === 0) return
+    const isInitialLoad = prevNoteCountRef.current === 0
+    const hasNewNotes = allNotes.length > prevNoteCountRef.current
+    if (isInitialLoad || (hasNewNotes && isNearBottom())) {
+      scrollToBottom()
+    }
+    prevNoteCountRef.current = allNotes.length
+  }, [allNotes.length, scrollToBottom, isNearBottom])
+
+  // Reset when thread changes
+  useEffect(() => {
+    prevNoteCountRef.current = 0
+  }, [threadId])
 
   const handleScroll = () => {
     if (!scrollRef.current || !hasNextPage || isFetchingNextPage) return
