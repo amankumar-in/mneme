@@ -83,16 +83,13 @@ function ThreadListHome() {
     return () => handler.remove()
   }, [isSelectionMode, swipeController])
 
-  // API hooks
+  // API hooks — fetch all once, filter client-side
   const {
     data,
     isLoading,
     error,
     refetch,
-  } = useThreads({
-    search: searchQuery || undefined,
-    filter: undefined, // threads view shows all threads
-  })
+  } = useThreads()
 
   const createThread = useCreateThread()
   const updateThread = useUpdateThread()
@@ -104,7 +101,7 @@ function ThreadListHome() {
   const restoreThread = useRestoreThread()
 
   // Board hooks
-  const { data: boards = [], isLoading: boardsLoading } = useBoards(searchQuery || undefined)
+  const { data: allBoards = [], isLoading: boardsLoading } = useBoards()
   const createBoard = useCreateBoard()
   const deleteBoardMutation = useDeleteBoard()
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -115,7 +112,19 @@ function ThreadListHome() {
   }>({ visible: false, threadId: null, threadName: '' })
 
   const hasIdentity = !!(user?.username || user?.email || user?.phone)
-  const threads = data?.data ?? []
+  const allThreads = data?.data ?? []
+
+  const threads = useMemo(() => {
+    if (!searchQuery) return allThreads
+    const q = searchQuery.toLowerCase()
+    return allThreads.filter((t) => t.name.toLowerCase().includes(q))
+  }, [allThreads, searchQuery])
+
+  const boards = useMemo(() => {
+    if (!searchQuery) return allBoards
+    const q = searchQuery.toLowerCase()
+    return allBoards.filter((b) => b.name.toLowerCase().includes(q))
+  }, [allBoards, searchQuery])
 
   const selectedThreads = useMemo(
     () => threads.filter((t) => selectedThreadIds.has(t.id)),
@@ -312,6 +321,59 @@ function ThreadListHome() {
     setUndoState({ visible: false, threadId: null, threadName: '' })
   }, [])
 
+  const handleFilterSelect = useCallback((key: string) => {
+    if (key === 'tasks') {
+      router.push('/tasks')
+    } else {
+      setSelectedFilter(key as ThreadFilter)
+    }
+  }, [router])
+
+  const searchPlaceholder = 'Search your memory...'
+
+  // Build unified search results — boards first, then threads
+  type SearchResult = { type: 'board'; data: Board } | { type: 'thread'; data: ThreadWithLastNote }
+  const searchResults = useMemo<SearchResult[]>(() => {
+    if (!searchQuery) return []
+    const results: SearchResult[] = []
+    boards.forEach((b) => results.push({ type: 'board', data: b }))
+    threads.forEach((t) => results.push({ type: 'thread', data: t }))
+    return results
+  }, [searchQuery, boards, threads])
+
+  const renderBoardRow = useCallback((item: Board) => (
+    <XStack
+      paddingHorizontal="$4"
+      paddingVertical="$3"
+      gap="$3"
+      alignItems="center"
+      pressStyle={{ backgroundColor: '$backgroundHover' }}
+      onPress={() => handleBoardPress(item)}
+      onLongPress={() => handleBoardLongPress(item)}
+    >
+      <XStack
+        width={48}
+        height={48}
+        borderRadius={12}
+        backgroundColor="$brandBackground"
+        alignItems="center"
+        justifyContent="center"
+      >
+        {item.icon ? (
+          <Text fontSize={24}>{item.icon}</Text>
+        ) : (
+          <Ionicons name="easel-outline" size={24} color={iconColorStrong} />
+        )}
+      </XStack>
+      <YStack flex={1}>
+        <Text fontSize="$4" fontWeight="500" color="$color" numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text fontSize="$2" color="$colorSubtle">Board</Text>
+      </YStack>
+    </XStack>
+  ), [handleBoardPress, handleBoardLongPress, iconColorStrong])
+
   // Render content based on state
   const renderContent = () => {
     // Loading state
@@ -351,26 +413,96 @@ function ThreadListHome() {
       )
     }
 
-    // Empty state
-    if (threads.length === 0 && !searchQuery) {
+    // Active search — unified results across threads and boards
+    if (searchQuery) {
+      if (searchResults.length === 0) {
+        return (
+          <>
+            <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
+              <Ionicons name="search-outline" size={64} color={iconColor} />
+              <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
+                No results
+              </Text>
+              <Text color="$colorSubtle" textAlign="center" marginTop="$2">
+                Nothing matches "{searchQuery}"
+              </Text>
+            </YStack>
+            <FAB icon="add" onPress={handleCreateThread} />
+          </>
+        )
+      }
       return (
         <>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search notes..."
+          <FlatList
+            data={searchResults}
+            keyExtractor={(item) => item.data.id}
+            renderItem={({ item }) =>
+              item.type === 'board' ? (
+                renderBoardRow(item.data)
+              ) : (
+                <ThreadListItem
+                  thread={item.data}
+                  isSelected={false}
+                  onPress={() => handleThreadPress(item.data)}
+                />
+              )
+            }
+            ItemSeparatorComponent={() => (
+              <View style={{ height: StyleSheet.hairlineWidth, marginLeft: 76, backgroundColor: 'rgba(128,128,128,0.2)' }} />
+            )}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+            keyboardShouldPersistTaps="handled"
           />
-          <FilterChips
-            options={FILTER_OPTIONS}
-            selected={selectedFilter}
-            onSelect={(key) => {
-              if (key === 'tasks') {
-                router.push('/tasks')
-              } else {
-                setSelectedFilter(key as ThreadFilter)
-              }
-            }}
+          <FAB icon="add" onPress={handleCreateThread} />
+        </>
+      )
+    }
+
+    // Boards tab (no search)
+    if (selectedFilter === 'boards') {
+      if (boardsLoading) {
+        return (
+          <YStack flex={1} justifyContent="center" alignItems="center">
+            <ActivityIndicator size="large" color={iconColor} />
+          </YStack>
+        )
+      }
+      if (boards.length === 0) {
+        return (
+          <>
+            <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
+              <Ionicons name="easel-outline" size={64} color={iconColor} />
+              <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
+                No boards yet
+              </Text>
+              <Text color="$colorSubtle" textAlign="center" marginTop="$2">
+                Tap + to create your first board
+              </Text>
+            </YStack>
+            <FAB icon="add" onPress={handleCreateBoard} disabled={createBoard.isPending} />
+          </>
+        )
+      }
+      return (
+        <>
+          <FlatList
+            data={boards}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => renderBoardRow(item)}
+            ItemSeparatorComponent={() => (
+              <View style={{ height: StyleSheet.hairlineWidth, marginLeft: 76, backgroundColor: 'rgba(128,128,128,0.2)' }} />
+            )}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
           />
+          <FAB icon="add" onPress={handleCreateBoard} disabled={createBoard.isPending} />
+        </>
+      )
+    }
+
+    // Empty state (no search, threads tab)
+    if (threads.length === 0) {
+      return (
+        <>
           <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
             <Ionicons name="document-text-outline" size={64} color={iconColor} />
             <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
@@ -385,144 +517,9 @@ function ThreadListHome() {
       )
     }
 
-    // No search results
-    if (threads.length === 0 && searchQuery) {
-      return (
-        <>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search notes..."
-          />
-          <FilterChips
-            options={FILTER_OPTIONS}
-            selected={selectedFilter}
-            onSelect={(key) => {
-              if (key === 'tasks') {
-                router.push('/tasks')
-              } else {
-                setSelectedFilter(key as ThreadFilter)
-              }
-            }}
-          />
-          <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
-            <Ionicons name="search-outline" size={64} color={iconColor} />
-            <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
-              No results
-            </Text>
-            <Text color="$colorSubtle" textAlign="center" marginTop="$2">
-              No notes match "{searchQuery}"
-            </Text>
-          </YStack>
-          <FAB icon="add" onPress={handleCreateThread} />
-        </>
-      )
-    }
-
-    // Boards tab
-    if (selectedFilter === 'boards') {
-      return (
-        <>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search boards..."
-          />
-          <FilterChips
-            options={FILTER_OPTIONS}
-            selected={selectedFilter}
-            onSelect={(key) => {
-              if (key === 'tasks') {
-                router.push('/tasks')
-              } else {
-                setSelectedFilter(key as ThreadFilter)
-              }
-            }}
-          />
-          {boardsLoading ? (
-            <YStack flex={1} justifyContent="center" alignItems="center">
-              <ActivityIndicator size="large" color={iconColor} />
-            </YStack>
-          ) : boards.length === 0 ? (
-            <YStack flex={1} justifyContent="center" alignItems="center" padding="$4">
-              <Ionicons name="easel-outline" size={64} color={iconColor} />
-              <Text color="$color" fontSize="$6" fontWeight="600" marginTop="$4">
-                No boards yet
-              </Text>
-              <Text color="$colorSubtle" textAlign="center" marginTop="$2">
-                Tap + to create your first board
-              </Text>
-            </YStack>
-          ) : (
-            <FlatList
-              data={boards}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <XStack
-                  paddingHorizontal="$4"
-                  paddingVertical="$3"
-                  gap="$3"
-                  alignItems="center"
-                  pressStyle={{ backgroundColor: '$backgroundHover' }}
-                  onPress={() => handleBoardPress(item)}
-                  onLongPress={() => handleBoardLongPress(item)}
-                >
-                  <XStack
-                    width={48}
-                    height={48}
-                    borderRadius={12}
-                    backgroundColor="$brandBackground"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    {item.icon ? (
-                      <Text fontSize={24}>{item.icon}</Text>
-                    ) : (
-                      <Ionicons name="easel-outline" size={24} color={iconColorStrong} />
-                    )}
-                  </XStack>
-                  <YStack flex={1}>
-                    <Text fontSize="$4" fontWeight="500" color="$color" numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text fontSize="$2" color="$colorSubtle">
-                      {new Date(item.updatedAt).toLocaleDateString()}
-                    </Text>
-                  </YStack>
-                </XStack>
-              )}
-              ItemSeparatorComponent={() => (
-                <View style={{ height: StyleSheet.hairlineWidth, marginLeft: 76, backgroundColor: 'rgba(128,128,128,0.2)' }} />
-              )}
-              contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-            />
-          )}
-          <FAB icon="add" onPress={handleCreateBoard} disabled={createBoard.isPending} />
-        </>
-      )
-    }
-
     // Normal state with threads
     return (
       <>
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search notes..."
-        />
-
-        <FilterChips
-          options={FILTER_OPTIONS}
-          selected={selectedFilter}
-          onSelect={(key) => {
-            if (key === 'tasks') {
-              router.push('/tasks')
-            } else {
-              setSelectedFilter(key as ThreadFilter)
-            }
-          }}
-        />
-
         {threadViewStyle === 'icons' ? (
           <FlatList
             key="grid"
@@ -667,6 +664,17 @@ function ThreadListHome() {
       <Header
         title="LaterBox"
         rightIcon={{ name: 'settings-outline', onPress: handleSettingsPress }}
+      />
+
+      <SearchBar
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder={searchPlaceholder}
+      />
+      <FilterChips
+        options={FILTER_OPTIONS}
+        selected={selectedFilter}
+        onSelect={handleFilterSelect}
       />
 
       {renderContent()}

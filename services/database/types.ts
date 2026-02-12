@@ -325,6 +325,7 @@ export interface BoardRow {
   name: string
   icon: string | null
   pattern_type: string
+  is_locked: number
   viewport_x: number
   viewport_y: number
   viewport_zoom: number
@@ -401,6 +402,7 @@ export interface Board {
   name: string
   icon: string | null
   patternType: BoardPatternType
+  isLocked: boolean
   viewport: { x: number; y: number; zoom: number }
   syncStatus: SyncStatus
   deletedAt: string | null
@@ -475,6 +477,7 @@ export interface UpdateBoardInput {
   name?: string
   icon?: string | null
   patternType?: BoardPatternType
+  isLocked?: boolean
 }
 
 export interface CreateBoardItemInput {

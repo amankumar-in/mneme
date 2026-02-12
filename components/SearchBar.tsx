@@ -1,7 +1,7 @@
 import { XStack, Button } from 'tamagui'
 import { TextInput } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect, useState } from 'react'
 import { useThemeColor } from '../hooks/useThemeColor'
 import { useWallpaper } from '../contexts/WallpaperContext'
 
@@ -20,10 +20,13 @@ export function SearchBar({
 }: SearchBarProps) {
   const { iconColor, placeholderColor, color, backgroundStrong } = useThemeColor()
   const { homeWallpaper } = useWallpaper()
+  const inputRef = useRef<TextInput>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [localText, setLocalText] = useState(value)
 
   const handleChangeText = useCallback(
     (text: string) => {
+      setLocalText(text)
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
@@ -35,6 +38,11 @@ export function SearchBar({
   )
 
   const handleClear = useCallback(() => {
+    setLocalText('')
+    inputRef.current?.clear()
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
     onChangeText('')
   }, [onChangeText])
 
@@ -58,6 +66,7 @@ export function SearchBar({
     >
       <Ionicons name="search" size={20} color={iconColor} />
       <TextInput
+        ref={inputRef}
         style={{ flex: 1, marginLeft: 8, fontSize: 16, color }}
         placeholder={placeholder}
         placeholderTextColor={placeholderColor}
@@ -65,7 +74,7 @@ export function SearchBar({
         onChangeText={handleChangeText}
         autoFocus={autoFocus}
       />
-      {value.length > 0 && (
+      {localText.length > 0 && (
         <Button
           size="$2"
           circular

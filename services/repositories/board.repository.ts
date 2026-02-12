@@ -86,6 +86,10 @@ export class BoardRepository {
       updates.push('pattern_type = ?')
       values.push(input.patternType)
     }
+    if (input.isLocked !== undefined) {
+      updates.push('is_locked = ?')
+      values.push(input.isLocked ? 1 : 0)
+    }
 
     if (updates.length === 0) return board
 
@@ -400,6 +404,7 @@ export class BoardRepository {
       name: row.name,
       icon: row.icon,
       patternType: row.pattern_type as BoardPatternType,
+      isLocked: !!row.is_locked,
       viewport: { x: row.viewport_x, y: row.viewport_y, zoom: row.viewport_zoom },
       syncStatus: row.sync_status as SyncStatus,
       deletedAt: row.deleted_at,

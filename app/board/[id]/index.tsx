@@ -1792,11 +1792,11 @@ export default function BoardScreen() {
         zoom={jsScale}
         onBack={handleBack}
         onBoardPress={handleBoardPress}
-        onShare={handleShare}
+        onHelp={() => router.push(`/board/${id}/help`)}
         onZoomReset={handleZoomReset}
       />
 
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, overflow: 'hidden' }}>
         {/* Canvas area */}
         <View style={{ flex: 1 }} onLayout={handleLayout}>
           <GestureDetector gesture={allGestures}>

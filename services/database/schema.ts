@@ -1,6 +1,6 @@
 // SQLite schema definitions for offline-first architecture
 
-export const DATABASE_VERSION = 11
+export const DATABASE_VERSION = 12
 export const DATABASE_NAME = 'laterbox.db'
 
 // Schema for version 1
@@ -159,6 +159,7 @@ export const SCHEMA_V1 = `
     name TEXT NOT NULL,
     icon TEXT,
     pattern_type TEXT NOT NULL DEFAULT 'plain',
+    is_locked INTEGER NOT NULL DEFAULT 0,
     viewport_x REAL NOT NULL DEFAULT 0,
     viewport_y REAL NOT NULL DEFAULT 0,
     viewport_zoom REAL NOT NULL DEFAULT 1,
@@ -452,5 +453,8 @@ export const MIGRATIONS: Record<number, string> = {
   11: `
     ALTER TABLE board_connections ADD COLUMN arrow_start INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE board_connections ADD COLUMN arrow_end INTEGER NOT NULL DEFAULT 1;
+  `,
+  12: `
+    ALTER TABLE boards ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0;
   `,
 }

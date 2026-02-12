@@ -10,7 +10,7 @@ interface BoardHeaderProps {
   zoom: number
   onBack: () => void
   onBoardPress: () => void
-  onShare: () => void
+  onHelp: () => void
   onZoomReset: () => void
 }
 
@@ -22,7 +22,7 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-export function BoardHeader({ board, zoom, onBack, onBoardPress, onShare, onZoomReset }: BoardHeaderProps) {
+export function BoardHeader({ board, zoom, onBack, onBoardPress, onHelp, onZoomReset }: BoardHeaderProps) {
   const insets = useSafeAreaInsets()
   const { iconColorStrong, brandText } = useThemeColor()
 
@@ -93,8 +93,8 @@ export function BoardHeader({ board, zoom, onBack, onBoardPress, onShare, onZoom
           size="$3"
           circular
           chromeless
-          onPress={onShare}
-          icon={<Ionicons name="share-outline" size={22} color={iconColorStrong} />}
+          onPress={onHelp}
+          icon={<Ionicons name="information-circle-outline" size={22} color={iconColorStrong} />}
         />
       </XStack>
     </XStack>
