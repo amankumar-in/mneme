@@ -2,6 +2,7 @@ import axios from 'axios';
 import cors from 'cors';
 import express from 'express';
 import fs from 'fs';
+import http from 'http';
 import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -15,6 +16,7 @@ import syncRoutes from './routes/sync.js';
 import taskRoutes from './routes/tasks.js';
 import threadRoutes from './routes/threads.js';
 import verifyRoutes from './routes/verify.js';
+import webSessionRoutes, { setupSignaling } from './routes/web-session.js';
 
 // Middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -506,13 +508,22 @@ app.use('/api/search', searchRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/share', shareRoutes);
 app.use('/api/verify', verifyRoutes);
+app.use('/api/web-session', webSessionRoutes);
+
+// Serve web client SPA (built into server/public/web by `cd web && npm run build`)
+app.use('/web', express.static(path.join(__dirname, 'public/web')));
+app.get('/web/*', (req, res) => res.sendFile(path.join(__dirname, 'public/web/index.html')));
 
 // Error handling
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+// Create HTTP server and set up WebSocket signaling
+const server = http.createServer(app);
+setupSignaling(server);
+
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

@@ -6,6 +6,12 @@ import { useAppTheme } from '@/contexts/ThemeContext'
 import LogoIconLight from '@/assets/images/logo-icon-light-mode.svg'
 import LogoIconDark from '@/assets/images/logo-icon-dark-mode.svg'
 
+interface RightIconConfig {
+  name?: keyof typeof Ionicons.glyphMap
+  icon?: React.ReactNode
+  onPress: () => void
+}
+
 interface HeaderProps {
   title: string
   leftIcon?: {
@@ -13,13 +19,11 @@ interface HeaderProps {
     icon?: React.ReactNode
     onPress: () => void
   }
-  rightIcon?: {
-    name: keyof typeof Ionicons.glyphMap
-    onPress: () => void
-  }
+  rightIcon?: RightIconConfig
+  rightIcons?: RightIconConfig[]
 }
 
-export function Header({ title, leftIcon, rightIcon }: HeaderProps) {
+export function Header({ title, leftIcon, rightIcon, rightIcons }: HeaderProps) {
   const insets = useSafeAreaInsets()
   const { iconColorStrong } = useThemeColor()
   const { resolvedTheme } = useAppTheme()
@@ -60,8 +64,18 @@ export function Header({ title, leftIcon, rightIcon }: HeaderProps) {
         </XStack>
       </XStack>
 
-      <XStack width={44} justifyContent="flex-end">
-        {rightIcon && (
+      <XStack justifyContent="flex-end" alignItems="center" gap="$1">
+        {rightIcons?.map((ri, i) => (
+          <Button
+            key={i}
+            size="$3"
+            circular
+            chromeless
+            onPress={ri.onPress}
+            icon={ri.icon ?? <Ionicons name={ri.name!} size={24} color={iconColorStrong} />}
+          />
+        ))}
+        {rightIcon && !rightIcons && (
           <Button
             size="$3"
             circular

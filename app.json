@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.xcore.laterbox",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {
@@ -39,6 +40,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow LaterBox to use the camera to scan QR codes for the web client."
+        }
+      ],
       [
         "expo-notifications",
         {

@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as LocalAuthentication from 'expo-local-authentication'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { ScanLine } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, BackHandler, FlatList, ImageBackground, RefreshControl, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Alert, Animated, AppState, BackHandler, FlatList, ImageBackground, RefreshControl, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Text, XStack, YStack } from 'tamagui'
 
@@ -38,6 +38,7 @@ import { useUser } from '../hooks/useUser'
 import { useThreadViewStyle } from '../contexts/ThreadViewContext'
 import { useBoards, useCreateBoard, useDeleteBoard, useUpdateBoard } from '../hooks/useBoards'
 import { useDb } from '../contexts/DatabaseContext'
+import { isLocalServerRunning } from '../services/localServer'
 import { getBoardRepository } from '../services/repositories'
 import type { Board, ThreadFilter, ThreadWithLastNote } from '../types'
 
@@ -73,6 +74,28 @@ const FILTER_OPTIONS = [
   { key: 'boards', label: 'Scrapbook' },
   { key: 'tasks', label: 'Tasks' },
 ]
+
+function PulsingServerIcon() {
+  const { iconColorStrong } = useThemeColor()
+  const opacity = useState(() => new Animated.Value(1))[0]
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.3, duration: 1000, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ])
+    )
+    animation.start()
+    return () => animation.stop()
+  }, [opacity])
+
+  return (
+    <Animated.View style={{ opacity }}>
+      <Ionicons name="radio-outline" size={24} color={iconColorStrong} />
+    </Animated.View>
+  )
+}
 
 export default function HomeScreen() {
   const { isMinimalMode, minimalThreadId } = useMinimalMode()
@@ -481,9 +504,26 @@ function ThreadListHome() {
     )
   }, [selectedBoards, deleteBoardMutation, handleClearBoardSelection])
 
-  const handleQRPress = useCallback(() => {
-    router.push('/qr-scan')
-  }, [router])
+  const [serverRunning, setServerRunning] = useState(isLocalServerRunning())
+  useFocusEffect(
+    useCallback(() => {
+      setServerRunning(isLocalServerRunning())
+    }, [])
+  )
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', () => {
+      setServerRunning(isLocalServerRunning())
+    })
+    return () => sub.remove()
+  }, [])
+
+  const handleWebPress = useCallback(() => {
+    if (serverRunning) {
+      router.push('/web-session')
+    } else {
+      router.push('/qr-scan')
+    }
+  }, [router, serverRunning])
 
   const handleSettingsPress = useCallback(() => {
     router.push('/settings')
@@ -910,7 +950,12 @@ function ThreadListHome() {
       )}
       <Header
         title="LaterBox"
-        rightIcon={{ name: 'settings-outline', onPress: handleSettingsPress }}
+        rightIcons={[
+          serverRunning
+            ? { icon: <PulsingServerIcon />, onPress: handleWebPress }
+            : { name: 'qr-code-outline', onPress: handleWebPress },
+          { name: 'settings-outline', onPress: handleSettingsPress },
+        ]}
       />
 
       <SearchBar

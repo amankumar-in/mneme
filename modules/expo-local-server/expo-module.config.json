@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["ExpoLocalServerModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.localserver.ExpoLocalServerModule"]
+  }
+}
