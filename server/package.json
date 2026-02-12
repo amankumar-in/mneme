@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "cd web && npm run build && cd .. && node --env-file=.env --watch index.js",
     "start": "node index.js",
-    "build": "cd web && npm install && npm run build"
+    "build": "cd web && npm install --include=dev && npm run build"
   },
   "dependencies": {
     "axios": "^1.13.4",
