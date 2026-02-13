@@ -52,6 +52,10 @@ build-*.aab
 /ios
 /android
 
+# local module build artifacts
+modules/**/android/build/
+modules/**/ios/build/
+
 # server user-data (persistent disk)
 server/user-data/
 store-listing.txt
