@@ -156,10 +156,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       const { phoneUrl, token } = JSON.parse(stored)
       if (!phoneUrl || !token) throw new Error('invalid')
 
-      // HTTPS page can't make HTTP requests (mixed content) — redirect to phone's origin
+      // HTTPS can't probe HTTP (mixed content), so we can't verify the phone is up.
+      // Show the "phone offline" screen and let the user choose to reconnect or scan again.
+      // Retry will call connectToPhone which does the redirect when the user is ready.
       if (window.location.protocol === 'https:' && phoneUrl.startsWith('http:')) {
-        const from = encodeURIComponent(window.location.origin + '/web/')
-        window.location.href = `${phoneUrl}/web/?token=${token}&from=${from}`
+        set({ phoneUrl, token, status: 'disconnected', disconnectReason: 'phone_offline' })
         return
       }
 
@@ -217,10 +218,11 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
   retry: () => {
     const state = get()
-    if (state.disconnectReason === 'phone_offline') {
-      // Re-attempt handshake with stored session (phone may have come back online)
+    if (state.disconnectReason === 'phone_offline' && state.phoneUrl) {
+      // User chose to reconnect — redirect to phone directly
+      const url = new URL(state.phoneUrl)
       set({ reconnectAttempts: state.reconnectAttempts + 1 })
-      get().restoreSession()
+      get().connectToPhone(url.hostname, parseInt(url.port))
     } else if (state.phoneUrl && state.disconnectReason !== 'session_expired') {
       const url = new URL(state.phoneUrl)
       set({ reconnectAttempts: state.reconnectAttempts + 1 })

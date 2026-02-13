@@ -5,7 +5,7 @@ import { Spinner } from '../common/Spinner'
 interface ThreadListProps {
   search: string
   selectedThreadId: string | null
-  onSelectThread: (id: string, name: string) => void
+  onSelectThread: (id: string, name: string, isSystemThread: boolean) => void
 }
 
 export function ThreadList({ search, selectedThreadId, onSelectThread }: ThreadListProps) {
@@ -47,7 +47,7 @@ export function ThreadList({ search, selectedThreadId, onSelectThread }: ThreadL
               key={thread.id}
               thread={thread}
               isSelected={thread.id === selectedThreadId}
-              onSelect={() => onSelectThread(thread.id, thread.name)}
+              onSelect={() => onSelectThread(thread.id, thread.name, thread.isSystemThread)}
             />
           ))}
           {unpinned.length > 0 && (
@@ -60,7 +60,7 @@ export function ThreadList({ search, selectedThreadId, onSelectThread }: ThreadL
           key={thread.id}
           thread={thread}
           isSelected={thread.id === selectedThreadId}
-          onSelect={() => onSelectThread(thread.id, thread.name)}
+          onSelect={() => onSelectThread(thread.id, thread.name, thread.isSystemThread)}
         />
       ))}
     </div>

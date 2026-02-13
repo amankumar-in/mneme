@@ -12,11 +12,11 @@ export function MediaGallery({ notes }: MediaGalleryProps) {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-3 gap-1.5">
         {notes.map((note) => (
           <div
             key={note.id}
-            className="relative aspect-square cursor-pointer overflow-hidden rounded-xl bg-[var(--bg-secondary)]"
+            className="relative aspect-square cursor-pointer overflow-hidden rounded-xl bg-[var(--input-bg)]"
             onClick={() => {
               if (note.type === 'image' && note.attachment?.url) {
                 setViewImage(note.attachment.url)
@@ -26,12 +26,14 @@ export function MediaGallery({ notes }: MediaGalleryProps) {
             <img
               src={note.attachment?.thumbnail || note.attachment?.url}
               alt=""
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform hover:scale-105"
               loading="lazy"
             />
             {note.type === 'video' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                <Play size={24} className="text-white" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90">
+                  <Play size={18} className="ml-0.5 text-[var(--text)]" />
+                </div>
               </div>
             )}
           </div>

@@ -122,7 +122,7 @@ export function NoteBubble({ note }: NoteBubbleProps) {
   if (note.isLocked) {
     return (
       <div className="my-1 flex justify-end">
-        <div className="flex max-w-[65%] items-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2">
+        <div className="flex max-w-[65%] items-center gap-2 rounded-2xl bg-[var(--input-bg)] px-3 py-2">
           <Lock size={14} className="text-[var(--icon)]" />
           <span className="text-sm italic text-[var(--text-subtle)]">Locked note</span>
           <span className="ml-2 text-[11px] text-[var(--text-subtle)]">{formatTime(note.createdAt)}</span>
@@ -133,7 +133,7 @@ export function NoteBubble({ note }: NoteBubbleProps) {
 
   return (
     <div className="group my-1 flex justify-end">
-      <div className="relative max-w-[65%] rounded-xl bg-[var(--bg-tinted)] shadow-sm">
+      <div className="relative max-w-[65%] rounded-2xl bg-[var(--note-bg)] shadow-sm">
         <div className="pb-1 pl-2 pr-4.5 pt-1.5">
           {renderNoteContent(note, isEditing, editContent, setEditContent, handleSaveEdit, setShowImage)}
         </div>
@@ -156,7 +156,7 @@ export function NoteBubble({ note }: NoteBubbleProps) {
         <button
           ref={menuRef}
           onClick={() => setShowMenu(!showMenu)}
-          className="absolute right-1 top-1 rounded-lg bg-[var(--bg-tinted)] p-0.5 text-[var(--icon)] opacity-0 shadow transition-opacity hover:bg-[var(--bg-secondary)] group-hover:opacity-100"
+          className="absolute right-1 top-1 rounded-lg bg-[var(--note-bg)] p-0.5 text-[var(--icon)] opacity-0 shadow transition-opacity hover:bg-[var(--note-bg-hover)] group-hover:opacity-100"
         >
           <ChevronDown size={16} />
         </button>
@@ -282,7 +282,7 @@ function renderNoteContent(
         <a
           href={note.attachment?.url}
           download={note.attachment?.filename || 'file'}
-          className="flex items-center gap-3 rounded-xl bg-[var(--bg-secondary)] p-3"
+          className="flex items-center gap-3 rounded-xl bg-[var(--input-bg)] p-3"
         >
           <FileIcon size={32} className="shrink-0 text-[var(--icon)]" />
           <div className="min-w-0 flex-1">

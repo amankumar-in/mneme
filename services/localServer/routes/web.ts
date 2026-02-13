@@ -1,4 +1,4 @@
-import type { Router, LocalResponse } from '../router'
+import type { Router, LocalRequest, LocalResponse } from '../router'
 
 let cachedHtml: string | null = null
 let cacheTimestamp: number = 0
@@ -44,7 +44,7 @@ async function getHtml(): Promise<string> {
 }
 
 export function registerWebRoutes(router: Router): void {
-  const handler = async (): Promise<LocalResponse> => {
+  const handler = async (_req: LocalRequest, _params: Record<string, string>): Promise<LocalResponse> => {
     try {
       const html = await getHtml()
       return {
@@ -70,7 +70,18 @@ export function registerWebRoutes(router: Router): void {
     }
   }
 
+  // Serve the SPA HTML for navigation routes only.
+  // Requests with file extensions (e.g. .js, .css, .svg) are assets that should
+  // load from production via the rewritten paths in the HTML — don't serve HTML for those.
+  const spaHandler = async (req: LocalRequest): Promise<LocalResponse> => {
+    const wildcard = req.path.replace(/^\/web\/?/, '')
+    if (wildcard && wildcard.includes('.')) {
+      return { statusCode: 404, headers: {}, body: 'Not found' }
+    }
+    return handler(req, {})
+  }
+
   router.get('/web', handler)
   router.get('/web/', handler)
-  router.get('/web/*', handler)
+  router.get('/web/*', spaHandler)
 }

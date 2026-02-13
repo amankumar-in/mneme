@@ -45,20 +45,20 @@ export function ThreadListItem({ thread, isSelected, onSelect }: ThreadListItemP
       icon: <Lock size={14} />,
       onClick: () => updateThread.mutate({ id: thread.id, isLocked: !thread.isLocked }),
     },
-    {
+    ...(!thread.isSystemThread ? [{
       label: 'Delete',
       icon: <Trash2 size={14} />,
       onClick: () => deleteThread.mutate(thread.id),
       danger: true,
-    },
+    }] : []),
   ]
 
   return (
     <div
-      className={`group relative flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors ${
+      className={`group relative flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 mb-0.5 transition-colors ${
         isSelected
-          ? 'bg-[var(--bg-brand)]'
-          : 'hover:bg-[var(--bg-tertiary)]'
+          ? 'bg-[var(--header-bg)]'
+          : 'hover:bg-[var(--sidebar-hover)]'
       }`}
       onClick={onSelect}
     >
@@ -67,20 +67,20 @@ export function ThreadListItem({ thread, isSelected, onSelect }: ThreadListItemP
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-[15px] font-medium text-[var(--text)]">
+            <span className={`truncate text-[15px] font-medium ${isSelected ? 'text-white' : 'text-[var(--text)]'}`}>
               {thread.name}
             </span>
-            {thread.isPinned && <Pin size={12} className="shrink-0 text-[var(--icon)]" />}
-            {thread.isLocked && <Lock size={12} className="shrink-0 text-[var(--icon)]" />}
+            {thread.isPinned && <Pin size={12} className={`shrink-0 ${isSelected ? 'text-white/60' : 'text-[var(--accent-muted)]'}`} />}
+            {thread.isLocked && <Lock size={12} className={`shrink-0 ${isSelected ? 'text-white/60' : 'text-[var(--icon)]'}`} />}
           </div>
           {thread.lastNote && (
-            <span className="ml-2 shrink-0 text-xs text-[var(--text-subtle)]">
+            <span className={`ml-2 shrink-0 text-[11px] ${isSelected ? 'text-white/60' : 'text-[var(--text-subtle)]'}`}>
               {formatRelativeTime(thread.lastNote.timestamp)}
             </span>
           )}
         </div>
         {lastNotePreview && (
-          <p className="mt-0.5 truncate text-sm text-[var(--text-subtle)]">{lastNotePreview}</p>
+          <p className={`mt-0.5 truncate text-[13px] ${isSelected ? 'text-white/70' : 'text-[var(--text-subtle)]'}`}>{lastNotePreview}</p>
         )}
       </div>
 

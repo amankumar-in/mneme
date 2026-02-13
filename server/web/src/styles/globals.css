@@ -2,33 +2,39 @@
 
 /* ── Theme tokens ── */
 :root {
-  --bg: #ffffff;
-  --bg-secondary: #f1f5f9;
-  --bg-tertiary: #f8fafc;
-  --bg-tinted: #F1F9F8;
-  --bg-brand: #E3F2F1;
-  --bg-brand-hover: #CDE4E3;
-  --text: #0f172a;
-  --text-subtle: #64748b;
-  --text-placeholder: #AEBDCD;
-  --border: #e2e8f0;
-  --border-hover: #cbd5e1;
-  --accent: #839E9D;
-  --accent-muted: #AFCFCE;
-  --icon: #64748b;
-  --link: #2563eb;
+  --bg: #f4faf9;
+  --bg-secondary: #e0f0ee;
+  --bg-tertiary: #d1e8e5;
+  --bg-tinted: #c0deda;
+  --bg-brand: #a3d1cb;
+  --bg-brand-hover: #8ac5be;
+  --text: #1a2e2b;
+  --text-subtle: #3d5f5b;
+  --text-placeholder: #7a9e9a;
+  --border: #b3d4cf;
+  --border-hover: #8fc0b9;
+  --accent: #2d857d;
+  --accent-hover: #236d66;
+  --accent-muted: #6bb5ad;
+  --icon: #4d8a84;
+  --link: #24807a;
   --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
-  --note-bg: #f8fafc;
-  --note-bg-hover: #f1f5f9;
+  --note-bg: #b5ddd7;
+  --note-bg-hover: #a0d3cc;
+  --header-bg: #2d857d;
+  --sidebar-bg: #ddf0ed;
+  --sidebar-hover: #c5e3df;
+  --sidebar-selected: #a3d1cb;
+  --input-bg: #c5e3df;
 }
 
 .dark {
   --bg: #0f1917;
   --bg-secondary: #1a2725;
-  --bg-tertiary: #1a2725;
-  --bg-tinted: #142E2D;
+  --bg-tertiary: #1f2f2d;
+  --bg-tinted: #1a3532;
   --bg-brand: #1F514F;
   --bg-brand-hover: #276864;
   --text: #f0f5f4;
@@ -37,14 +43,20 @@
   --border: #2d3d3b;
   --border-hover: #3f5250;
   --accent: #74D4CE;
-  --accent-muted: #839E9D;
+  --accent-hover: #5ec4bd;
+  --accent-muted: #4a8e89;
   --icon: #8fa3a1;
   --link: #74D4CE;
   --success: #4ade80;
   --warning: #fbbf24;
   --error: #f87171;
-  --note-bg: #1a2725;
+  --note-bg: #1a2f2c;
   --note-bg-hover: #2d3d3b;
+  --header-bg: #1F514F;
+  --sidebar-bg: #141f1d;
+  --sidebar-hover: #1f2f2d;
+  --sidebar-selected: #1F514F;
+  --input-bg: #1a2725;
 }
 
 /* ── Scrollbar ── */
@@ -54,6 +66,7 @@
 ::-webkit-scrollbar-thumb:hover { background: var(--accent-muted); }
 
 /* ── Base ── */
+button { cursor: pointer; }
 html, body, #root { height: 100%; margin: 0; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

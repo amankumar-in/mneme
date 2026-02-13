@@ -99,7 +99,7 @@ export function NoteInput({ threadId, onSent }: NoteInputProps) {
 
   return (
     <div
-      className={`border-t border-[var(--border)] bg-[var(--bg)] px-4 py-3 ${
+      className={`bg-[var(--bg)] px-4 py-3 ${
         isDragging ? 'ring-2 ring-inset ring-[var(--accent)]' : ''
       }`}
       onDragOver={(e) => {
@@ -137,12 +137,16 @@ export function NoteInput({ threadId, onSent }: NoteInputProps) {
           onKeyDown={handleKeyDown}
           placeholder="Type a note..."
           rows={1}
-          className="max-h-[200px] min-h-[40px] flex-1 resize-none rounded-xl bg-[var(--bg-secondary)] px-4 py-2.5 text-sm text-[var(--text)] placeholder-[var(--text-placeholder)] outline-none"
+          className="max-h-[200px] min-h-[40px] flex-1 resize-none rounded-2xl bg-[var(--input-bg)] px-4 py-2.5 text-sm text-[var(--text)] placeholder-[var(--text-placeholder)] outline-none focus:ring-2 focus:ring-[var(--accent)]/20 transition-shadow"
         />
         <button
           onClick={handleSend}
           disabled={!content.trim() || createNote.isPending}
-          className="mb-0.5 rounded-full p-2 text-[var(--icon)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--accent)] disabled:opacity-40 transition-colors"
+          className={`mb-0.5 rounded-full p-2 transition-colors ${
+            content.trim()
+              ? 'bg-[var(--header-bg)] text-white hover:bg-[var(--accent-hover)]'
+              : 'text-[var(--icon)] disabled:opacity-40'
+          }`}
         >
           <Send size={20} />
         </button>

@@ -68,7 +68,7 @@ export function Dropdown({ items, onClose, anchorRef }: DropdownProps) {
     <div
       ref={menuRef}
       style={style}
-      className="min-w-[160px] rounded-xl border border-[var(--border)] bg-[var(--bg)] py-1 shadow-xl"
+      className="min-w-[160px] rounded-xl bg-[var(--bg)] py-1.5 shadow-xl shadow-black/10"
     >
       {items.map((item) => (
         <button

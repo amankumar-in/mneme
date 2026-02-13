@@ -22,11 +22,11 @@ export function Modal({ title, children, onClose }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-[var(--bg)] shadow-2xl"
+        className="w-full max-w-md rounded-2xl bg-[var(--bg)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
-          <h3 className="text-lg font-medium text-[var(--text)]">{title}</h3>
+        <div className="flex items-center justify-between px-6 py-4">
+          <h3 className="text-lg font-semibold text-[var(--text)]">{title}</h3>
           <button
             onClick={onClose}
             className="rounded-lg p-1 text-[var(--icon)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text)]"

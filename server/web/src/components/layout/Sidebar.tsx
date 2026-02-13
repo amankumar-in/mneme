@@ -3,10 +3,11 @@ import { Search, Plus, X } from 'lucide-react'
 import { ThreadList } from '../threads/ThreadList'
 import { useCreateThread } from '../../hooks/useThreads'
 import { Modal } from '../common/Modal'
+import { assetUrl } from '../../utils/assets'
 
 interface SidebarProps {
   selectedThreadId: string | null
-  onSelectThread: (id: string, name: string) => void
+  onSelectThread: (id: string, name: string, isSystemThread: boolean) => void
   searchInputRef?: React.RefObject<HTMLInputElement | null>
   className?: string
 }
@@ -23,7 +24,7 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
       { name: newThreadName.trim() },
       {
         onSuccess: (data) => {
-          onSelectThread(data.id, data.name)
+          onSelectThread(data.id, data.name, false)
           setShowNewThread(false)
           setNewThreadName('')
         },
@@ -32,17 +33,27 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
   }
 
   return (
-    <aside className={`flex shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-secondary)] ${className ?? 'w-[350px]'}`}>
-      <div className="p-2">
+    <aside className={`flex shrink-0 flex-col bg-[var(--sidebar-bg)] ${className ?? 'w-[380px]'}`}>
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+        <img src={assetUrl('icon.png')} alt="LaterBox" className="h-9 w-9 rounded-xl" />
+        <span className="text-lg font-bold tracking-tight">
+          <span className="text-[var(--text)]">Later</span>
+          <span className="text-[var(--accent)]">Box</span>
+        </span>
+      </div>
+
+      {/* Search */}
+      <div className="px-3 pb-2">
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--icon)]" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--icon)]" />
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search threads... (Ctrl+K)"
+            placeholder="Search threads..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] py-2 pl-10 pr-3 text-sm text-[var(--text)] placeholder-[var(--text-placeholder)] outline-none focus:ring-1 focus:ring-[var(--accent)]"
+            className="w-full rounded-xl border-none bg-[var(--input-bg)] py-2 pl-9 pr-3 text-sm text-[var(--text)] placeholder-[var(--text-placeholder)] outline-none focus:ring-2 focus:ring-[var(--accent)]/30 transition-shadow"
           />
           {search && (
             <button
@@ -55,7 +66,8 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      {/* Thread list */}
+      <div className="flex-1 overflow-y-auto px-2">
         <ThreadList
           search={search}
           selectedThreadId={selectedThreadId}
@@ -63,10 +75,11 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
         />
       </div>
 
-      <div className="border-t border-[var(--border)] p-2">
+      {/* New Thread button */}
+      <div className="px-3 pt-3 pb-5">
         <button
           onClick={() => setShowNewThread(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-brand)] px-4 py-2 text-sm font-medium text-[var(--accent)] hover:bg-[var(--bg-brand-hover)] transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--header-bg)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--accent-hover)] transition-colors shadow-sm"
         >
           <Plus size={16} />
           New Thread
@@ -104,7 +117,7 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
               <button
                 onClick={handleCreateThread}
                 disabled={!newThreadName.trim() || createThread.isPending}
-                className="rounded-xl bg-[var(--bg-brand)] px-4 py-2 text-sm font-medium text-[var(--accent)] hover:bg-[var(--bg-brand-hover)] disabled:opacity-50 transition-colors"
+                className="rounded-xl bg-[var(--header-bg)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-50 transition-colors"
               >
                 {createThread.isPending ? 'Creating...' : 'Create'}
               </button>

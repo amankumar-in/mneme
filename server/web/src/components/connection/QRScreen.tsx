@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { Smartphone, RefreshCw } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 import { Spinner } from '../common/Spinner'
+import { assetUrl } from '../../utils/assets'
 
 export function QRScreen() {
   const { status, qrData, createSession } = useConnectionStore()
@@ -19,14 +20,21 @@ export function QRScreen() {
     <div className="flex h-full items-center justify-center bg-[var(--bg)]">
       <div className="flex max-w-[900px] items-center gap-16 px-8">
         <div className="flex-1">
-          <h1 className="mb-2 text-4xl font-light tracking-tight text-[var(--text)]">LaterBox Web</h1>
+          <div className="mb-2 flex items-center gap-4">
+            <img src={assetUrl('icon.png')} alt="LaterBox" className="h-14 w-14 rounded-2xl" />
+            <h1 className="text-4xl font-bold tracking-tight">
+              <span className="text-[var(--text)]">Later</span>
+              <span className="text-[var(--accent)]">Box</span>
+              <span className="text-[var(--text-subtle)] font-light"> Web</span>
+            </h1>
+          </div>
           <p className="mb-8 text-lg text-[var(--text-subtle)]">
             Access your notes from your browser
           </p>
 
           <ol className="space-y-6">
             <li className="flex items-start gap-4">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--bg-brand)] text-sm font-semibold text-[var(--accent)]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-semibold text-white">
                 1
               </span>
               <div>
@@ -35,16 +43,16 @@ export function QRScreen() {
               </div>
             </li>
             <li className="flex items-start gap-4">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--bg-brand)] text-sm font-semibold text-[var(--accent)]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-semibold text-white">
                 2
               </span>
               <div>
-                <p className="font-medium text-[var(--text)]">Go to Settings &gt; Web Client</p>
-                <p className="text-sm text-[var(--text-subtle)]">Tap the menu icon and select Web Client</p>
+                <p className="font-medium text-[var(--text)]">Tap the QR code icon</p>
+                <p className="text-sm text-[var(--text-subtle)]">It's in the top-right corner of the home screen</p>
               </div>
             </li>
             <li className="flex items-start gap-4">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--bg-brand)] text-sm font-semibold text-[var(--accent)]">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-semibold text-white">
                 3
               </span>
               <div>
@@ -79,7 +87,7 @@ export function QRScreen() {
                 <p className="text-sm text-[var(--text-subtle)]">Failed to generate QR code</p>
                 <button
                   onClick={() => createSession()}
-                  className="flex items-center gap-2 rounded-xl bg-[var(--bg-brand)] px-4 py-2 text-sm font-medium text-[var(--accent)] hover:bg-[var(--bg-brand-hover)] transition-colors"
+                  className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
                 >
                   <RefreshCw size={16} />
                   Try Again
