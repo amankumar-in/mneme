@@ -1,4 +1,4 @@
-import { WifiOff, RefreshCw, QrCode } from 'lucide-react'
+import { WifiOff, RefreshCw, QrCode, Smartphone } from 'lucide-react'
 import { useConnectionStore } from '../../store/connectionStore'
 
 const REASON_MESSAGES: Record<string, string> = {
@@ -9,23 +9,30 @@ const REASON_MESSAGES: Record<string, string> = {
   signaling_closed: 'Connection to the server was closed unexpectedly.',
   session_creation_failed: 'Could not create a session. Please try again.',
   phone_offline: 'Your phone appears to be offline. Open the LaterBox app to reconnect.',
+  session_found: 'Make sure the LaterBox app is open and both devices are on the same network.',
 }
 
 export function DisconnectedScreen() {
   const { disconnectReason, retry, createSession } = useConnectionStore()
   const isSessionExpired = disconnectReason === 'session_expired'
+  const isSessionFound = disconnectReason === 'session_found'
   const isPhoneOffline = disconnectReason === 'phone_offline'
   const message = REASON_MESSAGES[disconnectReason || ''] || 'Connection lost. Please try again.'
+
+  const Icon = isSessionFound ? Smartphone : WifiOff
+  const title = isSessionFound
+    ? 'Connect to Your Phone'
+    : isPhoneOffline
+      ? 'Phone Offline'
+      : 'Connection Lost'
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-6 bg-[var(--bg)]">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--bg-tinted)]">
-        <WifiOff size={36} className="text-[var(--icon)]" />
+        <Icon size={36} className="text-[var(--icon)]" />
       </div>
       <div className="text-center">
-        <h2 className="text-xl font-medium text-[var(--text)]">
-          {isPhoneOffline ? 'Phone Offline' : 'Connection Lost'}
-        </h2>
+        <h2 className="text-xl font-medium text-[var(--text)]">{title}</h2>
         <p className="mt-2 max-w-md text-sm text-[var(--text-subtle)]">{message}</p>
       </div>
       <div className="flex gap-3">
@@ -35,7 +42,7 @@ export function DisconnectedScreen() {
             className="flex items-center gap-2 rounded-xl bg-[var(--accent)] px-6 py-2.5 text-sm font-medium text-white hover:bg-[var(--accent-hover)] transition-colors"
           >
             <RefreshCw size={16} />
-            Reconnect
+            {isSessionFound ? 'Connect' : 'Reconnect'}
           </button>
         )}
         <button

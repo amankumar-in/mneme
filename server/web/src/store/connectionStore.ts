@@ -130,6 +130,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
           timeout: 5000,
         })
         if (res.status === 200) {
+          localStorage.removeItem('laterbox-redirect-tried')
           localStorage.setItem('laterbox-session', JSON.stringify({ phoneUrl, token: urlToken }))
           // Save origin for redirect-back: prefer `from` param (actual origin user came from),
           // fall back to phone-injected value (hardcoded production URL)
@@ -156,11 +157,13 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
       const { phoneUrl, token } = JSON.parse(stored)
       if (!phoneUrl || !token) throw new Error('invalid')
 
-      // HTTPS can't probe HTTP (mixed content), so we can't verify the phone is up.
-      // Show the "phone offline" screen and let the user choose to reconnect or scan again.
-      // Retry will call connectToPhone which does the redirect when the user is ready.
+      // HTTPS can't probe HTTP (mixed content) — let the user choose to connect or scan again.
+      // If we already tried redirecting (flag set by connectToPhone), phone is likely offline.
       if (window.location.protocol === 'https:' && phoneUrl.startsWith('http:')) {
-        set({ phoneUrl, token, status: 'disconnected', disconnectReason: 'phone_offline' })
+        const tried = localStorage.getItem('laterbox-redirect-tried')
+        localStorage.removeItem('laterbox-redirect-tried')
+        const reason = tried ? 'phone_offline' : 'session_found'
+        set({ phoneUrl, token, status: 'disconnected', disconnectReason: reason })
         return
       }
 
@@ -192,6 +195,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     const phoneUrl = `http://${ip}:${port}`
     // Persist session on the current origin so returning to this URL auto-reconnects
     localStorage.setItem('laterbox-session', JSON.stringify({ phoneUrl, token }))
+    // Flag so we can detect a failed redirect (user came back = phone was unreachable)
+    localStorage.setItem('laterbox-redirect-tried', '1')
     // Redirect to phone's local server — SPA will boot on HTTP origin, no mixed content
     // Pass current origin so disconnect redirects back here, not a hardcoded URL
     const from = encodeURIComponent(window.location.origin + '/web/')
