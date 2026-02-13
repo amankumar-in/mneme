@@ -56,8 +56,12 @@ mongoose.connect(MONGODB_URI)
     process.exit(1);
   });
 
-// Health check route
+// Redirect laterbox.org root to /web/
 app.get('/', (req, res) => {
+  const host = req.hostname
+  if (host === 'laterbox.org' || host === 'www.laterbox.org') {
+    return res.redirect('/web/')
+  }
   res.json({
     status: 'ok',
     message: 'LaterBox API is running',
