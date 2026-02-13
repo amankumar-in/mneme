@@ -122,10 +122,10 @@ export function NoteBubble({ note }: NoteBubbleProps) {
   if (note.isLocked) {
     return (
       <div className="my-1 flex justify-end">
-        <div className="flex max-w-[65%] items-center gap-2 rounded-lg bg-[#005c4b] px-3 py-2">
-          <Lock size={14} className="text-[#8696a0]" />
-          <span className="text-sm italic text-[#8696a0]">Locked note</span>
-          <span className="ml-2 text-[11px] text-[#ffffff99]">{formatTime(note.createdAt)}</span>
+        <div className="flex max-w-[65%] items-center gap-2 rounded-xl bg-[var(--bg-secondary)] px-3 py-2">
+          <Lock size={14} className="text-[var(--icon)]" />
+          <span className="text-sm italic text-[var(--text-subtle)]">Locked note</span>
+          <span className="ml-2 text-[11px] text-[var(--text-subtle)]">{formatTime(note.createdAt)}</span>
         </div>
       </div>
     )
@@ -133,30 +133,30 @@ export function NoteBubble({ note }: NoteBubbleProps) {
 
   return (
     <div className="group my-1 flex justify-end">
-      <div className="relative max-w-[65%] rounded-lg bg-[#005c4b] shadow-sm">
+      <div className="relative max-w-[65%] rounded-xl bg-[var(--bg-tinted)] shadow-sm">
         <div className="pb-1 pl-2 pr-4.5 pt-1.5">
           {renderNoteContent(note, isEditing, editContent, setEditContent, handleSaveEdit, setShowImage)}
         </div>
 
         <div className="flex items-center justify-end gap-1 px-2 pb-1.5">
           {note.isEdited && (
-            <span className="text-[11px] text-[#ffffff80]">edited</span>
+            <span className="text-[11px] text-[var(--text-subtle)]">edited</span>
           )}
-          {note.isStarred && <Star size={11} className="fill-[#ffd700] text-[#ffd700]" />}
-          {note.isPinned && <Pin size={11} className="text-[#ffffff99]" />}
+          {note.isStarred && <Star size={11} className="fill-[var(--warning)] text-[var(--warning)]" />}
+          {note.isPinned && <Pin size={11} className="text-[var(--icon)]" />}
           {note.task.isTask && (
             <CheckSquare
               size={11}
-              className={note.task.isCompleted ? 'text-[#00a884]' : 'text-[#ffffff99]'}
+              className={note.task.isCompleted ? 'text-[var(--success)]' : 'text-[var(--icon)]'}
             />
           )}
-          <span className="text-[11px] text-[#ffffff99]">{formatTime(note.createdAt)}</span>
+          <span className="text-[11px] text-[var(--text-subtle)]">{formatTime(note.createdAt)}</span>
         </div>
 
         <button
           ref={menuRef}
           onClick={() => setShowMenu(!showMenu)}
-          className="absolute right-1 top-1 rounded bg-[#005c4bcc] p-0.5 text-[#ffffffcc] opacity-0 shadow transition-opacity hover:bg-[#005c4b] group-hover:opacity-100"
+          className="absolute right-1 top-1 rounded-lg bg-[var(--bg-tinted)] p-0.5 text-[var(--icon)] opacity-0 shadow transition-opacity hover:bg-[var(--bg-secondary)] group-hover:opacity-100"
         >
           <ChevronDown size={16} />
         </button>
@@ -200,13 +200,13 @@ function renderNoteContent(
                 if (e.key === 'Escape') handleSaveEdit()
               }}
               autoFocus
-              className="w-full resize-none rounded bg-[#00493e] p-1 text-sm text-[#e9edef] outline-none"
+              className="w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--bg)] p-2 text-sm text-[var(--text)] outline-none"
               rows={3}
             />
             <div className="flex justify-end gap-1 pt-1">
               <button
                 onClick={handleSaveEdit}
-                className="rounded px-2 py-0.5 text-xs text-[#00a884] hover:bg-[#00493e]"
+                className="rounded-lg px-2 py-0.5 text-xs text-[var(--accent)] hover:bg-[var(--bg-secondary)]"
               >
                 Save
               </button>
@@ -218,7 +218,7 @@ function renderNoteContent(
       const segments = linkify(note.content || '')
       return (
         <div>
-          <p className="whitespace-pre-wrap break-words text-sm text-[#e9edef]">
+          <p className="whitespace-pre-wrap break-words text-sm text-[var(--text)]">
             {segments.map((seg, i) =>
               seg.type === 'url' ? (
                 <a
@@ -226,7 +226,7 @@ function renderNoteContent(
                   href={seg.text}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#53bdeb] underline"
+                  className="text-[var(--link)] underline"
                 >
                   {seg.text}
                 </a>
@@ -243,13 +243,13 @@ function renderNoteContent(
     case 'image':
       return (
         <div
-          className="cursor-pointer overflow-hidden rounded"
+          className="cursor-pointer overflow-hidden rounded-xl"
           onClick={() => setShowImage(true)}
         >
           <img
             src={note.attachment?.url}
             alt=""
-            className="max-h-[300px] max-w-full rounded object-cover"
+            className="max-h-[300px] max-w-full rounded-xl object-cover"
             loading="lazy"
           />
         </div>
@@ -272,7 +272,7 @@ function renderNoteContent(
         <div className="flex items-center gap-2">
           <audio controls src={note.attachment?.url} className="max-w-[300px]" />
           {note.attachment?.filename && (
-            <span className="text-xs text-[#8696a0]">{note.attachment.filename}</span>
+            <span className="text-xs text-[var(--text-subtle)]">{note.attachment.filename}</span>
           )}
         </div>
       )
@@ -282,15 +282,15 @@ function renderNoteContent(
         <a
           href={note.attachment?.url}
           download={note.attachment?.filename || 'file'}
-          className="flex items-center gap-3 rounded bg-[#00493e] p-3"
+          className="flex items-center gap-3 rounded-xl bg-[var(--bg-secondary)] p-3"
         >
-          <FileIcon size={32} className="shrink-0 text-[#8696a0]" />
+          <FileIcon size={32} className="shrink-0 text-[var(--icon)]" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm text-[#e9edef]">
+            <p className="truncate text-sm text-[var(--text)]">
               {note.attachment?.filename || 'Unnamed file'}
             </p>
             {note.attachment?.size && (
-              <p className="text-xs text-[#8696a0]">{formatFileSize(note.attachment.size)}</p>
+              <p className="text-xs text-[var(--text-subtle)]">{formatFileSize(note.attachment.size)}</p>
             )}
           </div>
         </a>
@@ -302,7 +302,7 @@ function renderNoteContent(
           href={`https://www.google.com/maps?q=${note.location?.latitude},${note.location?.longitude}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-sm text-[#53bdeb]"
+          className="flex items-center gap-2 text-sm text-[var(--link)]"
         >
           <MapPin size={16} />
           <span>{note.location?.address || 'View on Map'}</span>
@@ -312,12 +312,12 @@ function renderNoteContent(
     case 'contact':
       return (
         <div className="flex items-center gap-2">
-          <User size={16} className="text-[#8696a0]" />
-          <span className="text-sm text-[#e9edef]">{note.content || 'Contact'}</span>
+          <User size={16} className="text-[var(--icon)]" />
+          <span className="text-sm text-[var(--text)]">{note.content || 'Contact'}</span>
         </div>
       )
 
     default:
-      return <p className="text-sm text-[#e9edef]">{note.content}</p>
+      return <p className="text-sm text-[var(--text)]">{note.content}</p>
   }
 }

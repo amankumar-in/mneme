@@ -57,8 +57,8 @@ export function ThreadListItem({ thread, isSelected, onSelect }: ThreadListItemP
     <div
       className={`group relative flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors ${
         isSelected
-          ? 'bg-[#2a3942]'
-          : 'hover:bg-[#202c33]'
+          ? 'bg-[var(--bg-brand)]'
+          : 'hover:bg-[var(--bg-tertiary)]'
       }`}
       onClick={onSelect}
     >
@@ -67,20 +67,20 @@ export function ThreadListItem({ thread, isSelected, onSelect }: ThreadListItemP
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-[15px] font-medium text-[#e9edef]">
+            <span className="truncate text-[15px] font-medium text-[var(--text)]">
               {thread.name}
             </span>
-            {thread.isPinned && <Pin size={12} className="shrink-0 text-[#8696a0]" />}
-            {thread.isLocked && <Lock size={12} className="shrink-0 text-[#8696a0]" />}
+            {thread.isPinned && <Pin size={12} className="shrink-0 text-[var(--icon)]" />}
+            {thread.isLocked && <Lock size={12} className="shrink-0 text-[var(--icon)]" />}
           </div>
           {thread.lastNote && (
-            <span className="ml-2 shrink-0 text-xs text-[#8696a0]">
+            <span className="ml-2 shrink-0 text-xs text-[var(--text-subtle)]">
               {formatRelativeTime(thread.lastNote.timestamp)}
             </span>
           )}
         </div>
         {lastNotePreview && (
-          <p className="mt-0.5 truncate text-sm text-[#8696a0]">{lastNotePreview}</p>
+          <p className="mt-0.5 truncate text-sm text-[var(--text-subtle)]">{lastNotePreview}</p>
         )}
       </div>
 
@@ -90,7 +90,7 @@ export function ThreadListItem({ thread, isSelected, onSelect }: ThreadListItemP
           e.stopPropagation()
           setShowMenu(!showMenu)
         }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[#8696a0] opacity-0 transition-opacity hover:bg-[#374045] group-hover:opacity-100"
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-[var(--icon)] opacity-0 transition-opacity hover:bg-[var(--bg-tertiary)] group-hover:opacity-100"
       >
         <ChevronDown size={16} />
       </button>

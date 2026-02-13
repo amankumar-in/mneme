@@ -75,7 +75,7 @@ export function VoiceWaveform({ src, duration, waveform }: VoiceWaveformProps) {
     <div className="flex min-w-[240px] items-center gap-3 py-1">
       <button
         onClick={togglePlay}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#00a884] text-white hover:bg-[#00997a] transition-colors"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--bg-brand)] text-[var(--accent)] hover:bg-[var(--bg-brand-hover)] transition-colors"
       >
         {playing ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
       </button>
@@ -91,13 +91,13 @@ export function VoiceWaveform({ src, duration, waveform }: VoiceWaveformProps) {
                 className="w-[3px] cursor-pointer rounded-full transition-colors"
                 style={{
                   height: `${Math.max(amplitude * 100, 10)}%`,
-                  backgroundColor: isPast ? '#00a884' : '#ffffff40',
+                  backgroundColor: isPast ? 'var(--accent)' : 'var(--border)',
                 }}
               />
             )
           })}
         </div>
-        <span className="text-[11px] text-[#ffffff99]">
+        <span className="text-[11px] text-[var(--text-subtle)]">
           {playing ? formatDuration(currentTime) : formatDuration(duration)}
         </span>
       </div>

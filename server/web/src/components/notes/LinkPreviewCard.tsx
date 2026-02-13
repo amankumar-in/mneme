@@ -21,7 +21,7 @@ export function LinkPreviewCard({ preview }: LinkPreviewCardProps) {
       href={preview.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-2 block overflow-hidden rounded-lg border border-[#ffffff15] bg-[#00493e] transition-colors hover:bg-[#005a4c]"
+      className="mt-2 block overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] transition-colors hover:bg-[var(--note-bg-hover)]"
     >
       {preview.image && (
         <img
@@ -33,12 +33,12 @@ export function LinkPreviewCard({ preview }: LinkPreviewCardProps) {
       )}
       <div className="p-3">
         {preview.title && (
-          <p className="text-sm font-medium text-[#e9edef] line-clamp-2">{preview.title}</p>
+          <p className="text-sm font-medium text-[var(--text)] line-clamp-2">{preview.title}</p>
         )}
         {preview.description && (
-          <p className="mt-1 text-xs text-[#8696a0] line-clamp-2">{preview.description}</p>
+          <p className="mt-1 text-xs text-[var(--text-subtle)] line-clamp-2">{preview.description}</p>
         )}
-        <p className="mt-1 text-xs text-[#53bdeb]">{domain}</p>
+        <p className="mt-1 text-xs text-[var(--accent)]">{domain}</p>
       </div>
     </a>
   )

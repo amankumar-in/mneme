@@ -21,7 +21,7 @@ export function ThreadList({ search, selectedThreadId, onSelectThread }: ThreadL
 
   if (error) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-[#8696a0]">
+      <div className="px-4 py-8 text-center text-sm text-[var(--text-subtle)]">
         Failed to load threads
       </div>
     )
@@ -29,7 +29,7 @@ export function ThreadList({ search, selectedThreadId, onSelectThread }: ThreadL
 
   if (!threads?.length) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-[#8696a0]">
+      <div className="px-4 py-8 text-center text-sm text-[var(--text-subtle)]">
         {search ? 'No threads found' : 'No threads yet'}
       </div>
     )
@@ -51,7 +51,7 @@ export function ThreadList({ search, selectedThreadId, onSelectThread }: ThreadL
             />
           ))}
           {unpinned.length > 0 && (
-            <div className="mx-4 border-t border-[#2a3942]" />
+            <div className="mx-4 border-t border-[var(--border)]" />
           )}
         </>
       )}

@@ -16,7 +16,7 @@ export function MediaGallery({ notes }: MediaGalleryProps) {
         {notes.map((note) => (
           <div
             key={note.id}
-            className="relative aspect-square cursor-pointer overflow-hidden rounded bg-[#202c33]"
+            className="relative aspect-square cursor-pointer overflow-hidden rounded-xl bg-[var(--bg-secondary)]"
             onClick={() => {
               if (note.type === 'image' && note.attachment?.url) {
                 setViewImage(note.attachment.url)

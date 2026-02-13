@@ -26,6 +26,8 @@ const APP_LOCK_PIN_HASH_KEY = '@laterbox:appLockPinHash'
 const APP_LOCK_TIMEOUT_KEY = '@laterbox:appLockTimeout'
 const ENCRYPTION_SALT_KEY = '@laterbox:encryptionSalt'
 const ENCRYPTION_ENABLED_KEY = '@laterbox:encryptionEnabled'
+const WEB_SESSION_KEY = '@laterbox:webSession'
+const WEB_SERVER_PORT_KEY = '@laterbox:webServerPort'
 
 export type AppTheme = 'light' | 'dark' | 'system'
 
@@ -285,6 +287,46 @@ export async function setEncryptionEnabled(enabled: boolean): Promise<void> {
   await AsyncStorage.setItem(ENCRYPTION_ENABLED_KEY, enabled ? 'true' : 'false')
 }
 
+// Web Session persistence (30-day auto-reconnect)
+export interface WebSessionData {
+  token: string
+  port: number
+  createdAt: number
+}
+
+export async function getWebSession(): Promise<WebSessionData | null> {
+  const stored = await AsyncStorage.getItem(WEB_SESSION_KEY)
+  if (!stored) return null
+  try {
+    const data = JSON.parse(stored)
+    if (data.token && data.port && data.createdAt) return data
+  } catch {}
+  return null
+}
+
+export async function setWebSession(token: string, port: number): Promise<void> {
+  await AsyncStorage.setItem(
+    WEB_SESSION_KEY,
+    JSON.stringify({ token, port, createdAt: Date.now() })
+  )
+  // Persist port separately so it survives disconnect
+  await AsyncStorage.setItem(WEB_SERVER_PORT_KEY, String(port))
+}
+
+export async function clearWebSession(): Promise<void> {
+  await AsyncStorage.removeItem(WEB_SESSION_KEY)
+  // Keep WEB_SERVER_PORT_KEY — port is reused across sessions
+}
+
+export async function getSavedWebServerPort(): Promise<number | null> {
+  const stored = await AsyncStorage.getItem(WEB_SERVER_PORT_KEY)
+  if (stored) {
+    const port = parseInt(stored, 10)
+    if (port >= 1024 && port <= 65535) return port
+  }
+  return null
+}
+
 function generateId(): string {
   const timestamp = Date.now().toString(36)
   const randomPart = Math.random().toString(36).substring(2, 15)
@@ -334,7 +376,7 @@ export async function clearAuthToken(): Promise<void> {
 }
 
 export async function clearAll(): Promise<void> {
-  await AsyncStorage.multiRemove([DEVICE_ID_KEY, USER_KEY, AUTH_TOKEN_KEY, THEME_KEY, SYNC_ENABLED_KEY, NOTE_FONT_SCALE_KEY, NOTE_VIEW_STYLE_KEY, APP_FONT_KEY, THREAD_VIEW_STYLE_KEY, MINIMAL_MODE_KEY, MINIMAL_MODE_THREAD_ID_KEY, LINK_PREVIEW_MODE_KEY, HOME_WALLPAPER_KEY, HOME_WALLPAPER_OVERLAY_KEY, HOME_WALLPAPER_OPACITY_KEY, THREAD_WALLPAPER_KEY, THREAD_WALLPAPER_OVERLAY_KEY, THREAD_WALLPAPER_OPACITY_KEY, APP_LOCK_ENABLED_KEY, APP_LOCK_PIN_HASH_KEY, APP_LOCK_TIMEOUT_KEY, ENCRYPTION_SALT_KEY, ENCRYPTION_ENABLED_KEY])
+  await AsyncStorage.multiRemove([DEVICE_ID_KEY, USER_KEY, AUTH_TOKEN_KEY, THEME_KEY, SYNC_ENABLED_KEY, NOTE_FONT_SCALE_KEY, NOTE_VIEW_STYLE_KEY, APP_FONT_KEY, THREAD_VIEW_STYLE_KEY, MINIMAL_MODE_KEY, MINIMAL_MODE_THREAD_ID_KEY, LINK_PREVIEW_MODE_KEY, HOME_WALLPAPER_KEY, HOME_WALLPAPER_OVERLAY_KEY, HOME_WALLPAPER_OPACITY_KEY, THREAD_WALLPAPER_KEY, THREAD_WALLPAPER_OVERLAY_KEY, THREAD_WALLPAPER_OPACITY_KEY, APP_LOCK_ENABLED_KEY, APP_LOCK_PIN_HASH_KEY, APP_LOCK_TIMEOUT_KEY, ENCRYPTION_SALT_KEY, ENCRYPTION_ENABLED_KEY, WEB_SESSION_KEY])
 }
 
 /**

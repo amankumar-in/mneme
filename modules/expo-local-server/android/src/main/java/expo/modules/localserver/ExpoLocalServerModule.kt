@@ -37,6 +37,7 @@ class ExpoLocalServerModule : Module() {
         http.start()
 
         val ws = LocalWebSocketServer(port + 1)
+        ws.isReuseAddr = true
         wsServer = ws
         ws.start()
 

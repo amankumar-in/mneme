@@ -38,7 +38,8 @@ import { useUser } from '../hooks/useUser'
 import { useThreadViewStyle } from '../contexts/ThreadViewContext'
 import { useBoards, useCreateBoard, useDeleteBoard, useUpdateBoard } from '../hooks/useBoards'
 import { useDb } from '../contexts/DatabaseContext'
-import { isLocalServerRunning } from '../services/localServer'
+import { isLocalServerRunning, restoreLocalServer } from '../services/localServer'
+import { useQueryClient } from '@tanstack/react-query'
 import { getBoardRepository } from '../services/repositories'
 import type { Board, ThreadFilter, ThreadWithLastNote } from '../types'
 
@@ -504,11 +505,21 @@ function ThreadListHome() {
     )
   }, [selectedBoards, deleteBoardMutation, handleClearBoardSelection])
 
+  const queryClient = useQueryClient()
   const [serverRunning, setServerRunning] = useState(isLocalServerRunning())
   useFocusEffect(
     useCallback(() => {
       setServerRunning(isLocalServerRunning())
-    }, [])
+      // Auto-restore persisted web session if server isn't running
+      if (!isLocalServerRunning()) {
+        restoreLocalServer(db, () => {
+          queryClient.invalidateQueries({ queryKey: ['notes'] })
+          queryClient.invalidateQueries({ queryKey: ['threads'] })
+        }).then((restored) => {
+          if (restored) setServerRunning(true)
+        })
+      }
+    }, [db, queryClient])
   )
   useEffect(() => {
     const sub = AppState.addEventListener('change', () => {

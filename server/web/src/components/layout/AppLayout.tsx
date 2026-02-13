@@ -65,37 +65,37 @@ export function AppLayout() {
   const showMain = !isMobile || !!selectedThreadId
 
   return (
-    <div className="flex h-full flex-col bg-[#0b141a] dark:bg-[#0b141a]">
+    <div className="flex h-full flex-col bg-[var(--bg)]">
       {/* Header */}
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-[#2a3942] bg-[#202c33] px-4">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--bg)] px-4">
         <div className="flex items-center gap-2">
           {isMobile && selectedThreadId && (
             <button
               onClick={handleBack}
-              className="mr-1 rounded p-1 text-[#aebac1] hover:bg-[#2a3942]"
+              className="mr-1 rounded-lg p-1.5 text-[var(--icon)] hover:bg-[var(--bg-tertiary)]"
             >
               <ArrowLeft size={18} />
             </button>
           )}
-          <h1 className="text-base font-semibold text-[#e9edef]">
+          <h1 className="text-base font-semibold text-[var(--text)]">
             {isMobile && selectedThreadId ? selectedThreadName : 'LaterBox Web'}
           </h1>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-[#00a884]">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--accent)]">
             <Wifi size={14} />
             <span className="hidden sm:inline">Connected</span>
           </div>
           <button
             onClick={toggleDarkMode}
-            className="rounded p-1.5 text-[#aebac1] hover:bg-[#2a3942] transition-colors"
+            className="rounded-lg p-1.5 text-[var(--icon)] hover:bg-[var(--bg-tertiary)] transition-colors"
             title={isDark ? 'Light mode' : 'Dark mode'}
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           <button
             onClick={() => disconnect('manual')}
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-xs text-gray-400 hover:bg-[#2a3942] hover:text-gray-200 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-[var(--text-subtle)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text)] transition-colors"
             title="Disconnect"
           >
             <LogOut size={14} />
@@ -126,7 +126,7 @@ export function AppLayout() {
       </div>
       {/* Reconnecting toast */}
       {reconnecting && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-lg bg-yellow-600 px-4 py-2 text-sm text-white shadow-lg">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl bg-[var(--warning)] px-4 py-2 text-sm text-white shadow-lg">
           <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
           Reconnecting to phone...
         </div>

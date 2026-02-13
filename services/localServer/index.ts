@@ -23,6 +23,7 @@ import {
 } from './websocket/handler'
 import { setBroadcastFunction, clearBroadcastFunction, broadcastSessionExpired } from './websocket/eventBroadcaster'
 import { startChangeDetector, stopChangeDetector, setOnChangeCallback } from './websocket/changeDetector'
+import { getWebSession, setWebSession, clearWebSession, getSavedWebServerPort } from '../storage'
 
 import type { EventSubscription } from 'expo-modules-core'
 
@@ -60,8 +61,9 @@ function randomPort(): number {
 
 /**
  * Start the local server and return session info for the QR code.
+ * @param sessionPort — optional port to reuse (for restoring a persisted session)
  */
-export async function startLocalServer(db: SQLiteDatabase, sessionToken?: string, onDataChange?: () => void): Promise<{
+export async function startLocalServer(db: SQLiteDatabase, sessionToken?: string, onDataChange?: () => void, sessionPort?: number): Promise<{
   token: string
   port: number
   ip: string
@@ -73,7 +75,7 @@ export async function startLocalServer(db: SQLiteDatabase, sessionToken?: string
   }
 
   const token = sessionToken ?? generateToken()
-  const port = randomPort()
+  const port = sessionPort ?? (await getSavedWebServerPort()) ?? randomPort()
 
   // Set up the session token for auth
   setSessionToken(token)
@@ -156,6 +158,9 @@ export async function startLocalServer(db: SQLiteDatabase, sessionToken?: string
   // Store session
   currentSession = { token, port, ip, baseUrl, startedAt: Date.now() }
 
+  // Persist session to AsyncStorage for auto-restore on next app launch
+  await setWebSession(token, port)
+
   console.log(`[LocalServer] Started at ${baseUrl}`)
 
   return { token, port, ip, baseUrl }
@@ -196,6 +201,9 @@ export async function stopLocalServer(): Promise<void> {
   // Clear auth
   clearSessionToken()
 
+  // Clear persisted session so next app launch won't auto-start
+  await clearWebSession()
+
   if (appStateSubscription) {
     appStateSubscription.remove()
     appStateSubscription = null
@@ -217,5 +225,40 @@ export function getLocalServerSession(): ServerSession | null {
  */
 export function isLocalServerRunning(): boolean {
   return currentSession !== null
+}
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+
+/**
+ * Restore a previously persisted web session on app launch.
+ * Reads token+port from AsyncStorage, checks expiry (30 days),
+ * and re-starts the server on the same port with the same token.
+ * Returns true if restore succeeded, false otherwise.
+ */
+export async function restoreLocalServer(
+  db: SQLiteDatabase,
+  onDataChange?: () => void
+): Promise<boolean> {
+  if (currentSession) return true // already running
+
+  const saved = await getWebSession()
+  if (!saved) return false
+
+  // Check 30-day expiry
+  if (Date.now() - saved.createdAt > THIRTY_DAYS_MS) {
+    console.log('[LocalServer] Persisted session expired (>30 days), clearing')
+    await clearWebSession()
+    return false
+  }
+
+  try {
+    await startLocalServer(db, saved.token, onDataChange, saved.port)
+    console.log('[LocalServer] Restored persisted session on port', saved.port)
+    return true
+  } catch (err) {
+    console.warn('[LocalServer] Failed to restore session (port busy?):', err)
+    await clearWebSession()
+    return false
+  }
 }
 

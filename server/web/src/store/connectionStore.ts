@@ -155,6 +155,14 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     try {
       const { phoneUrl, token } = JSON.parse(stored)
       if (!phoneUrl || !token) throw new Error('invalid')
+
+      // HTTPS page can't make HTTP requests (mixed content) — redirect to phone's origin
+      if (window.location.protocol === 'https:' && phoneUrl.startsWith('http:')) {
+        const from = encodeURIComponent(window.location.origin + '/web/')
+        window.location.href = `${phoneUrl}/web/?token=${token}&from=${from}`
+        return
+      }
+
       set({ status: 'connecting', token })
       const res = await axios.get(`${phoneUrl}/api/handshake`, {
         params: { token },
@@ -166,8 +174,9 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
         throw new Error('handshake failed')
       }
     } catch {
-      localStorage.removeItem('laterbox-session')
-      get().createSession()
+      // Phone is probably offline — keep the session and show a retry state
+      // instead of wiping credentials and forcing a new QR scan
+      set({ status: 'disconnected', disconnectReason: 'phone_offline' })
     }
   },
 
@@ -179,10 +188,13 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     console.log('[WEB] connectToPhone called, ip:', ip, 'port:', port)
     set({ status: 'connecting' })
     const { token } = get()
+    const phoneUrl = `http://${ip}:${port}`
+    // Persist session on the current origin so returning to this URL auto-reconnects
+    localStorage.setItem('laterbox-session', JSON.stringify({ phoneUrl, token }))
     // Redirect to phone's local server — SPA will boot on HTTP origin, no mixed content
     // Pass current origin so disconnect redirects back here, not a hardcoded URL
     const from = encodeURIComponent(window.location.origin + '/web/')
-    window.location.href = `http://${ip}:${port}/web/?token=${token}&from=${from}`
+    window.location.href = `${phoneUrl}/web/?token=${token}&from=${from}`
   },
 
   disconnect: (reason?: string) => {
@@ -190,18 +202,26 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     if (_signalingWs) {
       _signalingWs.close()
     }
-    localStorage.removeItem('laterbox-session')
+    // Only wipe session for intentional disconnects
+    const clearSession = !reason || reason === 'manual' || reason === 'session_expired'
+    if (clearSession) {
+      localStorage.removeItem('laterbox-session')
+    }
     set({
       status: 'disconnected',
       disconnectReason: reason || 'manual',
-      phoneUrl: null,
+      phoneUrl: clearSession ? null : get().phoneUrl,
       _signalingWs: null,
     })
   },
 
   retry: () => {
     const state = get()
-    if (state.phoneUrl && state.disconnectReason !== 'session_expired') {
+    if (state.disconnectReason === 'phone_offline') {
+      // Re-attempt handshake with stored session (phone may have come back online)
+      set({ reconnectAttempts: state.reconnectAttempts + 1 })
+      get().restoreSession()
+    } else if (state.phoneUrl && state.disconnectReason !== 'session_expired') {
       const url = new URL(state.phoneUrl)
       set({ reconnectAttempts: state.reconnectAttempts + 1 })
       get().connectToPhone(url.hostname, parseInt(url.port))

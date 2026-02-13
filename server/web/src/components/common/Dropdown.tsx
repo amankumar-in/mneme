@@ -68,7 +68,7 @@ export function Dropdown({ items, onClose, anchorRef }: DropdownProps) {
     <div
       ref={menuRef}
       style={style}
-      className="min-w-[160px] rounded-lg border border-[#2a3942] bg-[#233138] py-1 shadow-xl"
+      className="min-w-[160px] rounded-xl border border-[var(--border)] bg-[var(--bg)] py-1 shadow-xl"
     >
       {items.map((item) => (
         <button
@@ -80,8 +80,8 @@ export function Dropdown({ items, onClose, anchorRef }: DropdownProps) {
           }}
           className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${
             item.danger
-              ? 'text-red-400 hover:bg-[#2a3942]'
-              : 'text-[#e9edef] hover:bg-[#2a3942]'
+              ? 'text-[var(--error)] hover:bg-[var(--bg-tertiary)]'
+              : 'text-[var(--text)] hover:bg-[var(--bg-tertiary)]'
           }`}
         >
           {item.icon && <span className="shrink-0">{item.icon}</span>}

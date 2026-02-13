@@ -2,8 +2,9 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useConnectionStore } from '../store/connectionStore'
 
-const MAX_RECONNECT_ATTEMPTS = 10
+const MAX_RECONNECT_ATTEMPTS = 20
 const BASE_DELAY = 1000
+const MAX_DELAY = 5000
 
 export function useWebSocket() {
   const queryClient = useQueryClient()
@@ -60,12 +61,14 @@ export function useWebSocket() {
       const currentStatus = useConnectionStore.getState().status
       if (currentStatus === 'connected' && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
         setReconnecting(true)
-        const delay = BASE_DELAY * Math.pow(2, reconnectAttemptsRef.current)
+        const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttemptsRef.current), MAX_DELAY)
         reconnectAttemptsRef.current++
         reconnectTimerRef.current = setTimeout(connect, delay)
       } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
         setReconnecting(false)
-        disconnect('connection_lost')
+        // Don't call disconnect() — that wipes phoneUrl and localStorage.
+        // Just mark as phone_offline so the user can retry with session intact.
+        useConnectionStore.setState({ status: 'disconnected', disconnectReason: 'phone_offline' })
       }
     }
 

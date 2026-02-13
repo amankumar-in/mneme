@@ -87,8 +87,8 @@ export function NoteArea({ threadId, threadName }: NoteAreaProps) {
   return (
     <div className="flex h-full">
       <div className="flex flex-1 flex-col">
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#2a3942] bg-[#202c33] px-4">
-          <h2 className="text-base font-medium text-[#e9edef]">{threadName}</h2>
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--bg)] px-4">
+          <h2 className="text-base font-medium text-[var(--text)]">{threadName}</h2>
           <div className="flex items-center gap-1">
             {searchOpen ? (
               <div className="flex items-center gap-2">
@@ -98,14 +98,14 @@ export function NoteArea({ threadId, threadName }: NoteAreaProps) {
                   value={noteSearch}
                   onChange={(e) => setNoteSearch(e.target.value)}
                   autoFocus
-                  className="w-48 rounded bg-[#2a3942] px-3 py-1.5 text-sm text-[#e9edef] placeholder-[#8696a0] outline-none"
+                  className="w-48 rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-1.5 text-sm text-[var(--text)] placeholder-[var(--text-placeholder)] outline-none"
                 />
                 <button
                   onClick={() => {
                     setSearchOpen(false)
                     setNoteSearch('')
                   }}
-                  className="rounded p-1.5 text-[#8696a0] hover:bg-[#2a3942] hover:text-[#e9edef]"
+                  className="rounded-lg p-1.5 text-[var(--icon)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text)]"
                 >
                   <X size={18} />
                 </button>
@@ -113,17 +113,17 @@ export function NoteArea({ threadId, threadName }: NoteAreaProps) {
             ) : (
               <button
                 onClick={() => setSearchOpen(true)}
-                className="rounded p-1.5 text-[#8696a0] hover:bg-[#2a3942] hover:text-[#e9edef]"
+                className="rounded-lg p-1.5 text-[var(--icon)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text)]"
               >
                 <Search size={18} />
               </button>
             )}
             <button
               onClick={() => setShowInfo(!showInfo)}
-              className={`rounded p-1.5 transition-colors ${
+              className={`rounded-lg p-1.5 transition-colors ${
                 showInfo
-                  ? 'bg-[#2a3942] text-[#00a884]'
-                  : 'text-[#8696a0] hover:bg-[#2a3942] hover:text-[#e9edef]'
+                  ? 'bg-[var(--bg-brand)] text-[var(--accent)]'
+                  : 'text-[var(--icon)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text)]'
               }`}
             >
               <Info size={18} />
@@ -134,14 +134,14 @@ export function NoteArea({ threadId, threadName }: NoteAreaProps) {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-16 py-4"
+          className="flex-1 overflow-y-auto bg-[var(--bg)] px-16 py-4"
         >
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Spinner size="md" />
             </div>
           ) : filteredNotes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-[#8696a0]">
+            <div className="flex flex-col items-center justify-center py-12 text-[var(--text-subtle)]">
               <p className="text-sm">
                 {noteSearch ? 'No matching notes' : 'No notes yet. Start by sending one below.'}
               </p>

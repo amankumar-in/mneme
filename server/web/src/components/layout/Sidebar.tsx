@@ -32,22 +32,22 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
   }
 
   return (
-    <aside className={`flex shrink-0 flex-col border-r border-[#2a3942] bg-[#111b21] ${className ?? 'w-[350px]'}`}>
+    <aside className={`flex shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-secondary)] ${className ?? 'w-[350px]'}`}>
       <div className="p-2">
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8696a0]" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--icon)]" />
           <input
             ref={searchInputRef}
             type="text"
             placeholder="Search threads... (Ctrl+K)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg bg-[#202c33] py-2 pl-10 pr-3 text-sm text-[#e9edef] placeholder-[#8696a0] outline-none focus:ring-1 focus:ring-[#00a884]"
+            className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] py-2 pl-10 pr-3 text-sm text-[var(--text)] placeholder-[var(--text-placeholder)] outline-none focus:ring-1 focus:ring-[var(--accent)]"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8696a0] hover:text-[#e9edef]"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--icon)] hover:text-[var(--text)]"
             >
               <X size={14} />
             </button>
@@ -63,10 +63,10 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
         />
       </div>
 
-      <div className="border-t border-[#2a3942] p-2">
+      <div className="border-t border-[var(--border)] p-2">
         <button
           onClick={() => setShowNewThread(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#00a884] px-4 py-2 text-sm font-medium text-white hover:bg-[#00997a] transition-colors"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--bg-brand)] px-4 py-2 text-sm font-medium text-[var(--accent)] hover:bg-[var(--bg-brand-hover)] transition-colors"
         >
           <Plus size={16} />
           New Thread
@@ -89,7 +89,7 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
               onChange={(e) => setNewThreadName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateThread()}
               autoFocus
-              className="w-full rounded-lg border border-[#2a3942] bg-[#2a3942] px-4 py-2.5 text-sm text-[#e9edef] placeholder-[#8696a0] outline-none focus:border-[#00a884]"
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] px-4 py-2.5 text-sm text-[var(--text)] placeholder-[var(--text-placeholder)] outline-none focus:border-[var(--accent)]"
             />
             <div className="flex justify-end gap-2">
               <button
@@ -97,14 +97,14 @@ export function Sidebar({ selectedThreadId, onSelectThread, searchInputRef, clas
                   setShowNewThread(false)
                   setNewThreadName('')
                 }}
-                className="rounded-lg px-4 py-2 text-sm text-gray-400 hover:bg-[#2a3942]"
+                className="rounded-xl px-4 py-2 text-sm text-[var(--text-subtle)] hover:bg-[var(--bg-tertiary)]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateThread}
                 disabled={!newThreadName.trim() || createThread.isPending}
-                className="rounded-lg bg-[#00a884] px-4 py-2 text-sm font-medium text-white hover:bg-[#00997a] disabled:opacity-50 transition-colors"
+                className="rounded-xl bg-[var(--bg-brand)] px-4 py-2 text-sm font-medium text-[var(--accent)] hover:bg-[var(--bg-brand-hover)] disabled:opacity-50 transition-colors"
               >
                 {createThread.isPending ? 'Creating...' : 'Create'}
               </button>
