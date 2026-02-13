@@ -48,7 +48,7 @@ export default function QRScanScreen() {
         const payload: QRPayload = JSON.parse(data)
 
         if (payload.type !== 'laterbox-web' || payload.v !== 1) {
-          throw new Error('Invalid QR code. Please use the QR code from web.laterbox.com')
+          throw new Error('Invalid QR code. Please use the QR code from laterbox.org')
         }
 
         if (!payload.sessionId || !payload.token || !payload.relay) {
@@ -239,7 +239,7 @@ export default function QRScanScreen() {
 
         <Text color="$colorSubtle" fontSize="$3" marginTop="$3" textAlign="center">
           Point camera at the QR code on{' '}
-          <Text color="$color" fontSize="$3" fontWeight="600">web.laterbox.com</Text>
+          <Text color="$color" fontSize="$3" fontWeight="600">laterbox.org</Text>
         </Text>
       </YStack>
 

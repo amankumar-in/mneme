@@ -47,7 +47,7 @@ export function QRScreen() {
                 2
               </span>
               <div>
-                <p className="font-medium text-[var(--text)]">Tap the QR code icon</p>
+                <p className="font-medium text-[var(--text)]">Tap the Device icon</p>
                 <p className="text-sm text-[var(--text-subtle)]">It's in the top-right corner of the home screen</p>
               </div>
             </li>

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import * as LocalAuthentication from 'expo-local-authentication'
 import { useFocusEffect, useRouter } from 'expo-router'
-import { ScanLine } from 'lucide-react-native'
+import { MonitorSmartphone, ScanLine } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Alert, Animated, AppState, BackHandler, FlatList, ImageBackground, RefreshControl, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -964,7 +964,7 @@ function ThreadListHome() {
         rightIcons={[
           serverRunning
             ? { icon: <PulsingServerIcon />, onPress: handleWebPress }
-            : { name: 'qr-code-outline', onPress: handleWebPress },
+            : { icon: <MonitorSmartphone size={24} color={iconColorStrong} />, onPress: handleWebPress },
           { name: 'settings-outline', onPress: handleSettingsPress },
         ]}
       />

@@ -108,7 +108,7 @@ export function HelpPanel({ onClose }: HelpPanelProps) {
           </h5>
           <div className="space-y-2.5">
             <Step number={1} text="Connect your phone and computer to the same Wi-Fi network." />
-            <Step number={2} text="Open LaterBox on your phone and tap the QR icon in the top-right." />
+            <Step number={2} text="Open LaterBox on your phone and tap the Device icon in the top-right." />
             <Step number={3} text="Scan the QR code shown on this screen. Done!" />
           </div>
         </div>
