@@ -434,9 +434,10 @@ public class ExpoLocalServerModule: Module, WebSocketServerDelegate {
     pendingLock.unlock()
 
     for (_, completionBlock) in pending {
-      let response = GCDWebServerDataResponse(text: "Server shutting down")
-      response.statusCode = 503
-      completionBlock(response)
+      if let response = GCDWebServerDataResponse(text: "Server shutting down") {
+        response.statusCode = 503
+        completionBlock(response)
+      }
     }
   }
 
@@ -453,18 +454,14 @@ public class ExpoLocalServerModule: Module, WebSocketServerDelegate {
     // Extract headers
     var headers: [String: String] = [:]
     for (key, value) in request.headers {
-      if let k = key as? String, let v = value as? String {
-        headers[k] = v
-      }
+      headers[key] = value
     }
 
     // Extract query parameters
     var query: [String: String] = [:]
     if let queryDict = request.query {
       for (key, value) in queryDict {
-        if let k = key as? String {
-          query[k] = "\(value)"
-        }
+        query[key] = value
       }
     }
 
@@ -491,8 +488,7 @@ public class ExpoLocalServerModule: Module, WebSocketServerDelegate {
       let pending = self.pendingRequests.removeValue(forKey: requestId)
       self.pendingLock.unlock()
 
-      if let completionBlock = pending {
-        let response = GCDWebServerDataResponse(text: "Request timeout")
+      if let completionBlock = pending, let response = GCDWebServerDataResponse(text: "Request timeout") {
         response.statusCode = 504
         completionBlock(response)
       }
@@ -530,9 +526,10 @@ public class ExpoLocalServerModule: Module, WebSocketServerDelegate {
 
     let url = URL(fileURLWithPath: filePath)
     guard FileManager.default.fileExists(atPath: filePath) else {
-      let response = GCDWebServerDataResponse(text: "File not found")
-      response.statusCode = 404
-      completionBlock(response)
+      if let response = GCDWebServerDataResponse(text: "File not found") {
+        response.statusCode = 404
+        completionBlock(response)
+      }
       return
     }
 
@@ -550,8 +547,7 @@ public class ExpoLocalServerModule: Module, WebSocketServerDelegate {
       }
 
       completionBlock(response)
-    } else {
-      let response = GCDWebServerDataResponse(text: "Failed to read file")
+    } else if let response = GCDWebServerDataResponse(text: "Failed to read file") {
       response.statusCode = 500
       completionBlock(response)
     }
