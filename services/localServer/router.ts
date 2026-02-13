@@ -87,7 +87,7 @@ export class Router {
     }
 
     // Auth check — handshake uses query param token; files allow token in query
-    const isAuthExempt = req.path === '/api/handshake' || req.path.startsWith('/api/files/')
+    const isAuthExempt = req.path === '/api/handshake' || req.path.startsWith('/api/files/') || req.path.startsWith('/web')
     if (!isAuthExempt) {
       const authResult = validateAuth(req.headers['authorization'])
       if (!authResult.authorized) {

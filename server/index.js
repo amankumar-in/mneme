@@ -511,7 +511,12 @@ app.use('/api/verify', verifyRoutes);
 app.use('/api/web-session', webSessionRoutes);
 
 // Serve web client SPA (built into server/public/web by `cd web && npm run build`)
-app.use('/web', express.static(path.join(__dirname, 'public/web')));
+// CORS needed because built HTML has crossorigin on <script type="module"> and <link rel="stylesheet">
+app.use('/web', express.static(path.join(__dirname, 'public/web'), {
+  setHeaders: (res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+  },
+}));
 app.get('/web/*', (req, res) => res.sendFile(path.join(__dirname, 'public/web/index.html')));
 
 // Error handling

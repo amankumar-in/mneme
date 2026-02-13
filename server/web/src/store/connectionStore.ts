@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import axios from 'axios'
 
+declare global {
+  interface Window {
+    __LATERBOX_PRODUCTION__?: string
+  }
+}
+
 export type ConnectionStatus = 'restoring' | 'qr-loading' | 'qr-displayed' | 'connecting' | 'connected' | 'disconnected'
 
 interface ConnectionState {
@@ -22,7 +28,7 @@ interface ConnectionState {
 }
 
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
-  status: localStorage.getItem('laterbox-session') ? 'restoring' : 'qr-loading',
+  status: (localStorage.getItem('laterbox-session') || new URLSearchParams(window.location.search).has('token')) ? 'restoring' : 'qr-loading',
   sessionId: null,
   token: null,
   phoneUrl: null,
@@ -33,6 +39,17 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
   createSession: async () => {
     console.log('[WEB] createSession called')
+
+    // If on the phone's HTTP origin, redirect back to the origin user came from
+    if (window.location.protocol === 'http:') {
+      const productionUrl = localStorage.getItem('laterbox-production-url')
+        || window.__LATERBOX_PRODUCTION__
+      if (productionUrl) {
+        window.location.href = productionUrl
+        return
+      }
+    }
+
     set({ status: 'qr-loading', disconnectReason: null })
     try {
       const res = await axios.post('/api/web-session/create')
@@ -100,6 +117,36 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
   },
 
   restoreSession: async () => {
+    // Check if we arrived from redirect with token in URL (phone's HTTP origin)
+    const urlParams = new URLSearchParams(window.location.search)
+    const urlToken = urlParams.get('token')
+    if (urlToken && window.location.protocol === 'http:') {
+      console.log('[WEB] restoring from URL token on phone origin')
+      set({ status: 'connecting', token: urlToken })
+      try {
+        const phoneUrl = window.location.origin
+        const res = await axios.get(`${phoneUrl}/api/handshake`, {
+          params: { token: urlToken },
+          timeout: 5000,
+        })
+        if (res.status === 200) {
+          localStorage.setItem('laterbox-session', JSON.stringify({ phoneUrl, token: urlToken }))
+          // Save origin for redirect-back: prefer `from` param (actual origin user came from),
+          // fall back to phone-injected value (hardcoded production URL)
+          const from = urlParams.get('from')
+          localStorage.setItem('laterbox-production-url', from || window.__LATERBOX_PRODUCTION__ || '')
+          // Clean params from URL
+          window.history.replaceState({}, '', window.location.pathname)
+          set({ phoneUrl, token: urlToken, status: 'connected', reconnectAttempts: 0 })
+          return
+        }
+      } catch (e) {
+        console.error('[WEB] URL token handshake failed:', e)
+      }
+      // Fall through to existing restore logic
+    }
+
+    // Existing localStorage restore flow (handles page refresh)
     const stored = localStorage.getItem('laterbox-session')
     if (!stored) {
       get().createSession()
@@ -132,21 +179,10 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
     console.log('[WEB] connectToPhone called, ip:', ip, 'port:', port)
     set({ status: 'connecting' })
     const { token } = get()
-    const url = `http://${ip}:${port}/api/handshake`
-    console.log('[WEB] handshake request:', url)
-    try {
-      const res = await axios.get(url, {
-        params: { token },
-        timeout: 10000,
-      })
-      console.log('[WEB] handshake success:', res.status, res.data)
-      const phoneUrl = `http://${ip}:${port}`
-      set({ phoneUrl, status: 'connected', reconnectAttempts: 0 })
-      localStorage.setItem('laterbox-session', JSON.stringify({ phoneUrl, token: get().token }))
-    } catch (err) {
-      console.error('[WEB] handshake failed:', err)
-      set({ status: 'disconnected', disconnectReason: 'handshake_failed' })
-    }
+    // Redirect to phone's local server — SPA will boot on HTTP origin, no mixed content
+    // Pass current origin so disconnect redirects back here, not a hardcoded URL
+    const from = encodeURIComponent(window.location.origin + '/web/')
+    window.location.href = `http://${ip}:${port}/web/?token=${token}&from=${from}`
   },
 
   disconnect: (reason?: string) => {

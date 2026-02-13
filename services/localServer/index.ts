@@ -15,6 +15,7 @@ import { registerNoteRoutes } from './routes/notes'
 import { registerSearchRoutes } from './routes/search'
 import { registerTaskRoutes } from './routes/tasks'
 import { registerFileRoutes } from './routes/files'
+import { registerWebRoutes } from './routes/web'
 import {
   handleWebSocketConnect,
   handleWebSocketDisconnect,
@@ -88,6 +89,7 @@ export async function startLocalServer(db: SQLiteDatabase, sessionToken?: string
   registerFileRoutes(router, (requestId, statusCode, headers, filePath) => {
     ExpoLocalServer.sendFileResponse(requestId, statusCode, headers, filePath)
   })
+  registerWebRoutes(router)
 
   // Start the native HTTP server
   const { url } = await ExpoLocalServer.startServer(port)
