@@ -8,6 +8,12 @@
     "scheme": "laterbox",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "updates": {
+      "url": "https://u.expo.dev/c87db489-f44f-45ff-bec0-2c5e16b0c920"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.xcore.laterbox",

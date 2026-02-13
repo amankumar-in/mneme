@@ -4,7 +4,7 @@ import * as LocalAuthentication from 'expo-local-authentication'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { MonitorSmartphone, ScanLine } from 'lucide-react-native'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, Animated, AppState, BackHandler, FlatList, ImageBackground, RefreshControl, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Alert, Animated, AppState, BackHandler, FlatList, ImageBackground, Pressable, RefreshControl, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Button, Text, XStack, YStack } from 'tamagui'
 
@@ -699,11 +699,12 @@ function ThreadListHome() {
               item.type === 'board' ? (
                 renderBoardRow(item.data, false)
               ) : (
-                <ThreadListItem
-                  thread={item.data}
-                  isSelected={false}
-                  onPress={() => handleThreadPress(item.data)}
-                />
+                <Pressable onPress={() => handleThreadPress(item.data)}>
+                  <ThreadListItem
+                    thread={item.data}
+                    isSelected={false}
+                  />
+                </Pressable>
               )
             }
             ItemSeparatorComponent={() => (

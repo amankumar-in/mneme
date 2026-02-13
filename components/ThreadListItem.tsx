@@ -6,8 +6,6 @@ import type { ThreadWithLastNote } from '../types'
 
 interface ThreadListItemProps {
   thread: ThreadWithLastNote
-  onPress?: () => void
-  onLongPress?: () => void
   isSelected?: boolean
 }
 
@@ -62,7 +60,7 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-export function ThreadListItem({ thread, onPress, onLongPress, isSelected }: ThreadListItemProps) {
+export function ThreadListItem({ thread, isSelected }: ThreadListItemProps) {
   const { warningColor } = useThemeColor()
   const timestamp = thread.lastNote?.timestamp || thread.createdAt
 
@@ -73,10 +71,6 @@ export function ThreadListItem({ thread, onPress, onLongPress, isSelected }: Thr
       gap="$3"
       alignItems="center"
       backgroundColor={isSelected ? '$yellow4' : 'transparent'}
-      pressStyle={{ backgroundColor: '$backgroundHover' }}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      cursor="pointer"
     >
       <XStack width={48} height={48} position="relative">
         {thread.icon && (thread.icon.startsWith('file://') || thread.icon.startsWith('content://')) ? (
